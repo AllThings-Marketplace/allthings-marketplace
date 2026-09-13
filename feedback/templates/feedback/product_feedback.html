@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/feedback.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="details-page-wrapper feedback-wrapper">
+    <div class="details-header feedback-header">
+        <h2 class="section-heading checkout-page-title">Rate Your Purchase</h2>
+        <p class="section-subtitle">Your feedback helps {{ target_user.business_name }} improve.</p>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="summary-card">
+        {% csrf_token %}
+        
+        <!-- Interactive Star Rating -->
+        <div class="form-group rating-group">
+            <label class="rating-label">Overall Rating *</label>
+            <div class="star-rating-container">
+                <input type="radio" name="overall_rating" id="star5" value="5" required>
+                <label for="star5" class="star-label"><i class="fa-solid fa-star"></i></label>
+                
+                <input type="radio" name="overall_rating" id="star4" value="4">
+                <label for="star4" class="star-label"><i class="fa-solid fa-star"></i></label>
+                
+                <input type="radio" name="overall_rating" id="star3" value="3">
+                <label for="star3" class="star-label"><i class="fa-solid fa-star"></i></label>
+                
+                <input type="radio" name="overall_rating" id="star2" value="2">
+                <label for="star2" class="star-label"><i class="fa-solid fa-star"></i></label>
+                
+                <input type="radio" name="overall_rating" id="star1" value="1">
+                <label for="star1" class="star-label"><i class="fa-solid fa-star"></i></label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Public Review *</label>
+            <textarea name="public_review" class="form-control" rows="4" placeholder="What did you like or dislike about this product? This will be visible to everyone." required></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Private Feedback (Optional)</label>
+            <textarea name="private_feedback" class="form-control" rows="2" placeholder="Any private suggestions for the seller?"></textarea>
+            <small class="form-text-muted">This is only visible to the seller and admins.</small>
+        </div>
+
+        <!-- Optional Photo Upload -->
+        <div class="form-group photo-upload-box">
+            <label><i class="fa-solid fa-camera icon-spaced"></i> Attach a Photo (Optional)</label>
+            <input type="file" name="feedback_photo" class="form-control" accept="image/*">
+            <small class="form-text-muted">Show others what you received!</small>
+        </div>
+
+        <button type="submit" class="action-btn btn-success w-100 mt-20">
+            Submit Feedback
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components/modal.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="checkout-header">
+    <h2 class="section-heading checkout-page-title">Secure Checkout</h2>
+    <p class="section-subtitle">Please provide your delivery details to complete your order.</p>
+</div>
+
+<form method="POST" action="{% url 'checkout' %}">
+    {% csrf_token %}
+    
+    {% for product_id in selected_products %}
+        <input type="hidden" name="selected_products" value="{{ product_id }}">
+    {% endfor %}
+    {% for service_id in selected_services %}
+        <input type="hidden" name="selected_services" value="{{ service_id }}">
+    {% endfor %}
+
+    <div class="checkout-container">
+        
+        <div class="summary-card checkout-form-card">
+            <h3 class="checkout-section-title">
+                <i class="fa-solid fa-address-card icon-primary-spaced"></i> Shipping Address
+            </h3>
+            
+            {% if saved_addresses %}
+                <div class="address-options">
+                    {% for address in saved_addresses %}
+                        <label class="address-card {% if forloop.first %}selected{% endif %}">
+                            <input type="radio" name="selected_address" value="{{ address.id }}" class="address-radio" {% if forloop.first %}checked{% endif %}>
+                            <div class="address-details">
+                                <strong>{{ address.first_name }} {{ address.last_name }}</strong>
+                                <p>{{ address.street_address }}</p>
+                                <p>{{ address.region }}</p>
+                                <p>Phone: {{ address.phone }}</p>
+                            </div>
+                        </label>
+                    {% endfor %}
+                    
+                    <label class="address-card" id="new-address-trigger">
+                        <input type="radio" name="selected_address" value="new" class="address-radio">
+                        <div class="address-details">
+                            <strong><i class="fa-solid fa-plus"></i> Add New Address</strong>
+                            <p>Ship to a different location.</p>
+                        </div>
+                    </label>
+                </div>
+            {% else %}
+                <input type="hidden" name="selected_address" value="new">
+            {% endif %}
+
+            <div id="new-address-form" class="{% if not saved_addresses %}force-show-form{% endif %}">
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>First Name *</label>
+                        <input type="text" name="first_name" class="form-control new-address-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name *</label>
+                        <input type="text" name="last_name" class="form-control new-address-input">
+                    </div>
+                </div>
+
+                <div class="form-grid-3">
+                    <div class="form-group">
+                        <label>Phone Number *</label>
+                        <input type="tel" name="phone" class="form-control new-address-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Alt Phone</label>
+                        <input type="tel" name="alt_phone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp</label>
+                        <input type="tel" name="whatsapp" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Region / State *</label>
+                    <input type="text" name="region" class="form-control new-address-input" placeholder="E.g., Rivers State">
+                </div>
+
+                <div class="form-group">
+                    <label>Street Address *</label>
+                    <textarea name="street_address" class="form-control new-address-input" rows="2" placeholder="E.g., 123 Main Street, Phase 2, Port Harcourt"></textarea>
+                </div>
+            </div>
+
+            {% if checkout_jobs %}
+                <h3 class="checkout-section-title service-scheduling-title">
+                    <i class="fa-solid fa-clock icon-success-spaced"></i> Service Scheduling
+                </h3>
+                
+                <div class="form-group">
+                    <label>Preferred Date & Time *</label>
+                    <input type="datetime-local" name="scheduled_time" id="scheduled_time" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Optional Note for Electrician</label>
+                    <textarea name="order_note" class="form-control" rows="2" placeholder="Describe any specific access instructions or issues..."></textarea>
+                </div>
+            {% endif %}
+            
+            <div class="security-notice">
+                <i class="fa-solid fa-shield-halved security-icon"></i>
+                <p>Your personal data is encrypted and securely transmitted. We do not store your credit card information on our servers.</p>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <h3 class="checkout-summary-title">Final Summary</h3>
+            
+            <ul class="checkout-item-list">
+                {% for item in checkout_items %}
+                    <li class="checkout-item-row">
+                        <span class="checkout-item-name">
+                            {{ item.quantity }}x {{ item.product.name }}
+                            {% if item.variant %}
+                                <small class="checkout-variant-text">({{ item.variant.attribute_name }}: {{ item.variant.attribute_value }})</small>
+                            {% endif %}
+                        </span>
+                        <span>NGN {{ item.get_total }}</span>
+                    </li>
+                {% endfor %}
+                {% for job in checkout_jobs %}
+                    <li class="checkout-item-row">
+                        <span>Service: {{ job.service.name }}</span>
+                        <span>NGN {{ job.service.base_price }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <div class="summary-total checkout-summary-total">
+                <span>Total to Pay</span>
+                <span class="checkout-total-price">NGN {{ checkout_total }}</span>
+            </div>
+            
+            <button type="submit" class="action-btn btn-checkout">
+                <i class="fa-solid fa-lock icon-white-spaced"></i> Pay with Paystack
+            </button>
+            
+            <div class="checkout-trust-badge">
+                <span class="checkout-trust-text">SECURED BY PAYSTACK</span>
+            </div>
+        </div>
+        
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/checkout.js' %}"></script>
+{% endblock %}

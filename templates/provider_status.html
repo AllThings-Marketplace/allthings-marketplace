@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.0">
+{% endblock %}
+
+{% block content %}
+<div class="onboarding-header">
+    <h2 class="section-heading checkout-page-title">Provider Verification</h2>
+    <p class="section-subtitle">Complete the stages below to activate your account.</p>
+</div>
+
+<div class="wizard-layout">
+    
+    <!-- DYNAMIC FORM ROUTER -->
+    <div class="summary-card onboarding-card">
+        
+        <!-- STAGE 2: IDENTITY VERIFICATION -->
+        {% if profile.verification_status == 'STAGE_1_BASIC' %}
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="onboarding-step-header">
+                    <h3 class="checkout-section-title onboarding-step-title"><i class="fa-solid fa-id-card icon-spaced"></i> Identity Verification</h3>
+                    <p class="onboarding-step-subtitle">Upload a valid government ID and a live selfie.</p>
+                </div>
+
+                <div class="form-group">
+                    <label>ID Document Type *</label>
+                    <select name="id_type" class="form-control" required>
+                        <option value="">Select ID type...</option>
+                        <option value="NIN">NIN Slip / Card</option>
+                        <option value="DRIVERS">Driver's License</option>
+                        <option value="PASSPORT">International Passport</option>
+                        <option value="VOTERS">Voter's Card</option>
+                    </select>
+                </div>
+                
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Upload ID Document *</label>
+                        <input type="file" name="id_document" class="form-control" accept="image/*,.pdf" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Take Live Selfie *</label>
+                        <input type="file" name="selfie_image" class="form-control" accept="image/*" capture="user" required>
+                    </div>
+                </div>
+                <button type="submit" class="action-btn btn-success btn-full-width">Submit Identity Details</button>
+            </form>
+
+        <!-- STAGE 3: BUSINESS VERIFICATION -->
+        {% elif profile.verification_status == 'STAGE_2_KYC' %}
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="onboarding-step-header">
+                    <h3 class="checkout-section-title onboarding-step-title"><i class="fa-solid fa-briefcase icon-spaced"></i> Business Verification</h3>
+                    <p class="onboarding-step-subtitle">Provide proof that this business exists.</p>
+                </div>
+
+                <div class="form-group">
+                    <label>Business Description *</label>
+                    <textarea name="business_description" class="form-control" rows="3" placeholder="What services or products do you offer?" required></textarea>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>CAC Registration Number (Optional)</label>
+                        <input type="text" name="cac_registration_number" class="form-control" placeholder="RC-123456">
+                    </div>
+                    <div class="form-group">
+                        <label>Business Certificate (Optional)</label>
+                        <input type="file" name="business_certificate" class="form-control" accept="image/*,.pdf">
+                    </div>
+                </div>
+                <button type="submit" class="action-btn btn-success btn-full-width">Submit Business Details</button>
+            </form>
+
+        <!-- STAGE 4: LOCATION VERIFICATION -->
+        {% elif profile.verification_status == 'STAGE_3_BUSINESS' %}
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="onboarding-step-header">
+                    <h3 class="checkout-section-title onboarding-step-title"><i class="fa-solid fa-location-dot icon-spaced"></i> Location Verification</h3>
+                    <p class="onboarding-step-subtitle">Verify your physical operating location.</p>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Region / State *</label>
+                        <input type="text" name="region" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Full Address *</label>
+                        <input type="text" name="store_address" class="form-control" required>
+                    </div>
+                </div>
+
+                <!-- GPS Capture -->
+                <div class="form-group location-capture-box">
+                    <label>Live GPS Coordinates *</label>
+                    <div class="location-input-group">
+                        <input type="text" name="latitude" id="latInput" class="form-control" placeholder="Latitude" readonly required>
+                        <input type="text" name="longitude" id="lonInput" class="form-control" placeholder="Longitude" readonly required>
+                    </div>
+                    <button type="button" id="getLocationBtn" class="action-btn btn-dark">
+                        <i class="fa-solid fa-location-crosshairs"></i> Get Current Location
+                    </button>
+                    <small class="location-help-text">You must be at your shop/office to do this.</small>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Live Shop Exterior Photo *</label>
+                        <input type="file" name="exterior_image" class="form-control" accept="image/*" capture="environment" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Live Shop Interior Photo *</label>
+                        <input type="file" name="interior_image" class="form-control" accept="image/*" capture="environment" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Signboard Photo (Optional)</label>
+                    <input type="file" name="signboard_image" class="form-control" accept="image/*" capture="environment">
+                </div>
+
+                <button type="submit" class="action-btn btn-success btn-full-width">Submit Location Details</button>
+            </form>
+
+        <!-- PENDING ADMIN REVIEW -->
+        {% elif profile.verification_status == 'STAGE_4_LOCATION' %}
+            <div class="review-status-box">
+                <i class="fa-solid fa-hourglass-half review-icon"></i>
+                <h3 class="checkout-section-title" style="margin: 0;">Under Admin Review</h3>
+                <p class="review-text">Your identity, business, and location data have been successfully captured. Our compliance team is reviewing your profile.</p>
+            </div>
+
+        <!-- STAGE 5: PAYOUT SETUP -->
+        {% elif profile.verification_status == 'APPROVED' %}
+            <form method="POST">
+                {% csrf_token %}
+                <div class="onboarding-step-header">
+                    <h3 class="checkout-section-title onboarding-step-title"><i class="fa-solid fa-building-columns icon-spaced"></i> Payout Setup</h3>
+                    <p class="onboarding-step-subtitle">You are approved! Where should we send your earnings?</p>
+                </div>
+
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label>Bank *</label>
+                        <select name="bank_code" id="bankSelect" class="form-control" required>
+                            <option value="">Select your bank...</option>
+                            {% for bank in banks %}
+                                <option value="{{ bank.code }}" data-name="{{ bank.name }}">{{ bank.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="bank_name" id="bankNameInput">
+                    </div>
+                    <div class="form-group">
+                        <label>Account Number *</label>
+                        <input type="text" name="account_number" class="form-control" required maxlength="10">
+                    </div>
+                </div>
+
+                <div class="security-notice notice-center notice-mb">
+                     <i class="fa-solid fa-shield-halved security-icon"></i>
+                     <p>Your bank account name will be verified automatically through Paystack. It must match your registered identity.</p>
+                </div>
+
+                <button type="submit" class="action-btn btn-success btn-full-width">Verify Bank & Activate Account</button>
+            </form>
+        {% endif %}
+    </div>
+
+    <!-- VISUAL TIMELINE -->
+    <div class="summary-card status-card">
+        <h3 class="tracker-title">Progress Tracker</h3>
+        <div class="status-timeline">
+            
+            <div class="timeline-step completed">
+                <div class="step-indicator"><i class="fa-solid fa-check"></i></div>
+                <div class="step-content">
+                    <h4 class="step-title">Basic Details</h4>
+                </div>
+            </div>
+
+            <div class="timeline-step {% if profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED' %}completed{% else %}active{% endif %}">
+                <div class="step-indicator">
+                    {% if profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-id-card"></i>{% endif %}
+                </div>
+                <div class="step-content">
+                    <h4 class="step-title">Identity (KYC)</h4>
+                </div>
+            </div>
+
+            <div class="timeline-step {% if profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED' %}completed{% elif profile.verification_status == 'STAGE_2_KYC' %}active{% endif %}">
+                <div class="step-indicator">
+                    {% if profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-briefcase"></i>{% endif %}
+                </div>
+                <div class="step-content">
+                    <h4 class="step-title">Business Verified</h4>
+                </div>
+            </div>
+
+            <div class="timeline-step {% if profile.verification_status in 'STAGE_4_LOCATION,APPROVED' %}completed{% elif profile.verification_status == 'STAGE_3_BUSINESS' %}active{% endif %}">
+                <div class="step-indicator">
+                    {% if profile.verification_status in 'STAGE_4_LOCATION,APPROVED' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-location-dot"></i>{% endif %}
+                </div>
+                <div class="step-content">
+                    <h4 class="step-title">Location Checked</h4>
+                </div>
+            </div>
+
+            <div class="timeline-step {% if profile.verification_status == 'APPROVED' %}completed{% elif profile.verification_status == 'STAGE_4_LOCATION' %}active{% endif %}">
+                <div class="step-indicator">
+                    {% if profile.verification_status == 'APPROVED' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-magnifying-glass"></i>{% endif %}
+                </div>
+                <div class="step-content">
+                    <h4 class="step-title">Admin Review</h4>
+                </div>
+            </div>
+
+            <div class="timeline-step {% if profile.verification_status == 'APPROVED' %}active{% endif %}">
+                <div class="step-indicator"><i class="fa-solid fa-building-columns"></i></div>
+                <div class="step-content">
+                    <h4 class="step-title">Payouts & Activation</h4>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+{% endblock %}

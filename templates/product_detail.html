@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/product-detail.css' %}?v=4.0">
+{% endblock %}
+
+{% block content %}
+<div class="product-detail-container">
+    
+    <!-- Navigation Breadcrumb -->
+    <nav class="breadcrumb grid-full-width">
+        <a href="{% url 'home' %}">Home</a> &rarr; 
+        <a href="#">{{ product.category.name }}</a> &rarr; 
+        <span>{{ product.name }}</span>
+    </nav>
+
+    <!-- Left Column: Image Gallery -->
+    <div class="product-gallery">
+        <div class="main-image-container">
+            {% if gallery_images %}
+                <img src="{{ gallery_images.first.processed_image.url }}" alt="{{ product.name }}" id="mainProductImage" class="main-image">
+            {% else %}
+                <div class="fallback-image">
+                    <i class="fa-solid fa-image"></i>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Thumbnail Row -->
+        <div class="thumbnail-row">
+            {% for img in gallery_images %}
+                <img src="{{ img.processed_image.url }}" alt="Thumbnail" class="thumbnail {% if forloop.first %}active-thumb{% endif %}" onclick="changeImage(this.src)">
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Right Column: Product Information -->
+    <div class="product-info">
+        <h1 class="product-title">{{ product.name }}</h1>
+        
+        <div class="product-meta">
+            <span class="store-name">Store: {{ product.provider.business_name }}</span>
+            <span class="rating-highlight">
+                <i class="fa-solid fa-star"></i> {{ avg_rating }} 
+                <span class="rating-count">({{ review_count }} reviews)</span>
+            </span>
+        </div>
+
+        <div class="product-price">NGN {{ product.price }}</div>
+        
+        {% if product.stock_count > 0 %}
+            <span class="stock-status in-stock">🟢 In Stock ({{ product.stock_count }} available)</span>
+        {% else %}
+            <span class="stock-status out-of-stock">🔴 Out of Stock</span>
+        {% endif %}
+
+        <!-- Purchase Engine (Variant Support + Add to Cart) -->
+        <form method="POST" action="{% url 'add_to_cart' product.id %}" class="purchase-actions form-mode">
+            {% csrf_token %}
+            
+            {% if variants %}
+            <div class="variant-group">
+                <label for="product-variant" class="variant-label">Available Options:</label>
+                <select name="variant_id" id="product-variant" class="form-control" onchange="updatePrice(this)">
+                    <option value="" data-price="{{ product.price }}">Standard - NGN {{ product.price }}</option>
+                    {% for variant in variants %}
+                        <option value="{{ variant.id }}" data-price="{% if variant.price_override %}{{ variant.price_override }}{% else %}{{ product.price }}{% endif %}">
+                            {{ variant.attribute_name }}: {{ variant.attribute_value }} 
+                            {% if variant.price_override %}(NGN {{ variant.price_override }}){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="purchase-controls">
+                <div class="qty-group">
+                    <label for="quantity">Qty:</label>
+                    <input type="number" name="quantity" id="quantity" value="1" min="1" max="{{ product.stock_count }}" class="form-control qty-input">
+                </div>
+                <button type="submit" class="action-btn btn-primary btn-add-cart">
+                    <i class="fa-solid fa-cart-plus icon-white-spaced requires-auth"></i> Add to Cart
+                </button>
+            </div>
+        </form>
+        
+        <!-- Description -->
+        <div class="product-description">
+            <h3 class="font-600-dark mt-0">About this product</h3>
+            {{ product.description|default:"Premium electrical component designed for durability and optimal performance. Add this to your cart and book a certified electrician for seamless installation." }}
+        </div>
+
+        <!-- Trust Signals -->
+        <div class="trust-badges">
+            <div class="trust-item"><i class="fa-solid fa-truck"></i> <span>Fast Delivery</span></div>
+            <div class="trust-item"><i class="fa-solid fa-shield-halved"></i> <span>Secure Payment</span></div>
+            <div class="trust-item"><i class="fa-solid fa-rotate-left"></i> <span>7-Day Returns</span></div>
+        </div>
+    </div>
+    
+</div>
+
+<!-- Social Proof & Discovery (New Section) -->
+<div class="product-extensions">
+    
+    <!-- Customer Reviews Feed -->
+    <div class="reviews-container">
+        <h3 class="section-heading mt-0">Customer Reviews</h3>
+        {% if recent_reviews %}
+            {% for review in recent_reviews %}
+                <div class="review-card">
+                    <div class="review-header">
+                        <strong>{{ review.customer.username }}</strong>
+                        <span class="rating-highlight"><i class="fa-solid fa-star"></i> {{ review.overall_rating }}</span>
+                    </div>
+                    <p class="text-14-muted mt-0">{{ review.comment }}</p>
+                    <small class="text-12-muted">{{ review.created_at|date:"M d, Y" }}</small>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-14-muted">No reviews yet. Buy this item and be the first to review it!</p>
+        {% endif %}
+    </div>
+
+    <!-- Frequently Bought Together / Related -->
+    {% if related_products %}
+    <div class="recommendations-container">
+        <h3 class="section-heading">You May Also Like</h3>
+        <div class="related-grid">
+            {% for related in related_products %}
+                <a href="{% url 'product_detail' related.slug %}" class="block-link">
+                    <div class="main-image-container mb-10">
+                        {% if related.image %}
+                            <img src="{{ related.image.url }}" alt="{{ related.name }}" class="related-img">
+                        {% else %}
+                            <div class="related-fallback"><i class="fa-solid fa-image"></i></div>
+                        {% endif %}
+                    </div>
+                    <strong>{{ related.name }}</strong>
+                    <div class="rating-highlight mt-5">NGN {{ related.price }}</div>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/cart.js' %}"></script>
+    <script src="{% static 'js/pages/product-detail.js' %}"></script>
+{% endblock %}

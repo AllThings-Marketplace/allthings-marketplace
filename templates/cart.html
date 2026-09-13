@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}">
+{% endblock %}
+
+{% block content %}
+<h2 class="section-heading cart-heading">Your Cart</h2>
+
+{% if order and order.items.all or order.job_bookings.all %}
+    <form method="GET" action="{% url 'checkout' %}" id="cartForm">
+        {% csrf_token %}
+        <div class="checkout-container">
+            
+            <div class="cart-items">
+                <div class="cart-controls">
+                    <label class="select-all-label">
+                        <input type="checkbox" id="selectAllItems" checked>
+                        <span>Select All Items</span>
+                    </label>
+                    <a href="{% url 'clear_cart' %}" class="btn-clear-cart">
+                        <i class="fa-solid fa-trash-can"></i> Clear Cart
+                    </a>
+                </div>
+
+                {% for item in order.items.all %}
+                    <div class="cart-item-row">
+                        <div class="item-info cart-item-flex">
+                            <input type="checkbox" name="selected_products" value="{{ item.id }}" class="item-checkbox" data-price="{{ item.get_total }}" checked>
+                            
+                            {% if item.product.images.first %}
+                                <img src="{{ item.product.images.first.processed_image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
+                            {% else %}
+                                <div class="cart-thumbnail-fallback"><i class="fa-solid fa-image"></i></div>
+                            {% endif %}
+
+                            <div class="cart-item-title-group">
+                                <strong>{{ item.product.name }}</strong>
+                                {% if item.variant %}
+                                    <span class="text-variant-muted">
+                                        ({{ item.variant.attribute_name }}: {{ item.variant.attribute_value }})
+                                    </span>
+                                {% endif %}
+                                
+                                <div class="quantity-control">
+                                    <a href="{% url 'decrease_quantity' item.id %}" class="qty-btn">-</a>
+                                    <span class="qty-display">{{ item.quantity }}</span>
+                                    <a href="{% url 'increase_quantity' item.id %}" class="qty-btn">+</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cart-item-actions">
+                            <strong>NGN {{ item.get_total }}</strong>
+                            <a href="{% url 'remove_item' item.id %}" class="btn-delete"><i class="fa-solid fa-xmark"></i></a>
+                        </div>
+                    </div>
+                {% endfor %}
+
+                {% for job in order.job_bookings.all %}
+                    <div class="cart-item-row">
+                        <div class="item-info cart-item-flex">
+                            <input type="checkbox" name="selected_services" value="{{ job.id }}" class="item-checkbox" data-price="{{ job.service.base_price }}" checked>
+                            <span><strong>{{ job.service.name }}</strong> (Service Call)</span>
+                        </div>
+                        <div class="cart-item-actions">
+                            <strong>NGN {{ job.service.base_price }}</strong>
+                            <a href="{% url 'remove_job' job.id %}" class="btn-delete"><i class="fa-solid fa-xmark"></i></a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="summary-card">
+                <h3 class="summary-heading">Order Summary</h3>
+                <div class="summary-total">
+                    <span>Total</span>
+                    <span id="cartTotalDisplay">NGN {{ order.get_cart_total }}</span>
+                </div>
+                
+                <button type="submit" class="action-btn checkout-btn">
+                    Proceed to Checkout
+                </button>
+            </div>
+            
+        </div>
+    </form>
+
+{% else %}
+    <div class="empty-state-wrapper">
+        <i class="fa-solid fa-cart-arrow-down empty-state-icon"></i>
+        <h3 class="empty-state-title">Your cart is empty</h3>
+        <p class="empty-state-text">Looks like you haven't added any items or booked any services yet.</p>
+        <a href="{% url 'home' %}" class="action-btn">
+            <i class="fa-solid fa-magnifying-glass"></i> Browse Catalog
+        </a>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/cart.js' %}"></script>
+{% endblock %}

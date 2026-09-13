@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}">
+{% endblock %}
+
+{% block content %}
+    <h2 class="section-heading">My Order History</h2>
+
+    {% for order in orders %}
+        <div class="summary-card history-card">
+            
+            <div class="history-card-header">
+                <div>
+                    <h3 class="history-card-title">Order #{{ order.id }}</h3>
+                    <span class="status-badge status-badge-inline">
+                        {{ order.get_status_display }}
+                    </span>
+                </div>
+                
+                <div class="history-actions-right">
+                    <h3 class="history-card-title amount-title">NGN {{ order.total_amount }}</h3>
+                    <a href="{% url 'order_details' order.id %}" class="action-btn action-sm btn-outline">View Order</a>
+                </div>
+            </div>
+            <p class="history-date">Placed on: {{ order.created_at|date:"M d, Y - h:i A" }}</p>
+
+            {% if order.items.exists %}
+                <h4 class="history-section-title">Products Ordered</h4>
+                <ul class="history-item-list">
+                    {% for item in order.items.all %}
+                        <li class="history-item">
+                            <span>{{ item.product.name }}</span>
+                            <span class="history-qty">x{{ item.quantity }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if order.job_bookings.exists %}
+                <h4 class="history-section-title">Service Status</h4>
+                <ul class="history-item-list">
+                    {% for job in order.job_bookings.all %}
+                        <li class="history-item">
+                            <span>{{ job.service.name }}</span>
+                            
+                            <!-- Customer-facing status translations -->
+                            {% if job.status == 'PENDING' %}
+                                <span class="status-badge badge-pending">Finding Professional</span>
+                            {% elif job.status == 'ACCEPTED' %}
+                                <span class="status-badge badge-accepted">Professional Assigned</span>
+                            {% elif job.status == 'EN_ROUTE' %}
+                                <span class="status-badge badge-en-route">Professional En Route</span>
+                            {% elif job.status == 'COMPLETED' %}
+                                <span class="status-badge badge-completed">Service Completed</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+        </div>
+    {% empty %}
+        <div class="empty-state-wrapper">
+            <i class="fa-solid fa-box-open empty-state-icon"></i>
+            <h3 class="empty-state-title">No orders found</h3>
+            <p class="empty-state-text">You haven't placed any orders yet.</p>
+            <a href="{% url 'home' %}" class="action-btn">Browse Catalog</a>
+        </div>
+    {% endfor %}
+{% endblock %}

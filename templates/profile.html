@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/profile.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    
+    <!-- Profile Header Card (The Command Center) -->
+    <div class="summary-card profile-header">
+        <div class="profile-identity">
+            <div class="profile-avatar">
+                {{ request.user.username|make_list|first|upper }}
+            </div>
+            
+            <div>
+                <h2 class="profile-name">{{ request.user.username }}</h2>
+                <p class="profile-email">{{ request.user.email }}</p>
+                
+                <div class="mt-10"> 
+                    {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
+                        <span class="status-badge badge-accepted"><i class="fa-solid fa-store"></i> Verified Provider</span>
+                    {% elif request.user.provider_profile %}
+                        <span class="status-badge badge-pending"><i class="fa-solid fa-spinner fa-spin"></i> Application Pending</span>
+                    {% else %}
+                        <span class="status-badge badge-customer"><i class="fa-solid fa-user"></i> Customer</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-header-actions">
+            <!-- Everyone gets access to their personal purchase history -->
+            <a href="{% url 'order_history' %}" class="action-btn btn-secondary">
+                <i class="fa-solid fa-receipt icon-spaced"></i> Order History
+            </a>
+            
+            <!-- ONLY visible to users who have actually applied to be a provider -->
+            {% if request.user.provider_profile %}
+                <a href="{% url 'provider_dashboard' %}" class="action-btn btn-dark">
+                    <i class="fa-solid fa-briefcase icon-white-spaced"></i> Provider Portal
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Settings Form Card -->
+    <div class="summary-card settings-card">
+        <div class="profile-settings-header">
+            <h3 class="profile-settings-title">Account Settings</h3>
+            <p class="profile-settings-subtitle">Update your contact and delivery information below.</p>
+        </div>
+
+        <form method="POST" class="django-form profile-form-wrapper">
+            {% csrf_token %}
+            
+            {{ form.as_p }}
+            
+            <button type="submit" class="action-btn btn-primary btn-block-lg">
+                <i class="fa-solid fa-floppy-disk icon-white-spaced"></i> Save Changes
+            </button>
+        </form>
+    </div>
+
+    <!-- Provider Ratings & Reviews Section -->
+    {% if request.user.provider_profile %}
+    <div class="summary-card">
+        <div class="provider-rating text-center rating-container">
+            <h2 class="rating-score">{{ avg_rating }}</h2>
+            <div class="star-display-outer">
+                <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                
+                <!-- This dynamic width logic must remain inline to render the exact percentage -->
+                <div class="star-display-inner" style="width: {{ star_percentage }};">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                </div>
+            </div>
+            <p class="rating-meta">Based on {{ review_count }} verified reviews</p>
+        </div>
+
+        <h3 class="profile-settings-title feedback-section-title">Recent Feedback</h3>
+        <div class="transaction-list">
+            {% for review in recent_reviews %}
+                <div class="transaction-item review-item-stack">
+                    <div class="review-header-row">
+                        <strong class="review-author">{{ review.customer.first_name }} {{ review.customer.last_name|slice:":1" }}.</strong>
+                        <span class="review-date">{{ review.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <p class="review-body">{{ review.public_review }}</p>
+                </div>
+            {% empty %}
+                <div class="empty-reviews-state">
+                    <p>No public reviews yet.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/profile.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,224 @@
+/* ==========================================================================
+   PROFILE COMPONENT
+   ========================================================================== */
+.profile-container {
+    max-width: 800px;
+    margin: 40px auto 60px auto;
+}
+
+.profile-header {
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.profile-identity {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.profile-avatar {
+    width: 70px;
+    height: 70px;
+    background-color: #2563eb;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.profile-name {
+    margin: 0;
+    color: #1f2937;
+    font-size: 24px;
+}
+
+.profile-email {
+    margin: 5px 0 0 0;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+.profile-settings-header {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+
+.profile-settings-title {
+    color: #1f2937;
+    margin: 0;
+    font-size: 20px;
+}
+
+.profile-settings-subtitle {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 5px 0 0 0;
+}
+
+.profile-form-wrapper {
+    max-width: 500px;
+}
+
+/* --- Inline Editing Locked State --- */
+.locked-field {
+    background-color: #f8fafc !important;
+    color: #9ca3af !important;
+    border-color: #e5e7eb !important;
+    box-shadow: none !important;
+    cursor: default;
+}
+
+.locked-field:focus {
+    outline: none !important;
+    border-color: #e5e7eb !important;
+}
+
+.input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.edit-pencil {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.edit-pencil:hover, .edit-pencil.active {
+    color: #2563eb;
+}
+
+/* --- Profile Mobile Enhancements --- */
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .profile-actions {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+    
+    .profile-actions .action-btn {
+        width: 100%;
+        text-align: center;
+        box-sizing: border-box;
+    }
+}
+
+.star-display-outer {
+    display: inline-block;
+    position: relative;
+    font-size: 20px;
+    color: #d1d5db; 
+    letter-spacing: 2px;
+}
+
+.star-display-inner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    color: #fbbf24; 
+}
+
+/* --- Profile Header & Buttons --- */
+.profile-header-actions {
+    display: flex; 
+    gap: 10px; 
+    flex-wrap: wrap; 
+    justify-content: flex-end;
+}
+
+.badge-customer {
+    background-color: #f3f4f6; 
+    color: #4b5563;
+}
+
+.btn-block-lg {
+    width: 100%; 
+    margin-top: 20px; 
+    padding: 14px 0; 
+    font-size: 16px;
+}
+
+.settings-card {
+    margin-bottom: 20px;
+}
+
+/* --- Ratings & Feedback UI --- */
+.rating-container {
+    margin-bottom: 40px;
+}
+
+.rating-score {
+    font-size: 32px; 
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+
+.rating-meta {
+    color: #6b7280; 
+    font-size: 13px; 
+    margin-top: 5px;
+}
+
+.feedback-section-title {
+    margin-bottom: 15px; 
+    border-bottom: 1px solid #e5e7eb; 
+    padding-bottom: 10px;
+}
+
+.review-item-stack {
+    flex-direction: column; 
+    align-items: stretch; 
+    gap: 10px;
+}
+
+.review-header-row {
+    display: flex; 
+    justify-content: space-between; 
+    width: 100%;
+}
+
+.review-author {
+    font-weight: 600; 
+    color: #1f2937;
+}
+
+.review-date {
+    font-size: 12px; 
+    color: #6b7280;
+}
+
+.review-body {
+    color: #374151; 
+    font-size: 14px; 
+    margin: 0;
+}
+
+.empty-reviews-state {
+    text-align: center; 
+    padding: 20px; 
+    color: #6b7280; 
+    font-size: 14px;
+}

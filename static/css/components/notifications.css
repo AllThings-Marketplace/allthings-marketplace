@@ -1,0 +1,93 @@
+/* ==========================================================================
+   UTILITIES & STATUS BADGES
+   ========================================================================== */
+.status-badge {
+    padding: 6px 12px; border-radius: 20px; font-size: 12px; 
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.badge-pending { background-color: #fef3c7; color: #d97706; }
+.badge-accepted { background-color: #dbeafe; color: #2563eb; }
+.badge-completed { background-color: #d1fae5; color: #059669; }
+
+/* Toast Notifications */
+.toast-container { position: fixed; top: 80px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+.toast { min-width: 250px; padding: 15px 20px; border-radius: 8px; color: white; font-weight: 500; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); animation: slideIn 0.3s ease-out forwards; }
+.toast-success { background-color: #10b981; }
+.toast-error, .toast-warning { background-color: #ef4444; }
+
+/* --- Premium Empty States --- */
+.empty-state-wrapper {
+    text-align: center;
+    padding: 60px 20px;
+    background-color: #ffffff;
+    border: 2px dashed #e5e7eb; /* A soft dashed border gives a spatial "empty" feel */
+    border-radius: 12px;
+    margin: 40px auto;
+    max-width: 500px;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    color: #f3f4f6; /* Very subtle, light gray */
+    margin-bottom: 20px;
+    display: block;
+}
+
+.empty-state-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-top: 0;
+    margin-bottom: 10px;
+    letter-spacing: -0.5px;
+}
+
+.empty-state-text {
+    font-size: 15px;
+    color: #6b7280;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* --- List Thumbnails --- */
+.list-img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.list-img-fallback {
+    width: 60px;
+    height: 60px;
+    background-color: #f3f4f6;
+    color: #9ca3af;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    text-align: center;
+}
+
+/* --- Badges & Details --- */
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+.badge-en-route { background-color: #8b5cf6; }
+.job-details { color: #4b5563; font-size: 14px; margin-top: 5px; }
+
+/* Order History Header Alignment */
+.status-badge-inline {
+    margin-top: 5px;
+    display: inline-block;
+}

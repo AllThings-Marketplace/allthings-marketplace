@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="main-container feedback-wrapper">
+    <div class="details-header flex-between">
+        <h2 class="section-heading checkout-page-title">Rate Product</h2>
+        <a href="{% url 'order_history' %}" class="action-btn btn-secondary action-sm">Cancel</a>
+    </div>
+
+    <div class="summary-card mt-30 feedback-card">
+        <div class="feedback-item-header">
+            <div>
+                <h3 class="font-600-dark mt-0">{{ item.product.name }}</h3>
+                <p class="text-12-muted mt-5">Purchased from {{ item.product.provider.business_name }}</p>
+            </div>
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label>Overall Rating *</label>
+                <select name="overall_rating" class="form-control" required>
+                    <option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
+                    <option value="4">⭐⭐⭐⭐ - Very Good</option>
+                    <option value="3">⭐⭐⭐ - Average</option>
+                    <option value="2">⭐⭐ - Poor</option>
+                    <option value="1">⭐ - Terrible</option>
+                </select>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Product Quality</label>
+                    <select name="attr_quality" class="form-control">
+                        <option value="5">5 - Flawless</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Average</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Unusable</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>As Described</label>
+                    <select name="attr_described" class="form-control">
+                        <option value="5">5 - Perfectly Accurate</option>
+                        <option value="4">4 - Mostly Accurate</option>
+                        <option value="3">3 - Somewhat Accurate</option>
+                        <option value="2">2 - Not Really</option>
+                        <option value="1">1 - Completely Different</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Public Review *</label>
+                <textarea name="public_review" class="form-control" rows="4" placeholder="Tell others about your experience with this product..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Private Feedback (Optional)</label>
+                <textarea name="private_feedback" class="form-control" rows="2" placeholder="Any private suggestions for the seller?"></textarea>
+                <small class="text-12-muted mt-5">Only the seller will see this.</small>
+            </div>
+
+            <button type="submit" class="action-btn btn-primary w-100 btn-submit-lg">
+                Submit Feedback
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

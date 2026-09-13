@@ -1,0 +1,39 @@
+/* --- static/css/pages/saved_items.css --- */
+.feed-full-width {
+    width: 100%;
+}
+
+.saved-item-actions {
+    gap: 10px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.btn-icon-box {
+    padding: 10px 15px;
+}
+
+/* --- static/css/pages/saved_items.css --- */
+.feed-full-width {
+    width: 100%;
+}
+
+.saved-item-actions {
+    gap: 10px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.btn-icon-box {
+    padding: 10px 15px;
+}
+
+/* New: Forces the add-to-cart button to span the full card width */
+.w-100-block {
+    width: 100%;
+    display: block;
+}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="summary-card" style="max-width: 600px; margin: 40px auto; padding: 30px;">
+    <h2 class="section-heading">Upload Images for {{ product.name }}</h2>
+    <p class="section-subtitle">Select up to 8 images. Our system will automatically remove the background and standardize them for the marketplace.</p>
+
+    <form method="POST" enctype="multipart/form-data" action="{% url 'upload_product_images' product.id %}" style="margin-top: 20px;">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 10px; font-weight: bold;">Select Product Photos</label>
+            <input type="file" name="images" class="form-control" accept="image/png, image/jpeg, image/webp" multiple required>
+        </div>
+
+        <button type="submit" class="action-btn btn-primary" style="margin-top: 20px; width: 100%;">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload and Optimize
+        </button>
+    </form>
+</div>
+{% endblock %}

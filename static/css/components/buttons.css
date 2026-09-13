@@ -1,0 +1,32 @@
+/* --- Global Action Buttons --- */
+.action-btn {
+    background-color: #2563eb; 
+    color: #ffffff;
+    border: none;
+    display: inline-block;
+    text-decoration: none;
+    padding: 10px 20px; 
+    border-radius: 6px; 
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    cursor: pointer;
+}
+.action-btn:hover { background-color: #1d4ed8; }
+.action-btn:active { transform: scale(0.98); }
+.btn-book { background: #2563eb; }
+.btn-add { background: #16a34a; }
+.btn-checkout {
+    display: block; margin-top: 30px; width: 100%; padding: 15px; 
+    background: #10b981; color: white; border: none; font-size: 16px; 
+    border-radius: 4px; cursor: pointer; text-align: center; text-decoration: none;
+}
+
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-added {
+    background-color: #10b981 !important;
+    border-color: #10b981 !important;
+    pointer-events: none;
+}

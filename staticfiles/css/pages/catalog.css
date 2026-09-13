@@ -1,0 +1,151 @@
+/* ==========================================================================
+   MARKETPLACE GRID & SIDEBAR
+   ========================================================================== */
+.marketplace-layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+.category-sidebar {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    position: sticky;
+    top: 100px;
+}
+
+.sidebar-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #1f2937;
+    margin-top: 0;
+    margin-bottom: 15px;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-parent-link {
+    display: block;
+    padding: 8px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.sidebar-parent-link:hover, .sidebar-parent-link.active {
+    color: #2563eb;
+}
+
+/* Subcategory Indentation */
+.sidebar-submenu {
+    list-style: none;
+    padding-left: 15px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border-left: 2px solid #f3f4f6;
+}
+
+.sidebar-child-link {
+    display: block;
+    padding: 6px 0;
+    font-size: 14px;
+    color: #6b7280;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.sidebar-child-link:hover, .sidebar-child-link.active {
+    color: #2563eb;
+}
+
+/* Hide the sidebar completely on mobile screens */
+@media (max-width: 768px) {
+    .marketplace-layout {
+        grid-template-columns: 1fr;
+    }
+    .category-sidebar {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   LAYOUT GRIDS (CATALOG, CART, DASHBOARD)
+   ========================================================================== */
+
+/* --- Card Grid Layout (Homepage Catalog) --- */
+.item-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 20px;
+    list-style: none;
+    padding: 0;
+    margin-bottom: 40px;
+}
+
+.item-list li {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; 
+    gap: 15px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.item-list li:hover {
+    transform: translateY(-4px); 
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08); 
+    border-color: #d1d5db;
+}
+.item-list li .action-btn {
+    width: 100%; text-align: center; padding: 12px 0; border-radius: 8px; font-weight: 600;
+}
+
+.item-info { display: flex; align-items: center; gap: 15px; font-size: 15px; line-height: 1.5; }
+.card-img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; background-color: #f3f4f6; }
+
+/* --- Mobile 2-Column Grid Override --- */
+@media (max-width: 768px) {
+    .item-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 0;
+    }
+    
+    /* Shrinks text to prevent overflow in the tight 2-column layout */
+    .item-info {
+        font-size: 13px; 
+    }
+    
+    /* Scales down the add/book buttons to fit the smaller cards */
+    .item-list li .action-btn.btn-add, 
+    .item-list li .action-btn.btn-book {
+        font-size: 12px;
+        padding: 8px;
+    }
+}
+
+/* Update this specific block inside the media query */
+    .item-list li .action-btn.btn-add, 
+    .item-list li .action-btn.btn-book {
+        font-size: 13px;
+        padding: 10px;
+        width: 100%;
+        display: block;
+        box-sizing: border-box; /* Forces padding to stay inside the width */
+        margin: 0 auto;
+        text-align: center;
+    }

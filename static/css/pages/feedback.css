@@ -1,0 +1,59 @@
+/* --- Interactive Star Rating --- */
+.star-rating-container {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.star-rating-container input {
+    display: none; 
+}
+
+.star-label {
+    font-size: 32px;
+    color: #d1d5db; 
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.1s ease;
+}
+
+/* Fill stars on hover, previous siblings, and checked states */
+.star-label:hover,
+.star-label:hover ~ .star-label,
+.star-rating-container input:checked ~ .star-label {
+    color: #fbbf24; 
+}
+
+.star-label:active {
+    transform: scale(0.9);
+}
+
+/* --- Feedback Form Layout --- */
+.feedback-wrapper {
+    max-width: 600px; 
+    margin: 40px auto;
+}
+
+.feedback-header {
+    text-align: center; 
+    margin-bottom: 30px;
+}
+
+.rating-group {
+    text-align: center; 
+    margin-bottom: 30px;
+}
+
+.rating-label {
+    font-size: 18px; 
+    color: #1f2937; 
+    margin-bottom: 15px; 
+    display: block;
+}
+
+.photo-upload-box {
+    background-color: #f8fafc; 
+    padding: 15px; 
+    border-radius: 8px; 
+    margin-top: 20px;
+}

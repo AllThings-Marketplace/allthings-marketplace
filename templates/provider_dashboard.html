@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">{{ profile.business_name }}</h2>
+        <p class="section-subtitle">Provider Dashboard</p>
+    </div>
+    
+    <div class="dashboard-actions">
+        {% if profile.provider_type == 'VENDOR' or profile.provider_type == 'BOTH' %}
+            <a href="{% url 'vendor_orders' %}" class="action-btn action-sm"><i class="fa-solid fa-box-archive icon-white-spaced"></i> Store Orders</a>
+            <a href="{% url 'add_product' %}" class="action-btn action-sm"><i class="fa-solid fa-plus icon-white-spaced"></i> Add Product</a>
+        {% endif %}
+        
+        {% if profile.provider_type == 'SERVICE' or profile.provider_type == 'BOTH' %}
+            <a href="{% url 'available_jobs' %}" class="action-btn btn-primary action-sm"><i class="fa-solid fa-briefcase icon-white-spaced"></i> Find Jobs</a>
+        {% endif %}
+        
+        <a href="#withdrawal-section" class="action-btn btn-outline action-sm">Withdraw Funds</a>
+    </div>
+</div>
+
+<!-- Financial KPI Cards -->
+<div class="kpi-grid">
+    <div class="summary-card kpi-card">
+        <div class="kpi-icon-wrapper success-bg">
+            <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div>
+            <p class="kpi-label">Available for Withdrawal</p>
+            <h3 class="kpi-value">NGN {{ wallet.available_balance }}</h3>
+        </div>
+    </div>
+
+    <div class="summary-card kpi-card">
+        <div class="kpi-icon-wrapper pending-bg">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+        <div>
+            <p class="kpi-label">Pending in Escrow</p>
+            <h3 class="kpi-value text-muted">NGN {{ wallet.pending_balance }}</h3>
+        </div>
+    </div>
+
+    <div class="summary-card kpi-card">
+        <div class="kpi-icon-wrapper neutral-bg">
+            <i class="fa-solid fa-money-bill-trend-up"></i>
+        </div>
+        <div>
+            <p class="kpi-label">Lifetime Earnings</p>
+            <h3 class="kpi-value">NGN {{ wallet.total_withdrawn }}</h3>
+        </div>
+    </div>
+</div>
+
+{% if profile.provider_type in 'SERVICE,BOTH' %}
+<h3 class="checkout-section-title mt-40">My Active Assignments</h3>
+<div class="transaction-list">
+    {% if my_jobs %}
+        {% for job in my_jobs %}
+            <div class="transaction-item" style="flex-direction: column; align-items: stretch; gap: 15px;">
+                <div class="flex-between w-100">
+                    <div>
+                        <span class="font-600-dark" style="font-size: 16px;">{{ job.service.name }}</span>
+                        <span class="text-12-muted block mt-5">Client: {{ job.order.first_name }} {{ job.order.last_name }} | <i class="fa-solid fa-phone"></i> {{ job.order.phone }}</span>
+                        <span class="text-12-muted block mt-5"><i class="fa-solid fa-location-dot"></i> {{ job.service_address }}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="font-700-block text-blue mb-5">NGN {{ job.service.base_price }}</span>
+                        <span class="status-badge {% if job.status == 'COMPLETED' %}badge-completed{% else %}badge-pending{% endif %} badge-sm">
+                            {{ job.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Action Controls -->
+                <div class="w-100" style="border-top: 1px solid #f3f4f6; padding-top: 15px;">
+                    {% if job.status == 'ACCEPTED' %}
+                        <form method="POST" action="{% url 'update_job_status' job.id 'IN_PROGRESS' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="action-btn btn-primary action-sm">Start Work</button>
+                        </form>
+                    {% elif job.status == 'IN_PROGRESS' %}
+                        <form method="POST" action="{% url 'verify_job_completion' job.id %}" class="otp-input-group mt-0">
+                            {% csrf_token %}
+                            <input type="text" name="completion_code" class="form-control otp-input" placeholder="6-Digit PIN" maxlength="6" required>
+                            <button type="submit" class="action-btn btn-success action-sm">Verify Completion</button>
+                        </form>
+                        <p class="text-12-muted mt-5"><i class="fa-solid fa-circle-info"></i> Ask the client for their 6-digit completion PIN to release your payment.</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="fa-solid fa-screwdriver-wrench empty-state-icon"></i>
+            <p>You have no active jobs. Check the available jobs board!</p>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<h3 class="checkout-section-title mt-40">My Product Submissions</h3>
+<div class="summary-card p-0 mb-40">
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price & Stock</th>
+                    <th>Status</th>
+                    <th>Moderator Feedback</th>
+                    <th>Actions</th> <!-- NEW HEADER -->
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in profile.products.all %}
+                    <tr>
+                        <td>
+                            <span class="font-600-dark display-block">{{ item.name }}</span>
+                            <span class="text-12-muted">{{ item.category.name }}</span>
+                        </td>
+                        <td>
+                            <span class="display-block">NGN {{ item.price }}</span>
+                            <span class="text-12-muted">Stock: {{ item.stock_count }}</span>
+                        </td>
+                        <td>
+                            <span class="status-badge 
+                                {% if item.status == 'APPROVED' %}badge-completed
+                                {% elif item.status == 'REJECTED' %}badge-danger
+                                {% else %}badge-pending{% endif %}">
+                                {{ item.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if item.moderation_note %}
+                                <span class="feedback-alert"><i class="fa-solid fa-triangle-exclamation"></i> {{ item.moderation_note }}</span>
+                            {% else %}
+                                <span class="text-12-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <!-- NEW ACTION COLUMN -->
+                        <td>
+                            <a href="{% url 'upload_product_images' item.id %}" class="action-btn btn-outline action-sm">
+                                <i class="fa-solid fa-camera"></i> Photos
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="table-empty-cell">No products submitted yet.</td> <!-- Updated to colspan 5 -->
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Withdrawal Form Section -->
+<div id="withdrawal-section" class="summary-card mt-40">
+    <div class="profile-settings-header">
+        <h3 class="profile-settings-title"><i class="fa-solid fa-money-bill-transfer icon-spaced" style="color: #2563eb;"></i> Request Withdrawal</h3>
+        <p class="profile-settings-subtitle">Funds will be sent to {{ profile.bank_name }} ({{ profile.account_number }}).</p>
+    </div>
+
+    <form method="POST" action="{% url 'request_payout' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label style="font-weight: 600; font-size: 14px; color: #374151;">Amount to Withdraw (NGN) *</label>
+            <div class="withdrawal-form-group">
+                {% if can_withdraw %}
+                    <input type="number" name="amount" class="form-control" step="0.01" min="100" max="{{ wallet.available_balance }}" placeholder="0.00" required>
+                    <button type="submit" class="action-btn btn-success text-nowrap">
+                        Submit Request
+                    </button>
+                {% else %}
+                    <input type="text" class="form-control" placeholder="Locked" disabled>
+                    <button type="button" class="action-btn btn-disabled text-nowrap" disabled>
+                        Locked ({{ days_left }} Days Left)
+                    </button>
+                {% endif %}
+            </div>
+            
+            {% if can_withdraw %}
+                <small class="form-text-muted">Available Balance: NGN {{ wallet.available_balance|floatformat:2 }}</small>
+            {% else %}
+                <small class="warning-text-block">
+                    <i class="fa-solid fa-lock" style="margin-right: 5px;"></i> 
+                    You can only withdraw once per week. Your next payout unlocks in {{ days_left }} day(s).
+                </small>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Recent Ledger Activity -->
+<h3 class="checkout-section-title mt-40">Recent Transactions</h3>
+<div class="transaction-list">
+    {% if recent_transactions %}
+        {% for txn in recent_transactions %}
+            <div class="transaction-item">
+                <div class="transaction-info">
+                    <span class="transaction-title">
+                        {% if txn.transaction_type == 'PAYOUT' %}
+                            <i class="fa-solid fa-building-columns icon-spaced"></i>
+                        {% else %}
+                            <i class="fa-solid fa-cart-shopping icon-spaced"></i>
+                        {% endif %}
+                        {{ txn.get_transaction_type_display }}
+                    </span>
+                    <span class="transaction-meta">{{ txn.created_at|date:"M d, Y - h:i A" }} | {{ txn.reference }}</span>
+                </div>
+                <div class="transaction-amount-status">
+                    <span class="{% if txn.transaction_type == 'PAYOUT' %}amount-negative{% else %}amount-positive{% endif %}">
+                        {% if txn.transaction_type == 'PAYOUT' %}-{% else %}+{% endif %} NGN {{ txn.net_amount }}
+                    </span>
+                    <span class="status-badge {% if txn.status == 'CLEARED' or txn.status == 'COMPLETED' %}badge-completed{% else %}badge-pending{% endif %} badge-sm">
+                        {{ txn.get_status_display }}
+                    </span>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>No transactions yet. Start selling or providing services to see your balance grow!</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+{% endblock %}

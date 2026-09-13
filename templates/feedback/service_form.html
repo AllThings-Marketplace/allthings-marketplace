@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="main-container feedback-wrapper">
+    <div class="details-header flex-between">
+        <h2 class="section-heading checkout-page-title">Rate Service</h2>
+        <a href="{% url 'order_history' %}" class="action-btn btn-secondary action-sm">Cancel</a>
+    </div>
+
+    <div class="summary-card mt-30 feedback-card">
+        <div class="feedback-item-header">
+            <div>
+                <h3 class="font-600-dark mt-0">{{ job.service.name }}</h3>
+                <p class="text-12-muted mt-5">Performed by {{ job.provider.provider_profile.business_name }}</p>
+            </div>
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label>Overall Rating *</label>
+                <select name="overall_rating" class="form-control" required>
+                    <option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
+                    <option value="4">⭐⭐⭐⭐ - Very Good</option>
+                    <option value="3">⭐⭐⭐ - Average</option>
+                    <option value="2">⭐⭐ - Poor</option>
+                    <option value="1">⭐ - Terrible</option>
+                </select>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Professionalism</label>
+                    <select name="attr_professionalism" class="form-control">
+                        <option value="5">5 - Highly Professional</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Average</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Unprofessional</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quality of Work</label>
+                    <select name="attr_quality" class="form-control">
+                        <option value="5">5 - Flawless</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Average</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Unacceptable</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Punctuality</label>
+                    <select name="attr_punctuality" class="form-control">
+                        <option value="5">5 - On Time</option>
+                        <option value="4">4 - Slightly Late</option>
+                        <option value="3">3 - Noticeably Late</option>
+                        <option value="2">2 - Very Late</option>
+                        <option value="1">1 - Didn't Show Up</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Communication</label>
+                    <select name="attr_communication" class="form-control">
+                        <option value="5">5 - Excellent</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Average</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Unresponsive</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Public Review *</label>
+                <textarea name="public_review" class="form-control" rows="4" placeholder="Tell others about your experience with this professional..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Private Feedback (Optional)</label>
+                <textarea name="private_feedback" class="form-control" rows="2" placeholder="Any private suggestions for the professional?"></textarea>
+                <small class="text-12-muted mt-5">Only the professional will see this.</small>
+            </div>
+
+            <button type="submit" class="action-btn btn-primary w-100 btn-submit-lg">
+                Submit Feedback
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

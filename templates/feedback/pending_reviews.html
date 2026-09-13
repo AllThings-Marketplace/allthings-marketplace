@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/saved_items.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between mb-40">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">Pending Reviews</h2>
+        <p class="section-subtitle text-muted mt-0">Help others by sharing your experience.</p>
+    </div>
+</div>
+
+<main class="feed-full-width">
+    
+    {% if pending_products or pending_services %}
+        <ul class="item-list">
+            
+            <!-- Pending Product Reviews -->
+            {% for item in pending_products %}
+                <li class="product-card-wrapper">
+                    <a href="{% url 'product_detail' item.product.slug %}" class="block-link">
+                        {% if item.product.image %}
+                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img">
+                        {% else %}
+                            <div class="card-img flex-center-muted"><i class="fa-solid fa-box icon-32"></i></div>
+                        {% endif %}
+                    </a>
+                    
+                    <div class="card-info-layout">
+                        <div class="card-text-col">
+                            <span class="badge-sm text-primary-blue font-600-dark block-mb-5">Product</span>
+                            <a href="{% url 'product_detail' item.product.slug %}" class="item-info block-link">
+                                <strong>{{ item.product.name }}</strong>
+                            </a>
+                            <span class="text-12-muted block-mt-10">Purchased on {{ item.order.created_at|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'product_feedback' item.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
+                        <i class="fa-solid fa-pen-to-square"></i> Write a Review
+                    </a>
+                </li>
+            {% endfor %}
+
+            <!-- Pending Service Reviews -->
+            {% for job in pending_services %}
+                <li class="product-card-wrapper" style="border-top: 4px solid #2563eb;">
+                    <div class="block-link">
+                        {% if job.service.image %}
+                            <img src="{{ job.service.image.url }}" alt="{{ job.service.name }}" class="card-img">
+                        {% else %}
+                            <div class="card-img flex-center-muted"><i class="fa-solid fa-screwdriver-wrench icon-32"></i></div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="card-info-layout">
+                        <div class="card-text-col">
+                            <span class="badge-sm text-yellow font-600-dark block-mb-5">Service</span>
+                            <strong class="item-info block-link">{{ job.service.name }}</strong>
+                            <span class="text-12-muted block-mt-10">Completed on {{ job.order.created_at|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+
+                    <a href="{% url 'service_feedback' job.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
+                        <i class="fa-solid fa-pen-to-square"></i> Rate Service
+                    </a>
+                </li>
+            {% endfor %}
+
+        </ul>
+    {% else %}
+        <div class="empty-state-wrapper empty-state-lg">
+            <i class="fa-solid fa-clipboard-check empty-state-icon text-muted"></i>
+            <h3 class="empty-state-title">You're all caught up!</h3>
+            <p class="empty-state-text">You have no pending reviews at this time. Check back after your next purchase.</p>
+            <a href="{% url 'home' %}" class="action-btn btn-primary mt-20">Continue Shopping</a>
+        </div>
+    {% endif %}
+
+</main>
+{% endblock %}

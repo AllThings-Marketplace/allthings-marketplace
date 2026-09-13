@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">Available Jobs</h2>
+        <p class="section-subtitle">Browse and accept open service requests in your area.</p>
+    </div>
+    <div class="dashboard-actions">
+        <a href="{% url 'provider_dashboard' %}" class="action-btn btn-outline action-sm">Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="transaction-list mt-40">
+    {% if jobs %}
+        {% for job in jobs %}
+            <div class="transaction-item" style="flex-direction: column; align-items: stretch; gap: 15px;">
+                
+                <!-- Job Information Row -->
+                <div class="flex-between w-100" style="flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <span class="font-600-dark" style="font-size: 16px;">{{ job.service.name }}</span>
+                        <span class="text-12-muted block mt-5">Order #{{ job.order.id }}</span>
+                        
+                        <span class="text-12-muted block mt-5">
+                            <i class="fa-solid fa-location-dot icon-spaced"></i> {{ job.order.first_name }} {{ job.order.last_name }} — {{ job.service_address }}
+                        </span>
+                        
+                        {% if job.order_note %}
+                            <span class="text-12-muted block mt-5" style="color: #d97706; background-color: #fef3c7; padding: 6px 10px; border-radius: 4px; display: inline-block;">
+                                <i class="fa-solid fa-note-sticky icon-spaced"></i> Note: {{ job.order_note }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div style="text-align: right;">
+                        <span class="font-700-block text-blue mb-5" style="font-size: 18px;">NGN {{ job.service.base_price }}</span>
+                        
+                        {% if job.scheduled_time %}
+                            <span class="status-badge badge-pending badge-sm">
+                                <i class="fa-regular fa-clock icon-spaced"></i> {{ job.scheduled_time|date:"M d, g:i A" }}
+                            </span>
+                        {% else %}
+                            <span class="status-badge badge-completed badge-sm">
+                                <i class="fa-solid fa-bolt icon-spaced"></i> ASAP
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Action Controls Row -->
+                <div class="w-100" style="border-top: 1px solid #f3f4f6; padding-top: 15px;">
+                    <form method="POST" action="{% url 'accept_job' job.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="action-btn btn-success action-sm w-100" style="font-size: 14px; padding: 12px;">
+                            <i class="fa-solid fa-check icon-spaced"></i> Accept Job
+                        </button>
+                    </form>
+                </div>
+                
+            </div>
+        {% endfor %}
+    {% else %}
+        <!-- Premium Empty State -->
+        <div class="empty-state-wrapper" style="margin: 20px;">
+            <i class="fa-solid fa-toolbox empty-state-icon"></i>
+            <h3 class="empty-state-title">No Available Jobs</h3>
+            <p class="empty-state-text">There are currently no open service requests in your area. Check back later!</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

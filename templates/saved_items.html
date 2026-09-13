@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <!-- Import the grid and card styles from the main marketplace -->
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/home.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/saved_items.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between mb-40">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">Saved Items</h2>
+        <p class="section-subtitle text-muted mt-0">Products you're keeping an eye on.</p>
+    </div>
+    <a href="{% url 'home' %}" class="action-btn btn-outline action-sm">Continue Shopping</a>
+</div>
+
+<main class="marketplace-feed feed-full-width">
+    {% if saved_items %}
+        <ul class="item-list">
+            {% for item in saved_items %}
+                <li class="product-card-wrapper" id="saved-item-card-{{ item.product.id }}">
+                    <a href="{% url 'product_detail' item.product.slug %}" class="block-link">
+                        {% if item.product.image %}
+                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img">
+                        {% else %}
+                            <div class="card-img flex-center-muted"><i class="fa-solid fa-bolt icon-32"></i></div>
+                        {% endif %}
+                    </a>
+                    
+                    <!-- Information Layout -->
+                    <div class="card-info-layout">
+                        <div class="card-text-col">
+                            <a href="{% url 'product_detail' item.product.slug %}" class="item-info block-link">
+                                <strong>{{ item.product.name }}</strong>
+                            </a>
+                            <strong class="block-mt-10 card-price">NGN {{ item.product.price }}</strong>
+                        </div>
+                        
+                        <!-- The Remove (Trash) Button -->
+                        <div class="card-action-col">
+                            <button class="action-btn btn-icon-only toggle-save-btn requires-auth" data-product-id="{{ item.product.id }}" aria-label="Remove Item">
+                                <i class="fa-solid fa-trash text-danger"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Full-Width Add to Cart Button -->
+                    <a href="{% url 'add_to_cart' item.product.id %}" class="action-btn btn-add ajax-cart-btn mt-10 text-center w-100-block requires-auth">
+                        Add to Cart
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <div class="empty-state-wrapper empty-state-lg">
+            <i class="fa-regular fa-heart empty-state-icon text-muted"></i>
+            <h3 class="empty-state-title">Your wishlist is empty</h3>
+            <p class="empty-state-text">Explore the marketplace and save items you love.</p>
+            <a href="{% url 'home' %}" class="action-btn btn-primary mt-20">Start Exploring</a>
+        </div>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/cart.js' %}"></script>
+    <script src="{% static 'js/pages/saved_items.js' %}"></script>
+{% endblock %}

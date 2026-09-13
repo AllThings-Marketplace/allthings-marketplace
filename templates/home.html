@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/home.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}">
+{% endblock %}
+
+{% block content %}
+    <!-- Dynamic Slider Section -->
+    <div class="promo-slider" id="homeSlider">
+        
+        <!-- The sliding track containing the banners -->
+        <div class="slider-track" id="sliderTrack">
+            {% for banner in banners %}
+                <a href="{% if banner.link %}{{ banner.link }}{% else %}#{% endif %}" class="slide">
+                    {% if banner.image %}
+                        <picture>
+                            <!-- If screen is mobile (max-width 768px) AND a mobile image exists, use this -->
+                            {% if banner.mobile_image %}
+                                <source media="(max-width: 768px)" srcset="{{ banner.mobile_image.url }}">
+                            {% endif %}
+                            
+                            <!-- Default to the desktop image for all other screens (or as a fallback) -->
+                            <img src="{{ banner.image.url }}" class="slide-bg-img" alt="{{ banner.title }}">
+                        </picture>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
+
+        <!-- Manual Controls -->
+        <button class="slider-btn prev-btn" id="prevBtn"><i class="fa-solid fa-chevron-left"></i></button>
+        <button class="slider-btn next-btn" id="nextBtn"><i class="fa-solid fa-chevron-right"></i></button>
+
+        <!-- Interactive Dots -->
+        <div class="slider-dots" id="sliderDots">
+            {% for banner in banners %}
+                <span class="dot {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}"></span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="marketplace-layout">
+        <!-- Left Sidebar -->
+        <aside class="category-sidebar">
+            <h3 class="sidebar-title">Categories</h3>
+            <ul class="sidebar-menu">
+                <li><a href="{% url 'home' %}" class="sidebar-parent-link {% if not current_category %}active{% endif %}">All Categories</a></li>
+                {% for cat in categories %}
+                    {% if not cat.parent %}
+                        <li>
+                            <a href="{% url 'home' %}?category={{ cat.id }}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">{{ cat.name }}</a>
+                            {% if cat.subcategories.all %}
+                                <ul class="sidebar-submenu">
+                                    {% for sub in cat.subcategories.all %}
+                                        <li><a href="{% url 'home' %}?category={{ sub.id }}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">{{ sub.name }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </aside>
+
+        <!-- Right Feed -->
+        <main class="marketplace-feed">
+            {% if not user.is_authenticated %}
+                <div class="promo-banner">
+                    <h3>New to All Things?</h3>
+                    <p>Create an account to track orders and save your favorite items.</p>
+                    <a href="{% url 'register' %}" class="promo-btn">Join for Free</a>
+                </div>
+            {% endif %}
+
+            {% if query %}
+                <p class="text-12-muted mt-0 mb-20">Showing results for "<strong>{{ query }}</strong>"</p>
+            {% endif %}
+
+            {% if services %}
+                <h3 class="section-heading mt-0">Available Services</h3>
+                <ul class="item-list">
+                    {% for service in services %}
+                        <li>
+                            <div class="item-info">
+                                {% if service.image %}
+                                    <img src="{{ service.image.url }}" alt="{{ service.name }}" class="list-img">
+                                {% else %}
+                                    <div class="list-img-fallback">No Img</div>
+                                {% endif %}
+                                <span><strong>{{ service.name }}</strong> - NGN {{ service.base_price }}</span>
+                            </div>
+                            <a href="{% url 'book_service' service.id %}" class="action-btn btn-book requires-auth">Book Now</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if products %}
+                <h3 class="section-heading {% if not services %}mt-0{% endif %}">Available Products</h3>
+                <ul class="item-list">
+                    {% for product in products %}
+                        <li class="product-card-wrapper">
+                            <a href="{% url 'product_detail' product.slug %}" class="block-link">
+                                <!-- UPDATED: Using prefetched images from the new model -->
+                                {% if product.images.first %}
+                                    <img src="{{ product.images.first.processed_image.url }}" alt="{{ product.name }}" class="card-img">
+                                {% else %}
+                                    <div class="card-img flex-center-muted"><i class="fa-solid fa-bolt icon-32"></i></div>
+                                {% endif %}
+                            </a>
+                            
+                            <!-- Information Layout -->
+                            <div class="card-info-layout">
+                                <div class="card-text-col">
+                                    <a href="{% url 'product_detail' product.slug %}" class="item-info block-link"><strong>{{ product.name }}</strong></a>
+                                    <strong class="block-mt-10 card-price">NGN {{ product.price }}</strong>
+                                </div>
+                                
+                                <!-- The Heart Button -->
+                                <div class="card-action-col">
+                                    {% if user.is_authenticated %}
+                                        <button class="action-btn btn-icon-only  requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
+                                            {% if product.id in saved_product_ids %}
+                                                <i class="fa-solid fa-heart text-danger"></i>
+                                            {% else %}
+                                                <i class="fa-regular fa-heart text-muted"></i>
+                                            {% endif %}
+                                        </button>
+                                    {% else %}
+                                        <a href="{% url 'login' %}" class="action-btn btn-icon-only" aria-label="Login to Save">
+                                            <i class="fa-regular fa-heart text-muted"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Star Ratings Row -->
+                            <div class="card-rating-row mt-5">
+                                <div class="rating-stars text-yellow flex-align-center" style="gap: 5px;">
+                                    <i class="fa-solid fa-star"></i>
+                                    <span class="font-600-dark">
+                                        {{ product.avg_rating|default_if_none:"0.0"|floatformat:1 }}
+                                    </span>
+                                </div>
+                                
+                                <span class="text-12-muted">
+                                    {% if product.review_count > 0 %}
+                                        ({{ product.review_count }} review{{ product.review_count|pluralize }})
+                                    {% else %}
+                                        (No reviews)
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <!-- AJAX Cart Class Added Here -->
+                            <a href="{% url 'add_to_cart' product.id %}" class="action-btn btn-add ajax-cart-btn mt-1 requires-auth">Add to Cart</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if not services and not products %}
+                <div class="empty-state-wrapper empty-state-lg">
+                    <i class="fa-solid fa-sparkles empty-state-icon text-yellow"></i>
+                    <h3 class="empty-state-title">We're curating this section!</h3>
+                    <p class="empty-state-text">Check back soon for new items. In the meantime, here is what's trending.</p>
+                </div>
+                
+                <h3 class="section-heading">You May Also Like</h3>
+                <ul class="item-list">
+                    {% for product in recommended %}
+                        <li class="product-card-wrapper">
+                            <a href="{% url 'product_detail' product.slug %}" class="block-link">
+                                <!-- UPDATED: Using prefetched images from the new model -->
+                                {% if product.images.first %}
+                                    <img src="{{ product.images.first.processed_image.url }}" alt="{{ product.name }}" class="card-img">
+                                {% else %}
+                                    <div class="card-img flex-center-muted"><i class="fa-solid fa-star icon-32"></i></div>
+                                {% endif %}
+                            </a>
+                            
+                            <!-- Information Layout -->
+                            <div class="card-info-layout">
+                                <div class="card-text-col">
+                                    <a href="{% url 'product_detail' product.slug %}" class="item-info block-link"><strong>{{ product.name }}</strong></a>
+                                    <strong class="block-mt-10 card-price">NGN {{ product.price }}</strong>
+                                </div>
+                                
+                                <!-- The Heart Button -->
+                                <div class="card-action-col">
+                                    {% if user.is_authenticated %}
+                                        <button class="action-btn btn-icon-only toggle-save-btn requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
+                                            {% if product.id in saved_product_ids %}
+                                                <i class="fa-solid fa-heart text-danger"></i>
+                                            {% else %}
+                                                <i class="fa-regular fa-heart text-muted"></i>
+                                            {% endif %}
+                                        </button>
+                                    {% else %}
+                                        <a href="{% url 'login' %}" class="action-btn btn-icon-only" aria-label="Login to Save">
+                                            <i class="fa-regular fa-heart text-muted"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Dynamic Star Ratings Row -->
+                            <div class="card-rating-row mt-5">
+                                <div class="rating-stars text-yellow flex-align-center" style="gap: 5px;">
+                                    <i class="fa-solid fa-star"></i>
+                                    <span class="font-600-dark">
+                                        {{ product.avg_rating|default_if_none:"0.0"|floatformat:1 }}
+                                    </span>
+                                </div>
+                                
+                                <span class="text-12-muted">
+                                    {% if product.review_count > 0 %}
+                                        ({{ product.review_count }} review{{ product.review_count|pluralize }})
+                                    {% else %}
+                                        (No reviews)
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <!-- AJAX Cart Class Added Here -->
+                            <a href="{% url 'add_to_cart' product.id %}" class="action-btn btn-add ajax-cart-btn mt-10 requires-auth">Add to Cart</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </main>
+    </div>
+    
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/home.js' %}"></script>
+    <script src="{% static 'js/pages/cart.js' %}"></script>
+    <!-- Injection of the new AJAX wishlist logic -->
+    <script src="{% static 'js/pages/saved_items.js' %}"></script>
+{% endblock %}

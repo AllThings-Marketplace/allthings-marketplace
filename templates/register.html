@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 40px auto 50px auto;">
+    <div class="summary-card">
+        <h2 style="color: #1f2937; margin-top: 0; text-align: center;">Create an Account</h2>
+        
+        <form method="POST" class="django-form" style="margin-top: 20px;">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="action-btn" style="width: 100%; margin-top: 15px; padding: 15px 0; font-size: 16px;">
+                Sign Up
+            </button>
+        </form>
+        
+        <p style="text-align: center; margin-top: 25px; color: #6b7280; font-size: 14px;">
+            Already have an account? <a href="{% url 'login' %}" style="color: #2563eb; font-weight: 600; text-decoration: none;">Log In</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
