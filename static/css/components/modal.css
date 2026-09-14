@@ -80,4 +80,10 @@
 
 /* --- Auth Guard Modal Specifics --- */
 .auth-modal-icon { color: #2563eb; background-color: #eff6ff; }
-.auth-modal-actions { flex-direction: column; gap: 15px; }
+.auth-modal-actions { 
+    display: flex;
+    flex-direction: column; 
+    gap: 12px; 
+    width: 100%;
+    margin-top: 20px;
+}

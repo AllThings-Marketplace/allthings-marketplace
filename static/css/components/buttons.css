@@ -1,23 +1,70 @@
-/* --- Global Action Buttons --- */
 .action-btn {
-    background-color: #2563eb; 
-    color: #ffffff;
-    border: none;
-    display: inline-block;
-    text-decoration: none;
-    padding: 10px 20px; 
-    border-radius: 6px; 
-    transition: background-color 0.2s ease, transform 0.1s ease;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-align: center;
     cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+    box-sizing: border-box;
 }
-.action-btn:hover { background-color: #1d4ed8; }
-.action-btn:active { transform: scale(0.98); }
-.btn-book { background: #2563eb; }
-.btn-add { background: #16a34a; }
+
+.action-btn.btn-primary {
+    background-color: #2563eb;
+    color: #ffffff;
+    border: 2px solid #2563eb;
+}
+
+.action-btn.btn-outline {
+    background-color: transparent;
+    color: #2563eb;
+    border: 2px solid #2563eb;
+}
+
+.action-btn.btn-secondary {
+    background-color: #f3f4f6;
+    color: #4b5563;
+    border: 2px solid transparent;
+}
+
+.action-btn.btn-secondary:hover {
+    background-color: #e5e7eb;
+}
+
+.action-btn:active { 
+    transform: scale(0.98); 
+}
+
+.btn-book { 
+    background: #2563eb; 
+}
+
+.action-btn.btn-add {
+    background-color: #16a34a;
+    color: #ffffff;
+    border: 2px solid #16a34a;
+}
+
+.action-btn.btn-add:hover {
+    background-color: #15803d;
+    border-color: #15803d;
+}
+
 .btn-checkout {
-    display: block; margin-top: 30px; width: 100%; padding: 15px; 
-    background: #10b981; color: white; border: none; font-size: 16px; 
-    border-radius: 4px; cursor: pointer; text-align: center; text-decoration: none;
+    display: block; 
+    margin-top: 30px; 
+    width: 100%; 
+    padding: 15px; 
+    background: #10b981; 
+    color: white; 
+    border: none; 
+    font-size: 16px; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    text-align: center; 
+    text-decoration: none;
+    box-sizing: border-box;
 }
 
 .btn-loading {

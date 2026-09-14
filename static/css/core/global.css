@@ -53,9 +53,17 @@ body {
     color: #2563eb;
 }
 
-/* Protect the action button color when it sits inside the navbar */
-.navbar a.action-btn {
+/* Protect the action button colors when they sit inside the navbar */
+.navbar a.action-btn.btn-primary {
     color: #ffffff;
+}
+
+.navbar a.action-btn.btn-outline {
+    color: #2563eb; 
+}
+
+.navbar a.action-btn.btn-secondary {
+    color: #4b5563; 
 }
 
 /* Brand Logo */
@@ -113,6 +121,7 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s;
+    box-sizing: border-box;
 }
 
 .nav-search-btn:hover {
@@ -305,19 +314,15 @@ body {
    ========================================================================== */
 .site-footer {
     background-color: #1f2937;
-    /* Matches the deep slate Hero */
     color: #d1d5db;
     padding: 60px 5% 20px 5%;
     margin-top: 80px;
-    /* Ensures breathing room below your grids */
     border-top: 4px solid #2563eb;
-    /* A sharp blue accent line on top */
 }
 
 .footer-container {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
-    /* Brand gets more space than the links */
     gap: 40px;
     max-width: 1200px;
     margin: 0 auto 40px auto;
@@ -357,7 +362,6 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    /* Spaces the Font Awesome icon from the text */
 }
 
 .footer-links a {
@@ -368,7 +372,6 @@ body {
 
 .footer-links a:hover {
     color: #3b82f6;
-    /* Action blue hover state */
 }
 
 .footer-links i {
@@ -389,7 +392,6 @@ body {
 @media (max-width: 768px) {
     .footer-container {
         grid-template-columns: 1fr;
-        /* Stacks everything into a single column */
         gap: 30px;
     }
 }
@@ -397,7 +399,6 @@ body {
 /* --- Rich Search Dropdown --- */
 .search-dropdown {
     display: none;
-    /* Hidden by default */
     position: absolute;
     top: 100%;
     left: 0;
@@ -605,14 +606,17 @@ body {
     padding: 15px;
 }
 
-.guest-dropdown-btn {
-    display: block;
-    text-align: center;
-    border-radius: 4px;
+.guest-dropdown-btn { 
+    display: block; 
+    width: 100%;
+    text-align: center; 
+    border-radius: 6px; 
+    padding: 10px 15px;
+    box-sizing: border-box; 
 }
 
-.guest-dropdown-btn.btn-primary {
-    margin-bottom: 10px;
+.guest-dropdown-btn.btn-primary { 
+    margin-bottom: 10px; 
 }
 
 /* --- Footer --- */
