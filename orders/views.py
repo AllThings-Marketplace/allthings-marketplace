@@ -1,3 +1,11 @@
+import hmac
+import hashlib
+import json
+from django.conf import settings
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from .tasks import process_webhook_payment
+from django.urls import reverse
 from django.db.models import F, Sum
 from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib.auth.decorators import login_required
@@ -6,8 +14,6 @@ from marketplace.models import Product, Service, ProductVariant
 from django.http import HttpResponseForbidden
 from .paystack import PaystackAPI
 from django.contrib import messages
-from .utils import process_order_commissions
-from django.utils import timezone
 from .utils import process_order_commissions, dispatch_gigl_rider, release_item_escrow, create_job_escrow, release_job_escrow
 
 @login_required
@@ -187,10 +193,15 @@ def checkout_view(request):
         order.save()
 
         paystack = PaystackAPI()
+        
+        # This dynamically builds the full URL using your active Ngrok address
+        dynamic_callback = request.build_absolute_uri(reverse('verify_payment'))
+        
         response = paystack.initialize_transaction(
             email=request.user.email,
             amount=order.total_amount,
-            order_id=order.id
+            order_id=order.id,
+            callback_url=dynamic_callback
         )
 
         if response.get('status'):
@@ -493,8 +504,6 @@ def confirm_item_delivery(request, item_id):
             item.status = 'COMPLETED'
             item.save(update_fields=['status'])
             
-            # Fire the utility function to unlock the vendor's money
-            from .utils import release_item_escrow
             release_item_escrow(item)
             
             messages.success(request, f"Delivery confirmed for {item.product.name}! The vendor has been credited.")
@@ -502,3 +511,37 @@ def confirm_item_delivery(request, item_id):
             messages.error(request, "Invalid delivery code. Please check the code provided for this item.")
             
     return redirect('order_details', order_id=item.order.id)
+
+@csrf_exempt
+def paystack_webhook(request):
+    """
+    Secure endpoint to receive background payment confirmations from Paystack.
+    Must be exempt from CSRF since Paystack doesn't have a token.
+    """
+    if request.method == 'POST':
+        payload = request.body
+        sig_header = request.headers.get('x-paystack-signature')
+        secret_key = settings.PAYSTACK_SECRET_KEY.encode('utf-8')
+
+        # 1. Security Check: Verify the signature using HMAC SHA512
+        hash = hmac.new(secret_key, payload, hashlib.sha512).hexdigest()
+        if hash != sig_header:
+            return HttpResponse(status=400) # Reject fake requests
+
+        # 2. Parse the JSON data
+        event_data = json.loads(payload)
+        
+        # 3. Check if the event is a successful charge
+        if event_data.get('event') == 'charge.success':
+            metadata = event_data['data'].get('metadata', {})
+            order_id = metadata.get('order_id')
+            
+            if order_id:
+                # 4. Offload the database work to Celery and respond to Paystack immediately
+                process_webhook_payment.delay(order_id)
+
+        # Always return 200 OK so Paystack knows we received it
+        return HttpResponse(status=200)
+        
+    # Block GET requests
+    return HttpResponse(status=405)

@@ -28,7 +28,9 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG') == 'True'
 
-ALLOWED_HOSTS = ['127.0.0.1','10.96.74.174','localhost']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.ngrok-free.dev']
+
+CSRF_TRUSTED_ORIGINS = ['https://resonant-baggy-hunk.ngrok-free.dev', 'https://*.ngrok-free.dev']
 
 # Application definition
 

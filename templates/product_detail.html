@@ -131,8 +131,9 @@
             {% for related in related_products %}
                 <a href="{% url 'product_detail' related.slug %}" class="block-link">
                     <div class="main-image-container mb-10">
-                        {% if related.image %}
-                            <img src="{{ related.image.url }}" alt="{{ related.name }}" class="related-img">
+                        {% if related.images.first %}
+                            <!-- Try to use the processed image, fallback to original if processing failed/pending -->
+                            <img src="{% if related.images.first.processed_image %}{{ related.images.first.processed_image.url }}{% else %}{{ related.images.first.original_image.url }}{% endif %}" alt="{{ related.name }}" class="related-img">
                         {% else %}
                             <div class="related-fallback"><i class="fa-solid fa-image"></i></div>
                         {% endif %}

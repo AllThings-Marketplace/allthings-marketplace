@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from orders import views as order_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,6 +26,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('', include('marketplace.urls')),
     path('feedback/', include('feedback.urls')),
+    path('webhook/paystack/', order_views.paystack_webhook, name='paystack_webhook'),
 ]
 
 if settings.DEBUG:

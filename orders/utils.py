@@ -1,4 +1,3 @@
-import requests
 from django.conf import settings
 from decimal import Decimal
 from accounts.models import VendorTransaction
