@@ -1,0 +1,12 @@
+<ul class="mobile-sub-list mobile-sub-list-nested">
+    {% for node in current_categories %}
+        <li class="mobile-niche-item">
+            <a href="{% url 'home' %}?category={{ node.id }}" class="mobile-niche-link">
+                - {{ node.name }}
+            </a>
+            {% if node.subcategories.all %}
+                {% include 'category_menu_node.html' with current_categories=node.subcategories.all %}
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

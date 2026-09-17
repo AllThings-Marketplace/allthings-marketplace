@@ -3,41 +3,6 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
-    <style>
-        /* Modern Variant Builder Styling */
-        .variant-builder {
-            background: #f8fafc;
-            border: 1px dashed #cbd5e1;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 15px;
-        }
-        .variant-row {
-            display: grid;
-            grid-template-columns: 2fr 2fr 1.5fr 1fr auto;
-            gap: 15px;
-            align-items: end;
-            margin-bottom: 15px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .variant-row:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        .btn-remove-variant {
-            color: #dc2626;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        .btn-remove-variant:hover {
-            background: #fee2e2;
-        }
-    </style>
 {% endblock %}
 
 {% block content %}
@@ -64,17 +29,15 @@
                 <select name="category_id" class="form-control" id="category-selector" required>
                     <option value="">Select a category...</option>
                     {% for cat in parent_categories %}
-                        <optgroup label="{{ cat.name }}">
-                            {% for sub in cat.subcategories.all %}
-                                <option value="{{ sub.id }}">{{ sub.name }}</option>
-                            {% endfor %}
-                        </optgroup>
+                        <option value="{{ cat.id }}" class="parent-category-option">{{ cat.name }}</option>
+                        {% if cat.subcategories.all %}
+                            {% include 'category_option_node.html' with current_categories=cat.subcategories.all prefix="--" %}
+                        {% endif %}
                     {% endfor %}
                 </select>
             </div>
         </div>
 
-        <!-- Dynamic Category Attributes (Rendered via JS) -->
         <div id="dynamic-attributes-container" class="form-grid-2 mt-20 mb-20"></div>
 
         <h3 class="checkout-section-title mt-40">
@@ -92,18 +55,18 @@
             </div>
         </div>
 
-        <!-- NEW: Variant Builder -->
+        <!-- Variant Builder -->
         <div class="form-group mt-20">
-            <div class="flex-between" style="align-items: center; margin-bottom: 10px;">
-                <label style="margin: 0;">Product Options (Variants)</label>
+            <div class="flex-between align-center mb-10">
+                <label class="m-0">Product Options (Variants)</label>
                 <button type="button" class="action-btn btn-outline action-sm" id="add-variant-btn">
                     <i class="fa-solid fa-plus"></i> Add Option
                 </button>
             </div>
             <p class="text-12-muted mb-10">Does this product come in different sizes, colors, or capacities? Add them here.</p>
             
-            <div id="variant-builder-container" class="variant-builder" style="display: none;">
-                <!-- Variant rows will be injected here by JS -->
+            <!-- Using your existing hidden-initial class instead of inline display: none -->
+            <div id="variant-builder-container" class="variant-builder hidden-initial">
             </div>
         </div>
 

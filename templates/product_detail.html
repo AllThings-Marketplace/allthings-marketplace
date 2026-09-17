@@ -45,7 +45,6 @@
             <!-- NATIVE HTML FALLBACK: Save Item Form -->
             <form action="/api/toggle-save/{{ product.id }}/" method="POST" class="save-item-form">
                 {% csrf_token %}
-                <!-- Replaced 'action-btn' with our new 'btn-save-naked' -->
                 <button type="submit" class="btn-save-naked toggle-save-btn requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
                     {% if product.id in saved_product_ids %}
                         <i class="fa-solid fa-heart text-danger"></i>
@@ -107,6 +106,23 @@
             <h3 class="font-600-dark mt-0">About this product</h3>
             {{ product.description|default:"Premium electrical component designed for durability and optimal performance. Add this to your cart and book a certified electrician for seamless installation." }}
         </div>
+
+        <!-- NEW: Professional Specifications Table -->
+        {% if product.attributes %}
+        <div class="product-specifications">
+            <h3 class="font-600-dark">Specifications</h3>
+            <table class="specs-table">
+                <tbody>
+                    {% for key, value in product.attributes.items %}
+                    <tr>
+                        <th class="spec-key">{{ key }}</th>
+                        <td class="spec-value">{{ value }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
 
         <!-- Trust Signals -->
         <div class="trust-badges">

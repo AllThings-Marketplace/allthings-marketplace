@@ -676,3 +676,54 @@ select.form-control {
     text-align: center;
     color: #6b7280;
 }
+
+/* --- Modern Variant Builder Styling --- */
+.variant-builder {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 15px;
+}
+
+.variant-row {
+    display: grid;
+    grid-template-columns: 2fr 2fr 1.5fr 1fr auto;
+    gap: 15px;
+    align-items: end;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.variant-row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.btn-remove-variant {
+    color: #dc2626;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.btn-remove-variant:hover {
+    background: #fee2e2;
+}
+
+/* --- Form Layout Utilities --- */
+.parent-category-option {
+    font-weight: bold;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.m-0 {
+    margin: 0;
+}

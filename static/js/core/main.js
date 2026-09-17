@@ -93,14 +93,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (seeMoreBtn) {
         seeMoreBtn.addEventListener('click', function() {
-            // Select all hidden categories
-            const hiddenItems = document.querySelectorAll('.mobile-cat-item[style*="display: none"]');
+            // FIX: Select items that actually have the 'hidden-initial' class
+            const hiddenItems = document.querySelectorAll('.mobile-cat-item.hidden-initial');
             
             if (hiddenItems.length > 0) {
-                // Reveal them
+                // Reveal them by removing the class and enforcing display block
                 hiddenItems.forEach(item => {
+                    item.classList.remove('hidden-initial');
                     item.style.display = 'block';
                 });
+                
                 // Update the button text to show it is fully expanded
                 this.innerHTML = 'All Categories Loaded <i class="fa-solid fa-check" style="margin-left: 5px;"></i>';
                 this.style.color = '#10b981'; // Turn green to indicate success

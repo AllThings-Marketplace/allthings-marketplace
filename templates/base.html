@@ -60,13 +60,8 @@
                                     <i class="fa-solid fa-circle-chevron-right text-muted"></i> {{ cat.name }}
                                 </a>
                                 {% if cat.subcategories.all %}
-                                    <ul class="mobile-sub-list">
-                                        {% for sub in cat.subcategories.all %}
-                                            <li>
-                                                <a href="{% url 'home' %}?category={{ sub.id }}">{{ sub.name }}</a>
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
+                                    <!-- Passes the first layer of subcategories into our recursive snippet -->
+                                    {% include 'category_menu_node.html' with current_categories=cat.subcategories.all %}
                                 {% endif %}
                             </li>
                         {% endif %}
@@ -96,9 +91,11 @@
 
             <div class="search-dropdown" id="searchDropdown">
                 <div class="dropdown-section">
-                    <h4 class="dropdown-heading">Available Categories</h4>
+                    <!-- Changed heading to feel more curated -->
+                    <h4 class="dropdown-heading">Popular Categories</h4>
                     <div class="search-pills-container">
-                        {% for cat in nav_categories %}
+                        <!-- Added |slice:":6" to limit the output to just 6 items -->
+                        {% for cat in nav_categories|slice:":6" %}
                             <a href="{% url 'home' %}?category={{ cat.id }}" class="search-pill">{{ cat.name }}</a>
                         {% endfor %}
                     </div>

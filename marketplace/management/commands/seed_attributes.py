@@ -5,82 +5,82 @@ class Command(BaseCommand):
     help = 'Bulk updates existing categories with their dynamic JSON attribute schemas'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("Injecting category attributes...")
+        self.stdout.write("Injecting broad category attributes...")
 
-        # Map the exact Category Name to its required JSON schema
+        # Base schemas to reuse
+        TECH_BASE = [
+            {"name": "Brand", "required": True},
+            {"name": "Condition (New/Used/Refurbished)", "required": True},
+            {"name": "Warranty Period", "required": False}
+        ]
+        FASHION_BASE = [
+            {"name": "Brand", "required": False},
+            {"name": "Material", "required": True},
+            {"name": "Gender (Men/Women/Unisex)", "required": False}
+        ]
+        SERVICE_BASE = [
+            {"name": "Service Mode (Remote/On-site)", "required": True},
+            {"name": "Estimated Duration", "required": True},
+            {"name": "Service Level (Basic/Premium/Enterprise)", "required": False}
+        ]
+        UNIVERSAL_FALLBACK = [
+            {"name": "Brand/Manufacturer", "required": False},
+            {"name": "Condition (New/Used)", "required": False}
+        ]
+
+        # Specific mapping for precision
         ATTRIBUTE_MAPPING = {
-            # Computers & Tech
-            "Laptops": [
-                {"name": "RAM", "required": True},
-                {"name": "Processor", "required": True},
-                {"name": "Storage Capacity", "required": True},
-                {"name": "Operating System", "required": False}
-            ],
-            "Desktops": [
-                {"name": "RAM", "required": True},
-                {"name": "Processor", "required": True},
-                {"name": "Form Factor", "required": False}
-            ],
-            # Phones & Tablets
-            "Smartphones": [
-                {"name": "RAM", "required": True},
-                {"name": "Internal Storage", "required": True},
-                {"name": "Camera Megapixels", "required": False}
-            ],
-            "Power Banks": [
-                {"name": "Battery Capacity (mAh)", "required": True},
-                {"name": "Number of Ports", "required": True},
-                {"name": "Fast Charging Supported", "required": False}
-            ],
-            # Electricals & Power
-            "Generators": [
-                {"name": "Power Output (kVA)", "required": True},
-                {"name": "Starting System", "required": True},
-                {"name": "Coil Material", "required": False}
-            ],
-            "Solar Panels": [
-                {"name": "Wattage (W)", "required": True},
-                {"name": "Cell Type (Monocrystalline/Polycrystalline)", "required": True}
-            ],
-            "Deep Cycle Batteries": [
-                {"name": "Voltage (V)", "required": True},
-                {"name": "Capacity (Ah)", "required": True},
-                {"name": "Battery Chemistry (Tubular/Lithium/Gel)", "required": True}
-            ],
-            # Home Appliances
-            "AC Units": [
-                {"name": "Horsepower (HP)", "required": True},
-                {"name": "Inverter Technology", "required": False}
-            ],
-            "Standing Fans": [
-                {"name": "Blade Size (Inches)", "required": True},
-                {"name": "Number of Speed Settings", "required": False}
-            ],
-            # Fashion & Apparel
-            "Shirts": [
-                {"name": "Material", "required": True},
-                {"name": "Sleeve Length", "required": False}
-            ],
-            "Sneakers": [
-                {"name": "Upper Material", "required": True},
-                {"name": "Closure Type", "required": False}
-            ]
+            # Tech & Electronics
+            "Gaming Laptops": TECH_BASE + [{"name": "RAM", "required": True}, {"name": "GPU", "required": True}, {"name": "Processor", "required": True}],
+            "Business Laptops": TECH_BASE + [{"name": "RAM", "required": True}, {"name": "Processor", "required": True}, {"name": "Storage", "required": True}],
+            "MacBooks": TECH_BASE + [{"name": "Chip (M1/M2/M3)", "required": True}, {"name": "RAM", "required": True}, {"name": "Storage", "required": True}],
+            "Android Phones": TECH_BASE + [{"name": "RAM", "required": True}, {"name": "Internal Storage", "required": True}, {"name": "Battery (mAh)", "required": False}],
+            "iOS Devices": TECH_BASE + [{"name": "Storage", "required": True}, {"name": "Battery Health (%)", "required": False}],
+            "Power Banks": TECH_BASE + [{"name": "Capacity (mAh)", "required": True}, {"name": "Output Ports", "required": True}],
+            
+            # Electrical & Power
+            "Generators": TECH_BASE + [{"name": "Power Output (kVA/kW)", "required": True}, {"name": "Fuel Type", "required": True}, {"name": "Starting System", "required": True}],
+            "Solar Panels": TECH_BASE + [{"name": "Wattage (W)", "required": True}, {"name": "Cell Type (Mono/Poly)", "required": True}],
+            "Deep Cycle Batteries": TECH_BASE + [{"name": "Voltage (V)", "required": True}, {"name": "Capacity (Ah)", "required": True}, {"name": "Chemistry", "required": True}],
+            "Copper Cables": [{"name": "Length (Meters/Coil)", "required": True}, {"name": "Thickness (mm)", "required": True}],
+            
+            # Home & Appliances
+            "AC Units": TECH_BASE + [{"name": "Horsepower (HP)", "required": True}, {"name": "Inverter Technology (Yes/No)", "required": True}],
+            "Refrigerators": TECH_BASE + [{"name": "Capacity (Liters)", "required": True}, {"name": "Type (Single/Double Door)", "required": True}],
+            
+            # Fashion
+            "Shirts": FASHION_BASE + [{"name": "Size (S/M/L/XL)", "required": True}, {"name": "Fit (Slim/Regular)", "required": False}],
+            "Sneakers": FASHION_BASE + [{"name": "Shoe Size (EU/US)", "required": True}, {"name": "Closure Type", "required": False}],
+            
+            # Automotive
+            "Tires": [{"name": "Brand", "required": True}, {"name": "Size (e.g., 205/55R16)", "required": True}, {"name": "Condition", "required": True}],
+            "Engine Oil": [{"name": "Brand", "required": True}, {"name": "Viscosity (e.g., 5W-30)", "required": True}, {"name": "Volume (Liters)", "required": True}],
+            
+            # Services (Categorized mapping)
+            "Web Development": SERVICE_BASE + [{"name": "Tech Stack", "required": False}, {"name": "Includes Hosting (Yes/No)", "required": True}],
+            "Graphic Design": SERVICE_BASE + [{"name": "Delivery Format (PNG/PSD/Vector)", "required": True}, {"name": "Number of Revisions", "required": True}],
+            "Solar Setup": SERVICE_BASE + [{"name": "System Size Capacity (kVA)", "required": True}],
+            "House Cleaning": SERVICE_BASE + [{"name": "Property Size (Rooms)", "required": True}, {"name": "Cleaning Type (Standard/Deep)", "required": True}]
         }
 
         updated_count = 0
 
+        # 1. Apply Specific Schemas
         for category_name, schema in ATTRIBUTE_MAPPING.items():
-            try:
-                # Fetch the existing category
-                category = Category.objects.get(name=category_name)
-                # Overwrite the schema and save
+            categories = Category.objects.filter(name=category_name)
+            for category in categories:
                 category.attribute_schema = schema
                 category.save()
                 updated_count += 1
-                self.stdout.write(f"Updated: {category_name}")
-            except Category.DoesNotExist:
-                self.stdout.write(self.style.WARNING(f"Skipped: '{category_name}' not found in database."))
-            except Category.MultipleObjectsReturned:
-                self.stdout.write(self.style.ERROR(f"Error: Multiple categories found with the name '{category_name}'."))
+                self.stdout.write(f"Updated specific schema for: {category_name}")
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully injected attributes into {updated_count} categories!'))
+        # 2. Apply Universal Fallback to everything else
+        unmapped_categories = Category.objects.filter(attribute_schema=[])
+        fallback_count = unmapped_categories.count()
+        
+        for category in unmapped_categories:
+            category.attribute_schema = UNIVERSAL_FALLBACK
+            category.save()
+
+        self.stdout.write(self.style.SUCCESS(f'Successfully injected {updated_count} specific schemas.'))
+        self.stdout.write(self.style.SUCCESS(f'Applied universal fallback schema to {fallback_count} remaining categories.'))

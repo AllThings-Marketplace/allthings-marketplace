@@ -1,0 +1,9 @@
+{% for node in current_categories %}
+    <option value="{{ node.id }}">
+        {{ prefix }} {{ node.name }}
+    </option>
+    <!-- Calls itself, adding two more dashes to the prefix for indentation -->
+    {% if node.subcategories.all %}
+        {% include 'category_option_node.html' with current_categories=node.subcategories.all prefix=prefix|add:"--" %}
+    {% endif %}
+{% endfor %}

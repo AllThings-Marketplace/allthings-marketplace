@@ -670,3 +670,20 @@ body {
 .btn-save-naked:active {
     transform: scale(0.9);
 }
+
+/* --- Deep Category Menu Nodes --- */
+.mobile-sub-list-nested {
+    padding-left: 15px;
+    margin-top: 5px;
+}
+
+.mobile-niche-item {
+    margin-bottom: 5px;
+}
+
+.mobile-niche-link {
+    font-size: 13px;
+    color: #4b5563;
+    display: block;
+    padding: 3px 0;
+}

@@ -336,3 +336,40 @@
     gap: 15px;
     margin-bottom: 10px;
 }
+
+/* --- Specifications Table --- */
+.product-specifications {
+    margin: 25px 0;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 15px;
+}
+
+.specs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+.specs-table tr {
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.specs-table tr:last-child {
+    border-bottom: none;
+}
+
+.spec-key {
+    width: 40%;
+    text-align: left;
+    padding: 10px 10px;
+    color: #4b5563;
+    font-weight: 600;
+    background-color: #f9fafb;
+}
+
+.spec-value {
+    width: 60%;
+    padding: 10px 15px;
+    color: #111827;
+}
