@@ -70,6 +70,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'marketplace.context_processors.cart_item_count',
                 'marketplace.context_processors.global_categories',
             ],
         },
@@ -160,6 +161,8 @@ LOGOUT_REDIRECT_URL = 'home'
 # Paystack Configuration
 PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY')
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY')
+
+GIGL_API_KEY = "your_test_key_here"
 
 # Force Django to use the custom All Things login page
 LOGIN_URL = '/accounts/login/'

@@ -37,7 +37,24 @@
 
     <!-- Right Column: Product Information -->
     <div class="product-info">
-        <h1 class="product-title">{{ product.name }}</h1>
+        
+        <!-- Clean Flex container for Title and Save Button -->
+        <div class="product-title-wrapper">
+            <h1 class="product-title mt-0">{{ product.name }}</h1>
+            
+            <!-- NATIVE HTML FALLBACK: Save Item Form -->
+            <form action="/api/toggle-save/{{ product.id }}/" method="POST" class="save-item-form">
+                {% csrf_token %}
+                <!-- Replaced 'action-btn' with our new 'btn-save-naked' -->
+                <button type="submit" class="btn-save-naked toggle-save-btn requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
+                    {% if product.id in saved_product_ids %}
+                        <i class="fa-solid fa-heart text-danger"></i>
+                    {% else %}
+                        <i class="fa-regular fa-heart text-muted"></i>
+                    {% endif %}
+                </button>
+            </form>
+        </div>
         
         <div class="product-meta">
             <span class="store-name">Store: {{ product.provider.business_name }}</span>
@@ -132,7 +149,6 @@
                 <a href="{% url 'product_detail' related.slug %}" class="block-link">
                     <div class="main-image-container mb-10">
                         {% if related.images.first %}
-                            <!-- Try to use the processed image, fallback to original if processing failed/pending -->
                             <img src="{% if related.images.first.processed_image %}{{ related.images.first.processed_image.url }}{% else %}{{ related.images.first.original_image.url }}{% endif %}" alt="{{ related.name }}" class="related-img">
                         {% else %}
                             <div class="related-fallback"><i class="fa-solid fa-image"></i></div>
@@ -152,4 +168,5 @@
 {% block extra_js %}
     <script src="{% static 'js/pages/cart.js' %}"></script>
     <script src="{% static 'js/pages/product-detail.js' %}"></script>
+    <script src="{% static 'js/pages/saved_items.js' %}"></script>
 {% endblock %}

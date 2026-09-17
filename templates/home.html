@@ -120,19 +120,16 @@
                                 
                                 <!-- The Heart Button -->
                                 <div class="card-action-col">
-                                    {% if user.is_authenticated %}
-                                        <button class="action-btn btn-icon-only  requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
+                                    <form action="/api/toggle-save/{{ product.id }}/" method="POST" class="save-item-form">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-save-naked toggle-save-btn requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
                                             {% if product.id in saved_product_ids %}
                                                 <i class="fa-solid fa-heart text-danger"></i>
                                             {% else %}
                                                 <i class="fa-regular fa-heart text-muted"></i>
                                             {% endif %}
                                         </button>
-                                    {% else %}
-                                        <a href="{% url 'login' %}" class="action-btn btn-icon-only" aria-label="Login to Save">
-                                            <i class="fa-regular fa-heart text-muted"></i>
-                                        </a>
-                                    {% endif %}
+                                    </form>
                                 </div>
                             </div>
 
@@ -190,19 +187,16 @@
                                 
                                 <!-- The Heart Button -->
                                 <div class="card-action-col">
-                                    {% if user.is_authenticated %}
-                                        <button class="action-btn btn-icon-only toggle-save-btn requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
+                                    <form action="/api/toggle-save/{{ product.id }}/" method="POST" class="save-item-form">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-save-naked toggle-save-btn requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
                                             {% if product.id in saved_product_ids %}
                                                 <i class="fa-solid fa-heart text-danger"></i>
                                             {% else %}
                                                 <i class="fa-regular fa-heart text-muted"></i>
                                             {% endif %}
                                         </button>
-                                    {% else %}
-                                        <a href="{% url 'login' %}" class="action-btn btn-icon-only" aria-label="Login to Save">
-                                            <i class="fa-regular fa-heart text-muted"></i>
-                                        </a>
-                                    {% endif %}
+                                    </form>
                                 </div>
                             </div>
 
@@ -238,6 +232,5 @@
 {% block extra_js %}
     <script src="{% static 'js/pages/home.js' %}"></script>
     <script src="{% static 'js/pages/cart.js' %}"></script>
-    <!-- Injection of the new AJAX wishlist logic -->
     <script src="{% static 'js/pages/saved_items.js' %}"></script>
 {% endblock %}

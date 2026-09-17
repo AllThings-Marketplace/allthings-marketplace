@@ -9,8 +9,17 @@
 {% block content %}
 <div class="details-page-wrapper">
     <div class="details-header flex-between">
-        <h2 class="section-heading checkout-page-title">Order #{{ order.id }}</h2>
-        <a href="{% url 'order_history' %}" class="action-btn btn-secondary action-sm">Back to Orders</a>
+        <h2 class="section-heading checkout-page-title">Order #{{ order.reference }}</h2> <!-- Changed to Reference -->
+        <div>
+            <!-- Show overall order status -->
+            <span class="status-badge 
+                {% if order.status == 'completed' %}badge-completed
+                {% elif order.status == 'unpaid' %}badge-danger
+                {% else %}badge-pending{% endif %} mr-15">
+                Order Status: {{ order.get_status_display }}
+            </span>
+            <a href="{% url 'order_history' %}" class="action-btn btn-secondary action-sm">Back to Orders</a>
+        </div>
     </div>
 
     <div class="summary-card details-card">
@@ -39,7 +48,8 @@
                         </div>
 
                         <!-- Item-Level OTP Confirmation Form -->
-                        {% if item.status not in 'COMPLETED,CANCELLED,PENDING_PAYMENT' %}
+                        <!-- ONLY show if the main order is paid, and the item isn't completed yet -->
+                        {% if order.status != 'unpaid' and item.status not in 'COMPLETED,CANCELLED,PENDING_PAYMENT' %}
                             <div class="delivery-pin-box mb-15 mt-15">
                                 <span class="text-12-muted block">Your Delivery PIN</span>
                                 <strong class="font-700-block text-lg letter-spacing-2 text-primary-blue">{{ item.delivery_code }}</strong>
@@ -53,7 +63,6 @@
                             <p class="text-12-muted mt-5">
                                 <i class="fa-solid fa-circle-info"></i> Provide this code to the rider, or enter it here once you safely receive the item.
                             </p>
-                        <!-- NEW: Product Rating Button -->
                         {% elif item.status == 'COMPLETED' %}
                             <div class="mt-15">
                                 <a href="{% url 'feedback:product_feedback' item.id %}" class="action-btn btn-primary action-sm">
@@ -90,7 +99,7 @@
                         </div>
 
                         <!-- Professional Completion PIN -->
-                        {% if job.status in 'ACCEPTED,IN_PROGRESS' %}
+                        {% if order.status != 'unpaid' and job.status in 'ACCEPTED,IN_PROGRESS' %}
                             <div class="delivery-pin-box mt-15">
                                 <span class="text-12-muted block">Service Completion PIN</span>
                                 <strong class="font-700-block text-lg letter-spacing-2 text-primary-blue">{{ job.completion_code }}</strong>
@@ -98,7 +107,6 @@
                             <p class="text-12-muted mt-5">
                                 <i class="fa-solid fa-shield-halved"></i> Provide this PIN to the professional ONLY when the job is fully completed to your satisfaction.
                             </p>
-                        <!-- NEW: Service Rating Button -->
                         {% elif job.status == 'COMPLETED' %}
                             <div class="mt-15">
                                 <a href="{% url 'feedback:service_feedback' job.id %}" class="action-btn btn-primary action-sm">
@@ -113,9 +121,15 @@
         
         <!-- Order Totals -->
         <div class="checkout-summary-total mt-30">
-            <span>Total Paid</span>
+            <span>Total Amount</span>
             <span class="checkout-total-price">NGN {{ order.total_amount }}</span>
         </div>
+        
+        {% if order.status == 'unpaid' %}
+            <div style="margin-top: 15px; text-align: right;">
+                <a href="{% url 'checkout' %}" class="action-btn btn-primary">Pay Now</a>
+            </div>
+        {% endif %}
 
     </div>
 </div>

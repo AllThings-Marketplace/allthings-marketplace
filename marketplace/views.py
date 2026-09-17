@@ -89,6 +89,13 @@ def product_detail(request, slug):
         is_active=True
     ).exclude(id=product.id).order_by('?')[:4] # Randomizes 4 items
     
+    # --- NEW: Fetch Saved Product IDs for the current user's wishlist toggle ---
+    saved_product_ids = []
+    if request.user.is_authenticated:
+        # Re-using the exact query logic from your home view
+        from .models import SavedItem # Ensure this is imported at the top of your file!
+        saved_product_ids = SavedItem.objects.filter(user=request.user).values_list('product_id', flat=True)
+    
     context = {
         'product': product,
         'gallery_images': gallery_images,
@@ -97,6 +104,7 @@ def product_detail(request, slug):
         'review_count': review_count,
         'recent_reviews': recent_reviews,
         'related_products': related_products,
+        'saved_product_ids': saved_product_ids,
     }
     return render(request, 'product_detail.html', context)
 

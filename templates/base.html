@@ -119,8 +119,12 @@
                 <a href="#" class="icon-link hidden-mobile"><i class="fa-solid fa-tag"></i> Sell on AllThings</a>
             {% endif %}
             
-            <a href="{% url 'cart' %}" class="icon-link requires-auth">
+            <!-- NEW: Upgraded Cart Link with Badge -->
+            <a href="{% url 'cart' %}" class="icon-link requires-auth nav-cart-wrapper">
                 <i class="fa-solid fa-cart-shopping"></i> Cart
+                {% if cart_count > 0 %}
+                    <span class="cart-badge">{{ cart_count }}</span>
+                {% endif %}
             </a>
             
             <div class="nav-dropdown-container">
@@ -142,7 +146,7 @@
                         <a href="{% url 'order_history' %}"><i class="fa-solid fa-box"></i> Orders</a>
                         <a href="#"><i class="fa-regular fa-envelope"></i> Inbox</a>
                         <a href="{% url 'feedback:pending_reviews' %}"><i class="fa-regular fa-star"></i> Pending Reviews</a>
-                        <li><a href="{% url 'saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a></li>
+                        <a href="{% url 'saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a>
                         {% if request.user.provider_profile %}
                             <a href="{% url 'provider_dashboard' %}"><i class="fa-solid fa-store"></i> Provider Portal</a>
                         {% endif %}

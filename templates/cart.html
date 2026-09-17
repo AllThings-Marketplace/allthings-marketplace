@@ -8,7 +8,7 @@
 {% block content %}
 <h2 class="section-heading cart-heading">Your Cart</h2>
 
-{% if order and order.items.all or order.job_bookings.all %}
+{% if cart and cart.items.all or cart.jobs.all %}
     <form method="GET" action="{% url 'checkout' %}" id="cartForm">
         {% csrf_token %}
         <div class="checkout-container">
@@ -24,7 +24,7 @@
                     </a>
                 </div>
 
-                {% for item in order.items.all %}
+                {% for item in cart.items.all %}
                     <div class="cart-item-row">
                         <div class="item-info cart-item-flex">
                             <input type="checkbox" name="selected_products" value="{{ item.id }}" class="item-checkbox" data-price="{{ item.get_total }}" checked>
@@ -57,7 +57,7 @@
                     </div>
                 {% endfor %}
 
-                {% for job in order.job_bookings.all %}
+                {% for job in cart.jobs.all %}
                     <div class="cart-item-row">
                         <div class="item-info cart-item-flex">
                             <input type="checkbox" name="selected_services" value="{{ job.id }}" class="item-checkbox" data-price="{{ job.service.base_price }}" checked>
@@ -75,7 +75,7 @@
                 <h3 class="summary-heading">Order Summary</h3>
                 <div class="summary-total">
                     <span>Total</span>
-                    <span id="cartTotalDisplay">NGN {{ order.get_cart_total }}</span>
+                    <span id="cartTotalDisplay">NGN {{ cart.get_cart_total }}</span>
                 </div>
                 
                 <button type="submit" class="action-btn checkout-btn">

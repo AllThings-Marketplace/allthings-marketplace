@@ -9,13 +9,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Intercept clicks on anything possessing the 'requires-auth' class
-    document.querySelectorAll('.requires-auth').forEach(element => {
-        element.addEventListener('click', function(event) {
-            if (!isUserAuthenticated) {
-                event.preventDefault(); 
+    // Capture Phase Event Delegation - Runs first, stops everything else
+    document.addEventListener('click', function(event) {
+        const authElement = event.target.closest('.requires-auth');
+        
+        if (authElement && !isUserAuthenticated) {
+            event.preventDefault(); 
+            event.stopImmediatePropagation(); // Kills the click
+            if (authModal) {
                 authModal.classList.add('active');
             }
-        });
-    });
+        }
+    }, true);
 });

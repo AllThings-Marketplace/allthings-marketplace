@@ -23,8 +23,9 @@
             {% for item in saved_items %}
                 <li class="product-card-wrapper" id="saved-item-card-{{ item.product.id }}">
                     <a href="{% url 'product_detail' item.product.slug %}" class="block-link">
-                        {% if item.product.image %}
-                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img">
+                        <!-- NEW: Upgraded Image Fetching Logic -->
+                        {% if item.product.images.first %}
+                            <img src="{% if item.product.images.first.processed_image %}{{ item.product.images.first.processed_image.url }}{% else %}{{ item.product.images.first.original_image.url }}{% endif %}" alt="{{ item.product.name }}" class="card-img">
                         {% else %}
                             <div class="card-img flex-center-muted"><i class="fa-solid fa-bolt icon-32"></i></div>
                         {% endif %}
@@ -48,9 +49,13 @@
                     </div>
 
                     <!-- Full-Width Add to Cart Button -->
-                    <a href="{% url 'add_to_cart' item.product.id %}" class="action-btn btn-add ajax-cart-btn mt-10 text-center w-100-block requires-auth">
-                        Add to Cart
-                    </a>
+                    <!-- NATIVE HTML FALLBACK applied here if you want consistency -->
+                    <form action="{% url 'add_to_cart' item.product.id %}" method="POST" class="w-100-block mt-10">
+                        {% csrf_token %}
+                        <button type="submit" class="action-btn btn-add w-100 requires-auth">
+                            Add to Cart
+                        </button>
+                    </form>
                 </li>
             {% endfor %}
         </ul>

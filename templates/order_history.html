@@ -13,8 +13,12 @@
             
             <div class="history-card-header">
                 <div>
-                    <h3 class="history-card-title">Order #{{ order.id }}</h3>
-                    <span class="status-badge status-badge-inline">
+                    <h3 class="history-card-title">Order #{{ order.reference }}</h3> <!-- Changed to Reference -->
+                    <!-- Updated Status Badge colors based on the new choices -->
+                    <span class="status-badge status-badge-inline 
+                        {% if order.status == 'completed' %}badge-completed
+                        {% elif order.status == 'unpaid' %}badge-danger
+                        {% else %}badge-pending{% endif %}">
                         {{ order.get_status_display }}
                     </span>
                 </div>
@@ -22,6 +26,10 @@
                 <div class="history-actions-right">
                     <h3 class="history-card-title amount-title">NGN {{ order.total_amount }}</h3>
                     <a href="{% url 'order_details' order.id %}" class="action-btn action-sm btn-outline">View Order</a>
+                    <!-- NEW: Allow users to re-attempt payment if unpaid -->
+                    {% if order.status == 'unpaid' %}
+                        <a href="{% url 'checkout' %}" class="action-btn action-sm btn-primary ml-10">Pay Now</a>
+                    {% endif %}
                 </div>
             </div>
             <p class="history-date">Placed on: {{ order.created_at|date:"M d, Y - h:i A" }}</p>
@@ -50,8 +58,8 @@
                                 <span class="status-badge badge-pending">Finding Professional</span>
                             {% elif job.status == 'ACCEPTED' %}
                                 <span class="status-badge badge-accepted">Professional Assigned</span>
-                            {% elif job.status == 'EN_ROUTE' %}
-                                <span class="status-badge badge-en-route">Professional En Route</span>
+                            {% elif job.status == 'IN_PROGRESS' %} <!-- Changed from EN_ROUTE to match models.py -->
+                                <span class="status-badge badge-en-route">Work In Progress</span>
                             {% elif job.status == 'COMPLETED' %}
                                 <span class="status-badge badge-completed">Service Completed</span>
                             {% endif %}

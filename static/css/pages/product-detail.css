@@ -327,3 +327,12 @@
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* --- Clean Product Title & Heart Button Layout --- */
+.product-title-wrapper {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start; /* Aligns both to the top */
+    gap: 15px;
+    margin-bottom: 10px;
+}

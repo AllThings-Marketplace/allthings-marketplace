@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Helper to get Django CSRF token from cookies
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -15,38 +14,35 @@ document.addEventListener('DOMContentLoaded', function() {
         return cookieValue;
     }
 
-    const saveButtons = document.querySelectorAll('.toggle-save-btn');
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.toggle-save-btn');
+        if (!btn) return;
 
-    saveButtons.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const productId = this.getAttribute('data-product-id');
-            const csrftoken = getCookie('csrftoken');
+        e.preventDefault(); 
+        
+        const productId = btn.getAttribute('data-product-id');
+        const csrftoken = getCookie('csrftoken');
 
-            fetch(`/api/toggle-save/${productId}/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrftoken,
-                    'Content-Type': 'application/json'
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.is_saved === false) {
-                    // If we are on the saved items page, remove the card visually
-                    const card = document.getElementById(`saved-item-card-${productId}`);
-                    if (card) {
-                        card.style.display = 'none';
-                    } else {
-                        // FIX: Added 'text-muted' here so it goes back to grey!
-                        this.innerHTML = '<i class="fa-regular fa-heart text-muted"></i>';
-                    }
-                } else if (data.is_saved === true) {
-                    // If saving from homepage, swap outline heart to solid
-                    this.innerHTML = '<i class="fa-solid fa-heart text-danger"></i>';
+        fetch(`/api/toggle-save/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.is_saved === false) {
+                const card = document.getElementById(`saved-item-card-${productId}`);
+                if (card) {
+                    card.style.display = 'none';
+                } else {
+                    btn.innerHTML = '<i class="fa-regular fa-heart text-muted"></i>';
                 }
-            })
-            .catch(error => console.error('Error toggling saved item:', error));
-        });
+            } else if (data.is_saved === true) {
+                btn.innerHTML = '<i class="fa-solid fa-heart text-danger"></i>';
+            }
+        })
+        .catch(error => console.error('Error toggling saved item:', error));
     });
 });
