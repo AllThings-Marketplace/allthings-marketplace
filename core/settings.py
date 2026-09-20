@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/6.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
+import cloudinary
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
     'orders',
     'feedback',
     'notifications',
+    'dashboard',
 ]
 
 MIDDLEWARE = [
@@ -155,8 +157,9 @@ CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 
 # Authentication Redirects
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'marketplace:home'
+LOGOUT_REDIRECT_URL = 'marketplace:home'
+LOGIN_URL = 'accounts:login'
 
 # Paystack Configuration
 PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY')
@@ -164,5 +167,12 @@ PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY')
 
 GIGL_API_KEY = "your_test_key_here"
 
-# Force Django to use the custom All Things login page
-LOGIN_URL = '/accounts/login/'
+cloudinary.config( 
+  cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'), 
+  api_key = os.environ.get('CLOUDINARY_API_KEY'), 
+  api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
+  secure = True
+)
+
+# Custom URL settings for emails and absolute links
+SITE_URL = 'https://resonant-baggy-hunk.ngrok-free.dev'

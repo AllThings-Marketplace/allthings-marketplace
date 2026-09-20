@@ -11,7 +11,7 @@
         <h2 class="section-heading checkout-page-title mb-5">Store Orders</h2>
         <p class="section-subtitle">Manage and fulfill your customer purchases.</p>
     </div>
-    <a href="{% url 'provider_dashboard' %}" class="action-btn btn-outline action-sm">Back to Dashboard</a>
+    <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-outline action-sm">Back to Dashboard</a>
 </div>
 
 <!-- Real-time Analytics Engine -->
@@ -82,17 +82,17 @@
                                     
                                     <!-- Dynamic Action Buttons Based on Status -->
                                     {% if item.status == 'PAID' %}
-                                        <form method="POST" action="{% url 'update_item_status' item.id 'ACCEPTED' %}">
+                                        <form method="POST" action="{% url 'dashboard:update_item_status' item.id 'ACCEPTED' %}">
                                             {% csrf_token %}
                                             <button type="submit" class="action-btn btn-success action-sm w-100 mt-10">Accept Order</button>
                                         </form>
-                                        <form method="POST" action="{% url 'update_item_status' item.id 'CANCELLED' %}">
+                                        <form method="POST" action="{% url 'dashboard:update_item_status' item.id 'CANCELLED' %}">
                                             {% csrf_token %}
                                             <button type="submit" class="action-btn btn-outline action-sm w-100 mt-5">Reject</button>
                                         </form>
                                     
                                     {% elif item.status == 'ACCEPTED' %}
-                                        <form method="POST" action="{% url 'update_item_status' item.id 'READY_FOR_PICKUP' %}">
+                                        <form method="POST" action="{% url 'dashboard:update_item_status' item.id 'READY_FOR_PICKUP' %}">
                                             {% csrf_token %}
                                             <button type="submit" class="action-btn btn-primary action-sm w-100 mt-10">Ready for Pickup</button>
                                         </form>

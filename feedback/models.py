@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
-from orders.models import OrderItem, JobBooking
+from orders.models import OrderItem, ServiceOrder
 
 class Feedback(models.Model):
     class TransactionType(models.TextChoices):
@@ -35,15 +35,17 @@ class Feedback(models.Model):
         blank=True, 
         related_name='feedback'
     )
-    job_booking = models.OneToOneField(
-        JobBooking, 
+    
+    # --- UPDATED: Now links directly to the new ServiceOrder engine ---
+    service_order = models.OneToOneField(
+        ServiceOrder, 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True, 
         related_name='feedback'
     )
 
-    # --- NEW: Denormalized links for fast querying ---
+    # Denormalized links for fast querying
     product = models.ForeignKey(
         'marketplace.Product', 
         on_delete=models.CASCADE, 
@@ -75,7 +77,7 @@ class Feedback(models.Model):
 
 class FeedbackAttribute(models.Model):
     feedback = models.ForeignKey(Feedback, on_delete=models.CASCADE, related_name='attributes')
-    attribute_name = models.CharField(max_length=50) # e.g., "Punctuality", "Product Quality"
+    attribute_name = models.CharField(max_length=50)
     rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
 
     def __str__(self):

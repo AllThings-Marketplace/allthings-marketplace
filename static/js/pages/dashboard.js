@@ -119,3 +119,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    const pricingSelect = document.getElementById('pricingTypeSelect');
+    const basePriceGroup = document.getElementById('basePriceGroup');
+    const basePriceInput = document.getElementById('basePriceInput');
+    const packageBuilder = document.getElementById('packageBuilderContainer');
+    const addPackageBtn = document.getElementById('add-package-btn');
+    const packageRows = document.getElementById('package-rows');
+
+    if (pricingSelect) {
+        pricingSelect.addEventListener('change', function() {
+            if (this.value === 'PACKAGES') {
+                basePriceGroup.style.display = 'none';
+                basePriceInput.removeAttribute('required');
+                packageBuilder.style.display = 'block';
+                packageBuilder.classList.remove('hidden-initial');
+            } else if (this.value === 'QUOTE') {
+                basePriceGroup.style.display = 'none';
+                basePriceInput.removeAttribute('required');
+                packageBuilder.style.display = 'none';
+            } else {
+                basePriceGroup.style.display = 'block';
+                basePriceInput.setAttribute('required', 'true');
+                packageBuilder.style.display = 'none';
+            }
+        });
+    }
+
+    if (addPackageBtn) {
+        addPackageBtn.addEventListener('click', function() {
+            const rowHtml = `
+                <div class="variant-row package-row mt-15">
+                    <div><input type="text" name="pkg_names[]" class="form-control" placeholder="Package Name"></div>
+                    <div><input type="number" name="pkg_prices[]" class="form-control" step="0.01" placeholder="Price"></div>
+                    <div><input type="text" name="pkg_durations[]" class="form-control" placeholder="Duration"></div>
+                    <div><input type="text" name="pkg_features[]" class="form-control" placeholder="Features (comma separated)"></div>
+                    <button type="button" class="btn-remove-variant" onclick="this.closest('.package-row').remove()">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            packageRows.insertAdjacentHTML('beforeend', rowHtml);
+        });
+    }
+});

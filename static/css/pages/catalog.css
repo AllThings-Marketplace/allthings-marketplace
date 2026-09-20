@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MARKETPLACE GRID & SIDEBAR
+   MARKETPLACE GRID & SIDEBAR (RESPONSIVE)
    ========================================================================== */
 .marketplace-layout {
     display: grid;
@@ -11,7 +11,7 @@
 .category-sidebar {
     background-color: #ffffff;
     border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 20px;
     position: sticky;
     top: 100px;
@@ -47,7 +47,6 @@
     color: #2563eb;
 }
 
-/* Subcategory Indentation */
 .sidebar-submenu {
     list-style: none;
     padding-left: 15px;
@@ -69,21 +68,9 @@
     color: #2563eb;
 }
 
-/* Hide the sidebar completely on mobile screens */
-@media (max-width: 768px) {
-    .marketplace-layout {
-        grid-template-columns: 1fr;
-    }
-    .category-sidebar {
-        display: none;
-    }
-}
-
 /* ==========================================================================
-   LAYOUT GRIDS (CATALOG, CART, DASHBOARD)
+   LAYOUT GRIDS (HOMEPAGE CATALOG & CARDS)
    ========================================================================== */
-
-/* --- Card Grid Layout (Homepage Catalog) --- */
 .item-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -97,55 +84,119 @@
     background-color: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
-    padding: 20px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
     justify-content: space-between; 
     gap: 15px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden; /* Ensures nothing escapes the card boundaries */
 }
+
 .item-list li:hover {
     transform: translateY(-4px); 
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08); 
     border-color: #d1d5db;
 }
-.item-list li .action-btn {
-    width: 100%; text-align: center; padding: 12px 0; border-radius: 8px; font-weight: 600;
+
+/* THE FIX: Force vertical stacking for images and text inside cards */
+.item-info { 
+    display: flex; 
+    flex-direction: column;
+    align-items: flex-start; 
+    gap: 12px; 
+    font-size: 15px; 
+    line-height: 1.4; 
+    width: 100%;
 }
 
-.item-info { display: flex; align-items: center; gap: 15px; font-size: 15px; line-height: 1.5; }
-.card-img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 15px; background-color: #f3f4f6; }
+/* Ensure text wraps cleanly instead of pushing the layout wide */
+.item-info > span {
+    width: 100%;
+    word-break: break-word;
+}
 
-/* --- Mobile 2-Column Grid Override --- */
+.card-img, .list-img { 
+    width: 100%; 
+    height: 180px; 
+    object-fit: cover; 
+    border-radius: 8px; 
+    background-color: #f3f4f6; 
+}
+
+.list-img-fallback {
+    width: 100%;
+    height: 180px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS (CLEAN 2-COLUMN GRID & SPACING)
+   ========================================================================== */
 @media (max-width: 768px) {
+    .marketplace-layout {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .category-sidebar {
+        display: none;
+    }
+
+    /* Fixed 2-Column Grid Layout for Products and Services on Mobile */
     .item-list {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
+        gap: 12px;
         padding: 0;
+        margin-bottom: 25px;
+    }
+
+    .item-list li {
+        padding: 12px;
+        border-radius: 10px;
+        gap: 10px;
     }
     
-    /* Shrinks text to prevent overflow in the tight 2-column layout */
     .item-info {
+        gap: 8px;
         font-size: 13px; 
     }
+
+    .item-list .list-img,
+    .list-img-fallback {
+        width: 100% !important;
+        height: 120px !important;
+        border-radius: 6px;
+        object-fit: cover;
+    }
+
+    .card-img {
+        height: 130px;
+        margin-bottom: 8px;
+    }
     
-    /* Scales down the add/book buttons to fit the smaller cards */
     .item-list li .action-btn.btn-add, 
     .item-list li .action-btn.btn-book {
         font-size: 12px;
-        padding: 8px;
-    }
-}
-
-/* Update this specific block inside the media query */
-    .item-list li .action-btn.btn-add, 
-    .item-list li .action-btn.btn-book {
-        font-size: 13px;
         padding: 10px;
         width: 100%;
         display: block;
-        box-sizing: border-box; /* Forces padding to stay inside the width */
+        box-sizing: border-box;
         margin: 0 auto;
         text-align: center;
+        border-radius: 6px;
     }
+}
+
+/* Extracted Pending Reviews Styles */
+.service-card-highlight {
+    border-top: 4px solid #2563eb;
+}

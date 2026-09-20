@@ -727,3 +727,26 @@ select.form-control {
 .m-0 {
     margin: 0;
 }
+
+/* Service Edit - Image Preview */
+.current-cover-preview {
+    max-width: 200px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light, #ddd);
+}
+
+/* Dashboard Quote Form Inputs */
+.quote-input-sm {
+    max-width: 130px;
+    padding: 8px;
+}
+
+.quote-input-md {
+    max-width: 140px;
+    padding: 8px;
+}
+
+.quote-input-grow {
+    flex-grow: 1;
+    padding: 8px;
+}

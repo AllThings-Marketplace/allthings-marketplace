@@ -9,7 +9,7 @@
 <h2 class="section-heading cart-heading">Your Cart</h2>
 
 {% if cart and cart.items.all or cart.jobs.all %}
-    <form method="GET" action="{% url 'checkout' %}" id="cartForm">
+    <form method="GET" action="{% url 'orders:checkout' %}" id="cartForm">
         {% csrf_token %}
         <div class="checkout-container">
             
@@ -19,7 +19,7 @@
                         <input type="checkbox" id="selectAllItems" checked>
                         <span>Select All Items</span>
                     </label>
-                    <a href="{% url 'clear_cart' %}" class="btn-clear-cart">
+                    <a href="{% url 'orders:clear_cart' %}" class="btn-clear-cart">
                         <i class="fa-solid fa-trash-can"></i> Clear Cart
                     </a>
                 </div>
@@ -44,28 +44,15 @@
                                 {% endif %}
                                 
                                 <div class="quantity-control">
-                                    <a href="{% url 'decrease_quantity' item.id %}" class="qty-btn">-</a>
+                                    <a href="{% url 'orders:decrease_quantity' item.id %}" class="qty-btn">-</a>
                                     <span class="qty-display">{{ item.quantity }}</span>
-                                    <a href="{% url 'increase_quantity' item.id %}" class="qty-btn">+</a>
+                                    <a href="{% url 'orders:increase_quantity' item.id %}" class="qty-btn">+</a>
                                 </div>
                             </div>
                         </div>
                         <div class="cart-item-actions">
                             <strong>NGN {{ item.get_total }}</strong>
-                            <a href="{% url 'remove_item' item.id %}" class="btn-delete"><i class="fa-solid fa-xmark"></i></a>
-                        </div>
-                    </div>
-                {% endfor %}
-
-                {% for job in cart.jobs.all %}
-                    <div class="cart-item-row">
-                        <div class="item-info cart-item-flex">
-                            <input type="checkbox" name="selected_services" value="{{ job.id }}" class="item-checkbox" data-price="{{ job.service.base_price }}" checked>
-                            <span><strong>{{ job.service.name }}</strong> (Service Call)</span>
-                        </div>
-                        <div class="cart-item-actions">
-                            <strong>NGN {{ job.service.base_price }}</strong>
-                            <a href="{% url 'remove_job' job.id %}" class="btn-delete"><i class="fa-solid fa-xmark"></i></a>
+                            <a href="{% url 'orders:remove_item' item.id %}" class="btn-delete"><i class="fa-solid fa-xmark"></i></a>
                         </div>
                     </div>
                 {% endfor %}
@@ -91,7 +78,7 @@
         <i class="fa-solid fa-cart-arrow-down empty-state-icon"></i>
         <h3 class="empty-state-title">Your cart is empty</h3>
         <p class="empty-state-text">Looks like you haven't added any items or booked any services yet.</p>
-        <a href="{% url 'home' %}" class="action-btn">
+        <a href="{% url 'marketplace:home' %}" class="action-btn">
             <i class="fa-solid fa-magnifying-glass"></i> Browse Catalog
         </a>
     </div>

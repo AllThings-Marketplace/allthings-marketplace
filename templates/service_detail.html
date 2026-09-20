@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pages/service-detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="service-detail-container">
+
+    <!-- Navigation Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="{% url 'marketplace:home' %}">Home</a> &rarr;
+        <a href="#">{{ service.category.name }}</a> &rarr;
+        <span>{{ service.name }}</span>
+    </nav>
+
+    <!-- Cinematic Cover Banner -->
+    <div class="service-cover-wrapper">
+        {% if service.cover_image %}
+        <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="service-cover-banner">
+        {% else %}
+        <div class="service-cover-fallback">
+            <i class="fa-solid fa-camera"></i>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="service-layout grid-2-sidebar">
+
+        <!-- Left Column: Service Details -->
+        <div class="service-main-content">
+            <h1 class="service-title mt-0">{{ service.name }}</h1>
+
+            <div class="provider-badge">
+                <div class="provider-avatar">
+                    <i class="fa-solid fa-store"></i>
+                </div>
+                <div class="provider-info">
+                    <strong class="provider-name-lg">{{ service.provider.business_name }}</strong>
+                    <span class="text-12-muted block mt-5"><i class="fa-solid fa-circle-check text-success"></i> Identity Verified</span>
+                </div>
+            </div>
+
+            <div class="service-section mt-40">
+                <h3 class="font-600-dark mb-15">About this service</h3>
+                <p class="service-description">{{ service.description|linebreaksbr }}</p>
+            </div>
+
+            <!-- Scope of Work (What's Included / Excluded) -->
+            {% if service.whats_included or service.whats_excluded %}
+            <div class="scope-grid mt-40">
+                {% if service.whats_included %}
+                <div class="scope-box included">
+                    <h4 class="mt-0 mb-15 font-600-dark"><i class="fa-solid fa-check text-success mr-5"></i> What's Included</h4>
+                    <ul class="scope-list">
+                        {% for item in service.whats_included %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if service.whats_excluded %}
+                <div class="scope-box excluded">
+                    <h4 class="mt-0 mb-15 font-600-dark"><i class="fa-solid fa-xmark text-danger mr-5"></i> What's Not Included</h4>
+                    <ul class="scope-list">
+                        {% for item in service.whats_excluded %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Portfolio Gallery -->
+            {% if portfolio %}
+            <div class="service-section mt-50">
+                <h3 class="font-600-dark mb-20">Provider Portfolio</h3>
+                <div class="portfolio-grid">
+                    {% for img in portfolio %}
+                    <div class="portfolio-item">
+                        <img src="{{ img.image.url }}" alt="Portfolio image">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Customer Reviews Feed -->
+            <div class="reviews-container mt-50">
+                <h3 class="font-600-dark mb-20">Customer Reviews</h3>
+                {% if recent_reviews %}
+                    {% for review in recent_reviews %}
+                        <div class="review-card-item mb-20">
+                            <div class="review-header flex-between mb-10">
+                                <div>
+                                    <strong class="font-600-dark">{{ review.customer.username }}</strong>
+                                    {% if review.is_verified %}
+                                        <span class="status-badge badge-completed badge-sm ml-5"><i class="fa-solid fa-check-circle"></i> Verified Booking</span>
+                                    {% endif %}
+                                </div>
+                                <span class="rating-highlight font-600-dark"><i class="fa-solid fa-star text-warning"></i> {{ review.overall_rating }}.0</span>
+                            </div>
+
+                            <!-- The Review Text -->
+                            <p class="text-14-dark mt-0 mb-10">{{ review.public_review }}</p>
+                            
+                            <!-- Attribute Breakdown (Punctuality, Professionalism, etc.) -->
+                            {% if review.attributes.all %}
+                                <div class="review-attributes flex-wrap gap-15 mb-15">
+                                    {% for attr in review.attributes.all %}
+                                        <span class="text-12-muted review-attr-tag">
+                                            <strong>{{ attr.attribute_name }}:</strong> {{ attr.rating }}/5
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Customer Photo Gallery -->
+                            {% if review.photos.all %}
+                                <div class="review-photos flex-wrap gap-10 mb-10">
+                                    {% for photo in review.photos.all %}
+                                        <a href="{{ photo.image.url }}" target="_blank">
+                                            <img src="{{ photo.image.url }}" alt="Customer Review Photo" class="review-photo-thumb">
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <small class="text-12-muted">{{ review.created_at|date:"M d, Y" }}</small>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="reviews-empty-box">
+                        <i class="fa-regular fa-star text-muted reviews-empty-icon"></i>
+                        <p class="text-14-muted m-0">No reviews yet. Book this service and be the first to review it!</p>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- Right Column: Premium Booking Card -->
+        <div class="service-sidebar">
+            <div class="booking-card">
+
+                <form method="POST" action="{% url 'orders:process_service_booking' service.id %}">
+                    {% csrf_token %}
+
+                    {% if service.pricing_type == 'PACKAGES' %}
+                    <h3 class="mt-0 mb-20 font-600-dark">Select a Package</h3>
+                    <div class="package-list">
+                        {% for pkg in packages %}
+                        <label class="package-card {% if forloop.first %}selected{% endif %}">
+                            <input type="radio" name="selected_package" value="{{ pkg.id }}" {% if forloop.first%}checked{% endif %}>
+                            <div class="package-info">
+                                <div class="package-header">
+                                    <span class="package-name">{{ pkg.name }}</span>
+                                    <span class="package-price">NGN {{ pkg.price }}</span>
+                                </div>
+                                <div class="text-12-muted"><i class="fa-regular fa-clock mr-5"></i> {{pkg.estimated_duration }}</div>
+                                {% if pkg.features %}
+                                <ul class="package-features">
+                                    {% for feature in pkg.features %}
+                                    <li><i class="fa-solid fa-check feature-check-icon"></i> {{ feature }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% endif %}
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <!-- Dynamic Pricing Display for Fixed, Hourly, Starting -->
+                    <div class="single-price-display mb-30">
+                        {% if service.pricing_type == 'FIXED' %}
+                        <div class="text-14-muted text-uppercase price-label-tracked">Fixed Price</div>
+                        <h2 class="mt-5 mb-0 price-value-lg">NGN {{ service.base_price }}</h2>
+                        {% elif service.pricing_type == 'STARTING' %}
+                        <div class="text-14-muted text-uppercase price-label-tracked">Starting From</div>
+                        <h2 class="mt-5 mb-0 price-value-lg">NGN {{ service.base_price }}</h2>
+                        {% elif service.pricing_type == 'HOURLY' %}
+                        <div class="text-14-muted text-uppercase price-label-tracked">Hourly Rate</div>
+                        <h2 class="mt-5 mb-0 price-value-lg">NGN {{ service.base_price }}<span class="text-14-muted hourly-rate-suffix">/hr</span></h2>
+                        {% elif service.pricing_type == 'QUOTE' %}
+                        <div class="text-14-muted text-uppercase price-label-tracked">Custom Pricing</div>
+                        <h2 class="mt-5 mb-0 price-value-lg">Requires Quote</h2>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Premium Spaced Fulfillment Block -->
+                    <div class="fulfillment-details">
+                        <div class="fulfillment-item">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>{{ service.get_service_mode_display }}</span>
+                        </div>
+                        {% if service.service_radius_km %}
+                        <div class="fulfillment-item">
+                            <i class="fa-solid fa-route"></i>
+                            <span>Covers up to {{ service.service_radius_km }}km</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Spaced Scheduling Fields -->
+                    <div class="form-group">
+                        <label>Preferred Date *</label>
+                        <input type="date" name="preferred_date" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Preferred Time *</label>
+                        <input type="time" name="preferred_time" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Service Address *</label>
+                        <input type="text" name="service_location" class="form-control" placeholder="123 Main St, Port Harcourt" required>
+                    </div>
+
+                    <div class="form-group mb-30">
+                        <label>Additional Notes (Optional)</label>
+                        <textarea name="customer_notes" class="form-control" rows="3" placeholder="Describe your exact needs..."></textarea>
+                    </div>
+
+                    <button type="submit" class="action-btn btn-primary w-100 btn-submit-booking requires-auth">
+                        {% if service.pricing_type == 'QUOTE' %}
+                        Request a Quote
+                        {% else %}
+                        Request Booking
+                        {% endif %}
+                    </button>
+                </form>
+                <p class="text-center text-12-muted mt-15 mb-0"><i class="fa-solid fa-shield-halved mr-5"></i> You won't be charged yet.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pages/service-detail.js' %}"></script>
+{% endblock %}

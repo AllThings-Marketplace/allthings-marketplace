@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between align-center mb-40">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">Edit Product</h2>
+        <p class="text-14-muted m-0">Updating: <strong>{{ product.name }}</strong></p>
+    </div>
+    <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-outline action-sm">
+        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="summary-card">
+    <form method="POST" action="{% url 'dashboard:edit_product' product.id %}">
+        {% csrf_token %}
+        
+        <div class="form-group mb-20">
+            <label class="form-label-dark">Product Name *</label>
+            <input type="text" name="name" class="form-control" value="{{ product.name }}" required>
+        </div>
+
+        <div class="flex-between gap-15 mb-20">
+            <div class="form-group w-100">
+                <label class="form-label-dark">Category *</label>
+                <select name="category_id" class="form-control" required>
+                    {% for cat in parent_categories %}
+                        <option value="{{ cat.id }}" {% if cat.id == product.category_id %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group w-100">
+                <label class="form-label-dark">Price (NGN) *</label>
+                <input type="number" name="price" class="form-control" step="0.01" value="{{ product.price }}" required>
+            </div>
+        </div>
+
+        <div class="form-group mb-20">
+            <label class="form-label-dark">Available Stock *</label>
+            <input type="number" name="stock_count" class="form-control" value="{{ product.stock_count }}" required>
+            <small class="form-text-muted">Set to 0 to temporarily mark this item as out of stock.</small>
+        </div>
+
+        <div class="form-group mb-30">
+            <label class="form-label-dark">Description *</label>
+            <textarea name="description" class="form-control" rows="5" required>{{ product.description }}</textarea>
+        </div>
+
+        <div class="warning-text-block mb-30">
+            <i class="fa-solid fa-camera icon-spaced"></i> 
+            <strong>Need to update photos?</strong> Save your changes here, then click the "Photos" button next to this item on your dashboard.
+        </div>
+
+        <button type="submit" class="action-btn btn-primary w-100 py-15 text-16 font-600-block">
+            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Changes
+        </button>
+    </form>
+</div>
+{% endblock %}

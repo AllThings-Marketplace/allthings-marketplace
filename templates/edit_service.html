@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between align-center mb-40">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">Edit Service</h2>
+        <p class="text-14-muted m-0">Updating: <strong>{{ service.name }}</strong></p>
+    </div>
+    <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-outline action-sm">
+        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="summary-card">
+    <form method="POST" action="{% url 'dashboard:edit_service' service.id %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-group mb-20">
+            <label class="form-label-dark">Service Name *</label>
+            <input type="text" name="name" class="form-control" value="{{ service.name }}" required>
+        </div>
+
+        <div class="form-group mb-20">
+            <label class="form-label-dark">Category *</label>
+            <select name="category_id" class="form-control" required>
+                {% for cat in parent_categories %}
+                    <option value="{{ cat.id }}" {% if cat.id == service.category_id %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group mb-20">
+            <label class="form-label-dark">Description *</label>
+            <textarea name="description" class="form-control" rows="4" required>{{ service.description }}</textarea>
+        </div>
+
+        <div class="flex-between gap-15 mb-20">
+            <div class="form-group w-100">
+                <label class="form-label-dark">Service Mode *</label>
+                <select name="service_mode" class="form-control" required>
+                    <option value="PROVIDER_LOCATION" {% if service.service_mode == 'PROVIDER_LOCATION' %}selected{% endif %}>Customer comes to me</option>
+                    <option value="CUSTOMER_LOCATION" {% if service.service_mode == 'CUSTOMER_LOCATION' %}selected{% endif %}>I travel to customer</option>
+                    <option value="BOTH" {% if service.service_mode == 'BOTH' %}selected{% endif %}>Both options available</option>
+                    <option value="REMOTE" {% if service.service_mode == 'REMOTE' %}selected{% endif %}>Remote / Online Service</option>
+                </select>
+            </div>
+            
+            <div class="form-group w-100">
+                <label class="form-label-dark">Service Radius (km)</label>
+                <input type="number" name="service_radius_km" class="form-control" value="{{ service.service_radius_km|default_if_none:'' }}" placeholder="e.g., 20">
+                <small class="form-text-muted">Leave blank if not applicable.</small>
+            </div>
+        </div>
+
+        {% if service.pricing_type != 'QUOTE' and service.pricing_type != 'PACKAGES' %}
+            <div class="form-group mb-20">
+                <label class="form-label-dark">Base Price (NGN) *</label>
+                <input type="number" name="base_price" class="form-control" step="0.01" value="{{ service.base_price|default_if_none:'' }}">
+            </div>
+        {% else %}
+            <div class="warning-text-block mb-20">
+                <i class="fa-solid fa-circle-info icon-spaced"></i> 
+                This service uses the <strong>{{ service.get_pricing_type_display }}</strong> pricing model. Base price cannot be edited directly.
+            </div>
+        {% endif %}
+
+        <div class="form-group mb-20">
+            <label class="form-label-dark">What's Included (Comma separated)</label>
+            <textarea name="whats_included" class="form-control" rows="2" placeholder="e.g., Inspection, Labour, Cleanup">{{ service.whats_included|join:", " }}</textarea>
+        </div>
+
+        <div class="form-group mb-20">
+            <label class="form-label-dark">What's Excluded (Comma separated)</label>
+            <textarea name="whats_excluded" class="form-control" rows="2" placeholder="e.g., Cost of spare parts, Major masonry">{{ service.whats_excluded|join:", " }}</textarea>
+        </div>
+
+        <div class="form-group mb-30 border-top-light pt-20">
+            <label class="form-label-dark">Update Cover Image</label>
+            {% if service.cover_image %}
+                <div class="mb-10">
+                    <img src="{{ service.cover_image.url }}" alt="Current Cover" class="current-cover-preview">
+                    <p class="text-12-muted mt-5">Current Cover Image</p>
+                </div>
+            {% endif %}
+            <input type="file" name="cover_image" class="form-control" accept="image/*">
+            <small class="form-text-muted">Leave empty to keep your existing cover image.</small>
+        </div>
+
+        <button type="submit" class="action-btn btn-primary w-100 py-15 text-16 font-600-block">
+            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Changes
+        </button>
+    </form>
+</div>
+{% endblock %}

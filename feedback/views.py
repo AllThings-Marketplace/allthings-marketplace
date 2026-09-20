@@ -1,108 +1,118 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from orders.models import OrderItem, JobBooking
-from .models import Feedback, FeedbackAttribute
+from django.db import transaction
+from orders.models import OrderItem, ServiceOrder
+from .models import Feedback, FeedbackAttribute, FeedbackPhoto
 
 @login_required
 def product_feedback_view(request, item_id):
-    # 1. Verify ownership and ensure the item belongs to the customer
     item = get_object_or_404(OrderItem, id=item_id, order__customer=request.user)
     
-    # 2. Prevent duplicate reviews
     if hasattr(item, 'feedback'):
         messages.info(request, "You have already reviewed this product.")
-        return redirect('home')
+        return redirect('orders:order_history')
 
     if request.method == 'POST':
-        # 3. Handle the relationship bridge
-        # Product points to ProviderProfile. We add .user to get the base account.
-        target_user = item.product.provider.user 
-        
-        feedback = Feedback.objects.create(
-            customer=request.user,
-            target_provider=target_user,
-            transaction_type=Feedback.TransactionType.PRODUCT,
-            order_item=item,
-            product=item.product,  # --- NEW: Direct Product Link ---
-            overall_rating=request.POST.get('overall_rating', 5),
-            public_review=request.POST.get('public_review', ''),
-            private_feedback=request.POST.get('private_feedback', ''),
-            is_verified=True
-        )
-        
-        # 4. Save the product-specific dynamic attributes
-        attributes = {
-            'Product Quality': request.POST.get('attr_quality', 5),
-            'As Described': request.POST.get('attr_described', 5),
-            'Delivery Experience': request.POST.get('attr_delivery', 5)
-        }
-        
-        for name, rating in attributes.items():
-            if rating: 
-                FeedbackAttribute.objects.create(feedback=feedback, attribute_name=name, rating=rating)
+        try:
+            with transaction.atomic():
+                feedback = Feedback.objects.create(
+                    customer=request.user,
+                    target_provider=item.product.provider.user,
+                    transaction_type=Feedback.TransactionType.PRODUCT,
+                    order_item=item,
+                    product=item.product,
+                    overall_rating=request.POST.get('overall_rating', 5),
+                    public_review=request.POST.get('public_review', ''),
+                    private_feedback=request.POST.get('private_feedback', ''),
+                    is_verified=True
+                )
+                
+                attributes = {
+                    'Product Quality': request.POST.get('attr_quality', 5),
+                    'As Described': request.POST.get('attr_described', 5),
+                    'Delivery Experience': request.POST.get('attr_delivery', 5)
+                }
+                
+                for name, rating in attributes.items():
+                    if rating: 
+                        FeedbackAttribute.objects.create(feedback=feedback, attribute_name=name, rating=rating)
+                
+                # Handle optional photo upload
+                photo = request.FILES.get('feedback_photo')
+                if photo:
+                    FeedbackPhoto.objects.create(feedback=feedback, image=photo)
+                    
+            messages.success(request, "Thank you for your feedback!")
+            return redirect('orders:order_history')
             
-        messages.success(request, "Thank you for your feedback!")
-        return redirect('home')
+        except Exception as e:
+            messages.error(request, f"Error saving review: {str(e)}")
         
     return render(request, 'feedback/product_form.html', {'item': item})
 
 
 @login_required
-def service_feedback_view(request, job_id):
-    job = get_object_or_404(JobBooking, id=job_id, order__customer=request.user)
+def service_feedback_view(request, service_order_id):
+    # Ensure they can only review CONFIRMED jobs
+    service_order = get_object_or_404(ServiceOrder, id=service_order_id, customer=request.user, status='CONFIRMED')
     
-    if hasattr(job, 'feedback'):
+    if hasattr(service_order, 'feedback'):
         messages.info(request, "You have already reviewed this service.")
-        return redirect('home')
+        return redirect('orders:order_history')
 
     if request.method == 'POST':
-        # JobBooking points directly to the User model, so no conversion is needed.
-        target_user = job.provider 
-        
-        feedback = Feedback.objects.create(
-            customer=request.user,
-            target_provider=target_user, 
-            transaction_type=Feedback.TransactionType.SERVICE,
-            job_booking=job,
-            service=job.service,  # --- NEW: Direct Service Link ---
-            overall_rating=request.POST.get('overall_rating', 5),
-            public_review=request.POST.get('public_review', ''),
-            private_feedback=request.POST.get('private_feedback', ''),
-            is_verified=True
-        )
-        
-        # Save the service-specific dynamic attributes
-        attributes = {
-            'Professionalism': request.POST.get('attr_professionalism', 5),
-            'Quality of Work': request.POST.get('attr_quality', 5),
-            'Punctuality': request.POST.get('attr_punctuality', 5),
-            'Communication': request.POST.get('attr_communication', 5)
-        }
-        
-        for name, rating in attributes.items():
-            if rating:
-                FeedbackAttribute.objects.create(feedback=feedback, attribute_name=name, rating=rating)
+        try:
+            with transaction.atomic():
+                feedback = Feedback.objects.create(
+                    customer=request.user,
+                    target_provider=service_order.provider.user, 
+                    transaction_type=Feedback.TransactionType.SERVICE,
+                    service_order=service_order,
+                    service=service_order.service,
+                    overall_rating=request.POST.get('overall_rating', 5),
+                    public_review=request.POST.get('public_review', ''),
+                    private_feedback=request.POST.get('private_feedback', ''),
+                    is_verified=True
+                )
+                
+                attributes = {
+                    'Professionalism': request.POST.get('attr_professionalism', 5),
+                    'Quality of Work': request.POST.get('attr_quality', 5),
+                    'Punctuality': request.POST.get('attr_punctuality', 5),
+                    'Communication': request.POST.get('attr_communication', 5)
+                }
+                
+                for name, rating in attributes.items():
+                    if rating:
+                        FeedbackAttribute.objects.create(feedback=feedback, attribute_name=name, rating=rating)
+                        
+                # Handle optional photo upload
+                photo = request.FILES.get('feedback_photo')
+                if photo:
+                    FeedbackPhoto.objects.create(feedback=feedback, image=photo)
+                    
+            messages.success(request, "Thank you for your feedback!")
+            return redirect('orders:order_history')
             
-        messages.success(request, "Thank you for your feedback!")
-        return redirect('home')
+        except Exception as e:
+            messages.error(request, f"Error saving review: {str(e)}")
 
-    return render(request, 'feedback/service_form.html', {'job': job})
+    return render(request, 'feedback/service_form.html', {'job': service_order})
 
 @login_required
 def pending_reviews_list(request):
-    # 1. Fetch unreviewed products that have actually been delivered
     pending_products = OrderItem.objects.filter(
         order__customer=request.user,
         feedback__isnull=True,
         status__in=['DELIVERED', 'COMPLETED'] 
     ).select_related('product')
     
-    # 2. Fetch unreviewed services that are fully finished
-    pending_services = JobBooking.objects.filter(
-        order__customer=request.user,
+    # Updated to strictly require 'CONFIRMED' status
+    pending_services = ServiceOrder.objects.filter(
+        customer=request.user,
         feedback__isnull=True,
-        status='COMPLETED'
+        status='CONFIRMED'
     ).select_related('service')
     
     context = {

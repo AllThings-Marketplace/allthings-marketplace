@@ -46,15 +46,15 @@
         <aside class="category-sidebar">
             <h3 class="sidebar-title">Categories</h3>
             <ul class="sidebar-menu">
-                <li><a href="{% url 'home' %}" class="sidebar-parent-link {% if not current_category %}active{% endif %}">All Categories</a></li>
+                <li><a href="{% url 'marketplace:home' %}" class="sidebar-parent-link {% if not current_category %}active{% endif %}">All Categories</a></li>
                 {% for cat in categories %}
                     {% if not cat.parent %}
                         <li>
-                            <a href="{% url 'home' %}?category={{ cat.id }}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">{{ cat.name }}</a>
+                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">{{ cat.name }}</a>
                             {% if cat.subcategories.all %}
                                 <ul class="sidebar-submenu">
                                     {% for sub in cat.subcategories.all %}
-                                        <li><a href="{% url 'home' %}?category={{ sub.id }}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">{{ sub.name }}</a></li>
+                                        <li><a href="{% url 'marketplace:home' %}?category={{ sub.id }}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">{{ sub.name }}</a></li>
                                     {% endfor %}
                                 </ul>
                             {% endif %}
@@ -70,7 +70,7 @@
                 <div class="promo-banner">
                     <h3>New to All Things?</h3>
                     <p>Create an account to track orders and save your favorite items.</p>
-                    <a href="{% url 'register' %}" class="promo-btn">Join for Free</a>
+                    <a href="{% url 'accounts:register' %}" class="promo-btn">Join for Free</a>
                 </div>
             {% endif %}
 
@@ -84,14 +84,27 @@
                     {% for service in services %}
                         <li>
                             <div class="item-info">
-                                {% if service.image %}
-                                    <img src="{{ service.image.url }}" alt="{{ service.name }}" class="list-img">
+                                <!-- UPDATED: Uses cover_image from the new model -->
+                                {% if service.cover_image %}
+                                    <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="list-img" style="object-fit: cover;">
                                 {% else %}
                                     <div class="list-img-fallback">No Img</div>
                                 {% endif %}
-                                <span><strong>{{ service.name }}</strong> - NGN {{ service.base_price }}</span>
+                                <span>
+                                    <strong>{{ service.name }}</strong> 
+                                    <span class="text-12-muted block mt-5">
+                                        {% if service.pricing_type == 'QUOTE' %}
+                                            Requires Quote
+                                        {% elif service.pricing_type == 'PACKAGES' %}
+                                            Multiple Packages Available
+                                        {% else %}
+                                            Starting at NGN {{ service.base_price }}
+                                        {% endif %}
+                                    </span>
+                                </span>
                             </div>
-                            <a href="{% url 'book_service' service.id %}" class="action-btn btn-book requires-auth">Book Now</a>
+                            <!-- UPDATED: Routes to the new service detail page using the slug -->
+                            <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-book">View Service</a>
                         </li>
                     {% endfor %}
                 </ul>
@@ -102,8 +115,7 @@
                 <ul class="item-list">
                     {% for product in products %}
                         <li class="product-card-wrapper">
-                            <a href="{% url 'product_detail' product.slug %}" class="block-link">
-                                <!-- UPDATED: Using prefetched images from the new model -->
+                            <a href="{% url 'marketplace:product_detail' product.slug %}" class="block-link">
                                 {% if product.images.first %}
                                     <img src="{{ product.images.first.processed_image.url }}" alt="{{ product.name }}" class="card-img">
                                 {% else %}
@@ -114,7 +126,7 @@
                             <!-- Information Layout -->
                             <div class="card-info-layout">
                                 <div class="card-text-col">
-                                    <a href="{% url 'product_detail' product.slug %}" class="item-info block-link"><strong>{{ product.name }}</strong></a>
+                                    <a href="{% url 'marketplace:product_detail' product.slug %}" class="item-info block-link"><strong>{{ product.name }}</strong></a>
                                     <strong class="block-mt-10 card-price">NGN {{ product.price }}</strong>
                                 </div>
                                 
@@ -151,8 +163,7 @@
                                 </span>
                             </div>
 
-                            <!-- AJAX Cart Class Added Here -->
-                            <a href="{% url 'add_to_cart' product.id %}" class="action-btn btn-add ajax-cart-btn mt-1 requires-auth">Add to Cart</a>
+                            <a href="{% url 'orders:add_to_cart' product.id %}" class="action-btn btn-add ajax-cart-btn mt-1 requires-auth">Add to Cart</a>
                         </li>
                     {% endfor %}
                 </ul>
@@ -169,8 +180,7 @@
                 <ul class="item-list">
                     {% for product in recommended %}
                         <li class="product-card-wrapper">
-                            <a href="{% url 'product_detail' product.slug %}" class="block-link">
-                                <!-- UPDATED: Using prefetched images from the new model -->
+                            <a href="{% url 'marketplace:product_detail' product.slug %}" class="block-link">
                                 {% if product.images.first %}
                                     <img src="{{ product.images.first.processed_image.url }}" alt="{{ product.name }}" class="card-img">
                                 {% else %}
@@ -181,7 +191,7 @@
                             <!-- Information Layout -->
                             <div class="card-info-layout">
                                 <div class="card-text-col">
-                                    <a href="{% url 'product_detail' product.slug %}" class="item-info block-link"><strong>{{ product.name }}</strong></a>
+                                    <a href="{% url 'marketplace:product_detail' product.slug %}" class="item-info block-link"><strong>{{ product.name }}</strong></a>
                                     <strong class="block-mt-10 card-price">NGN {{ product.price }}</strong>
                                 </div>
                                 
@@ -218,15 +228,13 @@
                                 </span>
                             </div>
 
-                            <!-- AJAX Cart Class Added Here -->
-                            <a href="{% url 'add_to_cart' product.id %}" class="action-btn btn-add ajax-cart-btn mt-10 requires-auth">Add to Cart</a>
+                            <a href="{% url 'orders:add_to_cart' product.id %}" class="action-btn btn-add ajax-cart-btn mt-10 requires-auth">Add to Cart</a>
                         </li>
                     {% endfor %}
                 </ul>
             {% endif %}
         </main>
     </div>
-    
 {% endblock %}
 
 {% block extra_js %}

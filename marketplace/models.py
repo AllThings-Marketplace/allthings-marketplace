@@ -45,16 +45,85 @@ class Category(models.Model):
         return self.name
 
 class Service(models.Model):
+    class ServiceMode(models.TextChoices):
+        REMOTE = 'REMOTE', 'Remote / Online'
+        CUSTOMER_LOC = 'CUSTOMER_LOC', 'I travel to customer'
+        PROVIDER_LOC = 'PROVIDER_LOC', 'Customer comes to me'
+        BOTH = 'BOTH', 'Either location'
+
+    class PricingType(models.TextChoices):
+        FIXED = 'FIXED', 'Fixed Price'
+        STARTING = 'STARTING', 'Starting From'
+        HOURLY = 'HOURLY', 'Hourly Rate'
+        QUOTE = 'QUOTE', 'Requires Custom Quote'
+        PACKAGES = 'PACKAGES', 'Tiered Packages'
+
+    # The missing link: Assigning the service to a specific vendor/provider
+    provider = models.ForeignKey('accounts.ProviderProfile', on_delete=models.CASCADE, related_name='services')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='services')
+    
     name = models.CharField(max_length=200)
-    # Using DecimalField is best practice for handling currency
-    base_price = models.DecimalField(max_digits=10, decimal_places=2) 
-    estimated_hours = models.FloatField(help_text="Estimated time to complete in hours")
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
+    description = models.TextField(help_text="Detailed description of the service and provider expertise.")
+    
+    # Fulfillment & Scope
+    service_mode = models.CharField(max_length=20, choices=ServiceMode.choices, default=ServiceMode.CUSTOMER_LOC)
+    service_radius_km = models.PositiveIntegerField(null=True, blank=True, help_text="How far are you willing to travel? (Leave blank if remote)")
+    
+    # Pricing Foundation
+    pricing_type = models.CharField(max_length=20, choices=PricingType.choices, default=PricingType.FIXED)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Base/Starting price. Can be left blank if using Packages or Custom Quotes.")
+    
+    # Scope Details (Stored as JSON lists)
+    whats_included = models.JSONField(default=list, blank=True, help_text="e.g., ['Initial inspection', 'Basic wiring', 'Cleanup']")
+    whats_excluded = models.JSONField(default=list, blank=True, help_text="e.g., ['Replacement parts', 'Major structural work']")
+    
+    # Media
+    cover_image = models.ImageField(upload_to='services/covers/', null=True, blank=True, help_text="The main banner image representing this service.")
+    
     is_active = models.BooleanField(default=True)
-    image = models.ImageField(upload_to='services/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name)
+            unique_slug = base_slug
+            counter = 1
+            while Service.objects.filter(slug=unique_slug).exists():
+                unique_slug = f"{base_slug}-{counter}"
+                counter += 1
+            self.slug = unique_slug
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} ({self.category.name})"
+        return f"{self.name} - {self.provider.business_name if self.provider else 'Unknown Provider'}"
+
+
+class ServicePackage(models.Model):
+    """Handles the 'Basic', 'Standard', 'Premium' tiered pricing model."""
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='packages')
+    name = models.CharField(max_length=100, help_text="e.g., Basic, Standard, Premium")
+    description = models.TextField(blank=True, help_text="Short description of what this tier offers.")
+    price = models.DecimalField(max_digits=12, decimal_places=2)
+    estimated_duration = models.CharField(max_length=100, help_text="e.g., '2-3 Hours', '1-2 Days'")
+    features = models.JSONField(default=list, blank=True, help_text="List of specific features for this package.")
+
+    class Meta:
+        ordering = ['price']
+
+    def __str__(self):
+        return f"{self.service.name} - {self.name} (NGN {self.price})"
+
+
+class ServiceImage(models.Model):
+    """Handles the provider's portfolio gallery (Before/After shots, previous work)."""
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name='portfolio_images')
+    image = models.ImageField(upload_to='services/portfolio/')
+    caption = models.CharField(max_length=200, blank=True, help_text="e.g., 'Before and after of a full kitchen wiring job'")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Portfolio Image for {self.service.name}"
 
 class Product(models.Model):
     class ProductStatus(models.TextChoices):

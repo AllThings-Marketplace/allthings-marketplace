@@ -2,21 +2,22 @@ import hmac
 import hashlib
 import json
 from django.conf import settings
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
-from django.db.models import F, Sum
+from django.db.models import F
 from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-from .models import Order, OrderItem, JobBooking, ShippingAddress, Cart, CartItem, CartJobBooking, PaymentAttempt
-from marketplace.models import Product, Service, ProductVariant
+from .models import Order, OrderItem, ShippingAddress, Cart, CartItem, PaymentAttempt, ServiceOrder, OrderMessage, ServiceDispute
+from marketplace.models import Product, Service, ProductVariant, ServicePackage
 from .paystack import PaystackAPI
 from .tasks import process_webhook_payment
-from .utils import process_order_commissions, dispatch_gigl_rider, release_item_escrow, create_job_escrow, release_job_escrow
+from .utils import process_order_commissions, release_item_escrow, create_service_escrow, release_service_escrow
 
-# --- 1. SHOPPING CART VIEWS ---
+# --- 1. SHOPPING CART VIEWS (Products Only) ---
 
 @login_required
 def add_to_cart(request, product_id):
@@ -51,16 +52,7 @@ def add_to_cart(request, product_id):
     else:
         messages.error(request, f"Cannot add more. Only {available_stock} in stock.")
         
-    return redirect('cart')
-
-@login_required
-def book_service(request, service_id):
-    service = get_object_or_404(Service, id=service_id)
-    cart, created = Cart.objects.get_or_create(customer=request.user)
-    
-    CartJobBooking.objects.get_or_create(cart=cart, service=service)
-    messages.success(request, f"{service.name} has been added to your cart!")
-    return redirect('home')
+    return redirect('orders:cart')
 
 @login_required
 def cart_view(request):
@@ -71,21 +63,14 @@ def cart_view(request):
 def remove_item(request, item_id):
     item = get_object_or_404(CartItem, id=item_id, cart__customer=request.user)
     item.delete()
-    return redirect('cart')
-
-@login_required
-def remove_job(request, job_id):
-    job = get_object_or_404(CartJobBooking, id=job_id, cart__customer=request.user)
-    job.delete()
-    return redirect('cart')
+    return redirect('orders:cart')
 
 @login_required
 def clear_cart(request):
     cart = Cart.objects.filter(customer=request.user).first()
     if cart:
         cart.items.all().delete()
-        cart.jobs.all().delete()
-    return redirect('cart')
+    return redirect('orders:cart')
 
 @login_required
 def increase_quantity(request, item_id):
@@ -97,7 +82,7 @@ def increase_quantity(request, item_id):
         item.save()
     else:
         messages.error(request, "Maximum available stock reached.")
-    return redirect('cart')
+    return redirect('orders:cart')
 
 @login_required
 def decrease_quantity(request, item_id):
@@ -107,57 +92,128 @@ def decrease_quantity(request, item_id):
         item.save()
     else:
         item.delete()
-    return redirect('cart')
+    return redirect('orders:cart')
 
 
-# --- 2. CHECKOUT & PAYMENT VIEWS ---
+# --- 2. SERVICE BOOKING ENGINE ---
+
+@login_required
+def process_service_booking(request, service_id):
+    service = get_object_or_404(Service, id=service_id)
+    
+    if request.method == 'POST':
+        preferred_date = request.POST.get('preferred_date')
+        preferred_time = request.POST.get('preferred_time')
+        service_location = request.POST.get('service_location')
+        customer_notes = request.POST.get('customer_notes', '')
+
+        agreed_price = service.base_price or 0.00
+        selected_package = None
+
+        if service.pricing_type == 'PACKAGES':
+            package_id = request.POST.get('selected_package')
+            if not package_id:
+                messages.error(request, "Please select a service package.")
+                return redirect('dashboard:service_detail', slug=service.slug)
+            
+            selected_package = get_object_or_404(ServicePackage, id=package_id)
+            agreed_price = selected_package.price
+
+        elif service.pricing_type == 'QUOTE':
+            agreed_price = 0.00
+
+        service_order = ServiceOrder.objects.create(
+            customer=request.user,
+            provider=service.provider,
+            service=service,
+            package=selected_package,
+            preferred_date=preferred_date,
+            preferred_time=preferred_time,
+            service_location=service_location,
+            customer_notes=customer_notes,
+            agreed_price=agreed_price,
+            status=ServiceOrder.ServiceStatus.REQUESTED
+        )
+
+        messages.success(request, f"Your request for '{service.name}' has been sent to the provider!")
+        return redirect('service_booking_success', reference=service_order.reference_code)
+        
+    return redirect('dashboard:service_detail', slug=service.slug)
+
+@login_required
+def service_booking_success(request, reference):
+    service_order = get_object_or_404(ServiceOrder, reference_code=reference, customer=request.user)
+    return render(request, 'service_booking_success.html', {'order': service_order})
+
+@login_required
+def service_checkout(request, order_id):
+    if request.method == 'POST':
+        service_order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user, status='ACCEPTED')
+        
+        paystack = PaystackAPI()
+        dynamic_callback = request.build_absolute_uri(reverse('orders:verify_payment'))
+        
+        metadata = {
+            "order_id": service_order.id,
+            "type": "service"
+        }
+        
+        response = paystack.initialize_transaction(
+            email=request.user.email,
+            amount=service_order.agreed_price,
+            order_id=service_order.id,
+            callback_url=dynamic_callback,
+            metadata=metadata
+        )
+        
+        if response.get('status'):
+            service_order.paystack_reference = response['data']['reference']
+            service_order.save(update_fields=['paystack_reference'])
+            return redirect(response['data']['authorization_url'])
+        else:
+            messages.error(request, "Payment gateway unavailable. Please try again.")
+            return redirect('orders:order_history')
+    return redirect('orders:order_history')
+
+# --- 3. CHECKOUT & PAYMENT VIEWS (Products Only) ---
 
 @login_required
 def checkout_view(request):
     cart = get_object_or_404(Cart, customer=request.user)
     
-    if not cart.items.exists() and not cart.jobs.exists():
-        return redirect('home')
+    if not cart.items.exists():
+        return redirect('marketplace:home')
 
     saved_addresses = request.user.addresses.all().order_by('-is_default', '-created_at')
 
     if request.method == 'GET':
         selected_products = request.GET.getlist('selected_products')
-        selected_services = request.GET.getlist('selected_services')
         
-        if not selected_products and not selected_services:
+        if not selected_products:
             messages.error(request, "Please select at least one item to checkout.")
-            return redirect('cart')
+            return redirect('orders:cart')
 
         checkout_items = cart.items.filter(id__in=selected_products)
-        checkout_jobs = cart.jobs.filter(id__in=selected_services)
-        
-        total = sum(item.get_total for item in checkout_items) + sum(job.service.base_price for job in checkout_jobs)
+        total = sum(item.get_total for item in checkout_items)
         
         context = {
             'checkout_items': checkout_items,
-            'checkout_jobs': checkout_jobs,
             'checkout_total': total,
             'selected_products': selected_products, 
-            'selected_services': selected_services, 
             'saved_addresses': saved_addresses,
         }
         return render(request, 'checkout.html', context)
 
     if request.method == 'POST':
         selected_products = request.POST.getlist('selected_products')
-        selected_services = request.POST.getlist('selected_services')
-        
         checkout_items = cart.items.filter(id__in=selected_products)
-        checkout_jobs = cart.jobs.filter(id__in=selected_services)
         
         for item in checkout_items:
             available_stock = item.variant.stock if item.variant else item.product.stock_count
             if item.quantity > available_stock:
                 messages.error(request, f"Sorry, {item.product.name} just sold out. Please adjust your quantity.")
-                return redirect('cart')
+                return redirect('orders:cart')
 
-        # Create immutable Order snapshot
         order = Order.objects.create(customer=request.user, status='unpaid')
         
         selected_address_id = request.POST.get('selected_address')
@@ -206,24 +262,11 @@ def checkout_view(request):
             total_amount += (price * c_item.quantity)
             c_item.delete()
 
-        scheduled_time = request.POST.get('scheduled_time')
-        for c_job in checkout_jobs:
-            JobBooking.objects.create(
-                order=order,
-                service=c_job.service,
-                agreed_price=c_job.service.base_price,
-                scheduled_time=scheduled_time if scheduled_time else None,
-                service_address=f"{order.street_address}, {order.region}"
-            )
-            total_amount += c_job.service.base_price
-            c_job.delete()
-
         order.total_amount = total_amount
         order.save()
 
-        # Initialize Paystack
         paystack = PaystackAPI()
-        dynamic_callback = request.build_absolute_uri(reverse('verify_payment'))
+        dynamic_callback = request.build_absolute_uri(reverse('orders:verify_payment'))
         
         response = paystack.initialize_transaction(
             email=request.user.email,
@@ -242,49 +285,60 @@ def checkout_view(request):
             return redirect(response['data']['authorization_url'])
         else:
             messages.error(request, "Payment gateway unavailable. Please try again.")
-            return redirect('cart')
+            return redirect('orders:cart')
 
 @login_required
 def verify_payment(request):
     reference = request.GET.get('reference')
     if not reference:
-        return redirect('cart')
+        return redirect('orders:cart')
 
     paystack = PaystackAPI()
     response = paystack.verify_transaction(reference)
 
     if response.get('data') and response['data']['status'] == 'success':
-        order_id = response['data']['metadata']['order_id']
-        order = get_object_or_404(Order, id=order_id, customer=request.user)
+        metadata = response['data'].get('metadata', {})
+        order_type = metadata.get('type', 'product')
+        order_id = metadata.get('order_id')
         
-        # Log successful attempt
-        PaymentAttempt.objects.filter(reference=reference).update(status='successful')
-        
-        # Check against new status model instead of is_paid
-        if order.status == 'unpaid':
-            order.status = 'confirmed'
-            order.save(update_fields=['status'])
-            
-            for item in order.items.all():
-                item.status = 'PAID'
-                item.save(update_fields=['status'])
-                item.generate_handshake_codes()
+        if order_type == 'service':
+            service_order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user)
+            if service_order.status == 'ACCEPTED':
+                service_order.status = 'PAID'
+                service_order.is_paid = True
+                service_order.save(update_fields=['status', 'is_paid'])
                 
-                if item.variant:
-                    item.variant.stock = F('stock') - item.quantity
-                    item.variant.save()
+                create_service_escrow(service_order)
                 
-                if item.product:
-                    item.product.stock_count = F('stock_count') - item.quantity
-                    item.product.save()
+                messages.success(request, f"Payment successful! Your booking for {service_order.service.name} is confirmed.")
+            return redirect('orders:order_history')
             
-            process_order_commissions(order)
+        else:
+            order = get_object_or_404(Order, id=order_id, customer=request.user)
+            PaymentAttempt.objects.filter(reference=reference).update(status='successful')
+            
+            if order.status == 'unpaid':
+                order.status = 'confirmed'
+                order.save(update_fields=['status'])
+                
+                for item in order.items.all():
+                    item.status = 'PAID'
+                    item.save(update_fields=['status'])
+                    item.generate_handshake_codes()
+                    
+                    if item.variant:
+                        item.variant.stock = F('stock') - item.quantity
+                        item.variant.save()
+                    if item.product:
+                        item.product.stock_count = F('stock_count') - item.quantity
+                        item.product.save()
+                
+                process_order_commissions(order)
 
-        return redirect('order_success', order_id=order.id)
+            return redirect('order_success', order_id=order.id)
     
-    # Log failed attempt
     PaymentAttempt.objects.filter(reference=reference).update(status='failed')
-    return redirect('cart')
+    return redirect('orders:cart')
 
 @csrf_exempt
 def paystack_webhook(request):
@@ -310,7 +364,7 @@ def paystack_webhook(request):
     return HttpResponse(status=405)
 
 
-# --- 3. CUSTOMER DASHBOARD VIEWS ---
+# --- 4. CUSTOMER DASHBOARD VIEWS ---
 
 @login_required
 def order_success(request, order_id):
@@ -320,11 +374,16 @@ def order_success(request, order_id):
 @login_required
 def order_history(request):
     if request.user.role == 'PROVIDER':
-        return redirect('provider_dashboard')
+        # FIXED: Added namespace to prevent NoReverseMatch crash
+        return redirect('dashboard:provider_dashboard')
         
-    # Order Center Concept: Fetch ALL orders regardless of status
     orders = Order.objects.filter(customer=request.user).order_by('-created_at')
-    return render(request, 'order_history.html', {'orders': orders})
+    service_bookings = ServiceOrder.objects.filter(customer=request.user).order_by('-created_at')
+    
+    return render(request, 'order_history.html', {
+        'orders': orders,
+        'service_bookings': service_bookings
+    })
 
 @login_required
 def order_details(request, order_id):
@@ -345,7 +404,6 @@ def confirm_item_delivery(request, item_id):
             item.status = 'COMPLETED'
             item.save(update_fields=['status'])
             
-            # Check if all items in the parent order are completed to update parent status
             all_completed = not item.order.items.exclude(status='COMPLETED').exists()
             if all_completed:
                 item.order.status = 'completed'
@@ -358,132 +416,131 @@ def confirm_item_delivery(request, item_id):
             
     return redirect('order_details', order_id=item.order.id)
 
-
-# --- 4. PROVIDER / VENDOR VIEWS ---
+@login_required
+def customer_confirm_service(request, order_id):
+    if request.method == 'POST':
+        service_order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user, status='COMPLETED')
+        
+        service_order.status = 'CONFIRMED'
+        service_order.save(update_fields=['status'])
+        
+        release_service_escrow(service_order)
+        
+        messages.success(request, f"You confirmed the completion of {service_order.service.name}. The provider has been paid!")
+    return redirect('orders:order_history')
 
 @login_required
-def provider_dashboard(request):
-    if request.user.role != 'PROVIDER':
-        return HttpResponseForbidden("Only registered service provider can view this page.")
+def reject_quote(request, order_id):
+    if request.method == 'POST':
+        # Ensure the user actually owns this order
+        order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user, status='QUOTE_SENT')
+        
+        # Update the parent order
+        order.status = 'DECLINED'
+        order.save(update_fields=['status'])
+        
+        # Update the quote status
+        if hasattr(order, 'quote'):
+            order.quote.status = 'REJECTED'
+            order.quote.save(update_fields=['status'])
+            
+        messages.info(request, f"You rejected the quote for {order.service.name}.")
+        
+    return redirect('orders:order_history')
+
+@login_required
+def send_order_message(request, order_id):
+    if request.method == 'POST':
+        order = get_object_or_404(ServiceOrder, id=order_id)
+        
+        # Security: Ensure the user is either the customer who booked it, or the provider assigned to it
+        is_customer = request.user == order.customer
+        is_provider = hasattr(request.user, 'provider_profile') and request.user.provider_profile == order.provider
+        
+        if not (is_customer or is_provider):
+            return HttpResponseForbidden("You are not authorized to send messages for this order.")
+            
+        body = request.POST.get('body', '').strip()
+        attachment = request.FILES.get('attachment')
+        
+        if body or attachment:
+            OrderMessage.objects.create(
+                order=order,
+                sender=request.user,
+                body=body,
+                attachment=attachment
+            )
+            
+        # Redirect the user back to the exact page they sent the message from (either dashboard or order history)
+        return redirect(request.META.get('HTTP_REFERER', 'marketplace:home'))
+
+@login_required
+def order_chat(request, order_id):
+    order = get_object_or_404(ServiceOrder, id=order_id)
     
-    available_jobs = JobBooking.objects.filter(status='PENDING', order__status='confirmed')
-    my_jobs = JobBooking.objects.filter(provider=request.user)
+    # Security: Ensure only the customer or the assigned provider can see this chat
+    is_customer = request.user == order.customer
+    is_provider = hasattr(request.user, 'provider_profile') and request.user.provider_profile == order.provider
     
+    if not (is_customer or is_provider):
+        return HttpResponseForbidden("You are not authorized to view this conversation.")
+        
+    # Mark messages from the other person as read when they open the page
+    unread_messages = order.messages.exclude(sender=request.user).filter(is_read=False)
+    unread_messages.update(is_read=True)
+    
+    # Determine who the user is talking to for the header
+    chat_partner = order.provider.business_name if is_customer else order.customer.get_full_name() or order.customer.username
+        
     context = {
-        'available_jobs': available_jobs,
-        'my_jobs': my_jobs
+        'order': order,
+        'chat_messages': order.messages.all(),
+        'is_customer': is_customer,
+        'chat_partner': chat_partner
     }
-    return render(request, 'provider_dashboard.html', context)
+    return render(request, 'order_chat.html', context)
 
 @login_required
-def available_jobs(request):
-    jobs = JobBooking.objects.filter(
-        order__status='confirmed', # Ensure parent order is actually paid
-        provider__isnull=True,
-        status='PENDING'
-    ).order_by('-order__created_at')
-    return render(request, 'available_jobs.html', {'jobs': jobs})
-
-@login_required
-def accept_job(request, job_id):
-    if request.method == 'POST':
-        job = get_object_or_404(JobBooking, id=job_id, provider__isnull=True, order__status='confirmed')
-        
-        job.provider = request.user
-        job.status = 'ACCEPTED'
-        job.save(update_fields=['provider', 'status'])
-        
-        job.generate_completion_code()
-        create_job_escrow(job)
-        
-        messages.success(request, f"You have accepted the booking for {job.service.name}!")
-        return redirect('provider_dashboard')
-    return redirect('available_jobs')
-
-@login_required
-def update_job_status(request, job_id, new_status):
-    if request.method == 'POST':
-        job = get_object_or_404(JobBooking, id=job_id, provider=request.user)
-        
-        if job.status == 'ACCEPTED' and new_status == 'IN_PROGRESS':
-            job.status = new_status
-            job.save(update_fields=['status'])
-            messages.success(request, "Status updated to In Progress.")
-        else:
-            messages.error(request, "Invalid status transition.")
-    return redirect('provider_dashboard')
-
-@login_required
-def verify_job_completion(request, job_id):
-    if request.method == 'POST':
-        job = get_object_or_404(JobBooking, id=job_id, provider=request.user)
-        submitted_code = request.POST.get('completion_code', '').strip()
-        
-        if job.status == 'COMPLETED':
-            messages.info(request, "This job has already been completed.")
-            return redirect('provider_dashboard')
-            
-        if submitted_code == job.completion_code:
-            job.status = 'COMPLETED'
-            job.save(update_fields=['status'])
-            
-            release_job_escrow(job)
-            messages.success(request, f"Job verified! NGN {job.agreed_price} has been credited to your wallet.")
-        else:
-            messages.error(request, "Invalid completion PIN. Please verify with the client.")
-    return redirect('provider_dashboard')
-
-@login_required
-def vendor_orders(request):
-    profile = getattr(request.user, 'provider_profile', None)
+def report_dispute(request, order_id):
+    # Ensure the user owns this order and it hasn't been closed/confirmed yet
+    order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user)
     
-    if not profile or profile.provider_type not in ['VENDOR', 'BOTH']:
-        messages.error(request, "Only product vendors can manage store orders.")
-        return redirect('provider_dashboard')
+    if order.status in ['CONFIRMED', 'CANCELLED', 'DECLINED']:
+        messages.error(request, "This order cannot be disputed at this time.")
+        return redirect('orders:order_history')
 
-    # Exclude unpaid orders from vendor view
-    vendor_items = OrderItem.objects.filter(
-        product__provider=profile
-    ).exclude(order__status='unpaid')
-    
-    total_revenue = vendor_items.filter(status='COMPLETED').aggregate(
-        total=Sum(F('price') * F('quantity'))
-    )['total'] or 0.00
-    
-    net_earnings = float(total_revenue) * 0.90
-    pending_fulfillment = vendor_items.filter(status__in=['PAID', 'ACCEPTED']).count()
-    low_stock_alerts = Product.objects.filter(provider=profile, stock_count__lt=5)
+    # If they already submitted a dispute, don't let them submit another one
+    if hasattr(order, 'dispute'):
+        messages.info(request, "You have already filed a dispute for this order. Our team is reviewing it.")
+        return redirect('orders:order_history')
 
-    context = {
-        'vendor_items': vendor_items.order_by('-order__created_at'),
-        'total_revenue': total_revenue,
-        'net_earnings': net_earnings,
-        'pending_fulfillment': pending_fulfillment,
-        'low_stock_alerts': low_stock_alerts,
-    }
-    return render(request, 'vendor_orders.html', context)
-
-@login_required
-def update_item_status(request, item_id, new_status):
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
-        item = get_object_or_404(OrderItem, id=item_id, product__provider=profile)
-        
-        valid_transitions = {
-            'PAID': ['ACCEPTED', 'CANCELLED'],
-            'ACCEPTED': ['READY_FOR_PICKUP'],
-        }
-        
-        current_status = item.status
-        
-        if current_status in valid_transitions and new_status in valid_transitions[current_status]:
-            item.status = new_status
+        reason = request.POST.get('reason')
+        description = request.POST.get('description')
+        evidence = request.FILES.get('evidence')
+
+        if not description:
+            messages.error(request, "Please provide a description of the problem.")
+            return redirect('orders:report_dispute', order_id=order.id)
+
+        try:
+            with transaction.atomic():
+                # Create the dispute record
+                ServiceDispute.objects.create(
+                    order=order,
+                    reason=reason,
+                    description=description,
+                    evidence=evidence
+                )
+                
+                # Freeze the order
+                order.status = 'DISPUTED'
+                order.save(update_fields=['status'])
+
+            messages.success(request, "Your dispute has been submitted. Our team will review the evidence and contact you shortly.")
+            return redirect('orders:order_history')
             
-            if new_status == 'READY_FOR_PICKUP':
-                dispatch_gigl_rider(item)
-            
-            item.save(update_fields=['status'])
-            messages.success(request, f"Order status updated to: {item.get_status_display()}")
-        else:
-            messages.error(request, "You cannot perform that action right now.")
-    return redirect('vendor_orders')
+        except Exception as e:
+            messages.error(request, f"Error submitting dispute: {str(e)}")
+
+    return render(request, 'report_dispute.html', {'order': order, 'reasons': ServiceDispute.DisputeReason.choices})

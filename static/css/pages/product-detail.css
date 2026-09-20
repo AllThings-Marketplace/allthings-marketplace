@@ -373,3 +373,42 @@
     padding: 10px 15px;
     color: #111827;
 }
+
+/* Customer Reviews Section */
+.review-card-item {
+    padding: 15px;
+    border: 1px solid var(--border-light, #e2e8f0);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.review-attr-tag {
+    background: var(--bg-light, #f8fafc);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.review-photo-thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border-light, #dddddd);
+    transition: opacity 0.2s ease;
+}
+
+.review-photo-thumb:hover {
+    opacity: 0.85;
+}
+
+.reviews-empty-box {
+    padding: 20px;
+    text-align: center;
+    background: var(--bg-light, #f8fafc);
+    border-radius: 8px;
+}
+
+.reviews-empty-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+}

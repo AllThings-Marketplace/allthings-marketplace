@@ -12,7 +12,7 @@
     <p class="section-subtitle">Please provide your delivery details to complete your order.</p>
 </div>
 
-<form method="POST" action="{% url 'checkout' %}">
+<form method="POST" action="{% url 'orders:checkout' %}">
     {% csrf_token %}
     
     {% for product_id in selected_products %}

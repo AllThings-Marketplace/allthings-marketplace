@@ -33,13 +33,13 @@
 
         <div class="profile-header-actions">
             <!-- Everyone gets access to their personal purchase history -->
-            <a href="{% url 'order_history' %}" class="action-btn btn-secondary">
+            <a href="{% url 'orders:order_history' %}" class="action-btn btn-secondary">
                 <i class="fa-solid fa-receipt icon-spaced"></i> Order History
             </a>
             
             <!-- ONLY visible to users who have actually applied to be a provider -->
             {% if request.user.provider_profile %}
-                <a href="{% url 'provider_dashboard' %}" class="action-btn btn-dark">
+                <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-dark">
                     <i class="fa-solid fa-briefcase icon-white-spaced"></i> Provider Portal
                 </a>
             {% endif %}

@@ -9,10 +9,10 @@
 <div class="details-page-wrapper">
     <div class="details-header flex-between">
         <h2 class="section-heading checkout-page-title">Add New Product</h2>
-        <a href="{% url 'provider_dashboard' %}" class="action-btn btn-secondary action-sm">Cancel</a>
+        <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">Cancel</a>
     </div>
 
-    <form method="POST" action="{% url 'add_product' %}" enctype="multipart/form-data" class="summary-card" id="addProductForm">
+    <form method="POST" action="{% url 'dashboard:add_product' %}" enctype="multipart/form-data" class="summary-card" id="addProductForm">
         {% csrf_token %}
         
         <h3 class="checkout-section-title">

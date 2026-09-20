@@ -22,7 +22,7 @@
             <!-- Pending Product Reviews -->
             {% for item in pending_products %}
                 <li class="product-card-wrapper">
-                    <a href="{% url 'product_detail' item.product.slug %}" class="block-link">
+                    <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="block-link">
                         {% if item.product.image %}
                             <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img">
                         {% else %}
@@ -33,14 +33,14 @@
                     <div class="card-info-layout">
                         <div class="card-text-col">
                             <span class="badge-sm text-primary-blue font-600-dark block-mb-5">Product</span>
-                            <a href="{% url 'product_detail' item.product.slug %}" class="item-info block-link">
+                            <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="item-info block-link">
                                 <strong>{{ item.product.name }}</strong>
                             </a>
                             <span class="text-12-muted block-mt-10">Purchased on {{ item.order.created_at|date:"M d, Y" }}</span>
                         </div>
                     </div>
 
-                    <a href="{% url 'product_feedback' item.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
+                    <a href="{% url 'feedback:product_feedback' item.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
                         <i class="fa-solid fa-pen-to-square"></i> Write a Review
                     </a>
                 </li>
@@ -48,7 +48,7 @@
 
             <!-- Pending Service Reviews -->
             {% for job in pending_services %}
-                <li class="product-card-wrapper" style="border-top: 4px solid #2563eb;">
+                <li class="product-card-wrapper service-card-highlight">
                     <div class="block-link">
                         {% if job.service.image %}
                             <img src="{{ job.service.image.url }}" alt="{{ job.service.name }}" class="card-img">
@@ -65,7 +65,7 @@
                         </div>
                     </div>
 
-                    <a href="{% url 'service_feedback' job.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
+                    <a href="{% url 'feedback:service_feedback' job.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
                         <i class="fa-solid fa-pen-to-square"></i> Rate Service
                     </a>
                 </li>
@@ -77,7 +77,7 @@
             <i class="fa-solid fa-clipboard-check empty-state-icon text-muted"></i>
             <h3 class="empty-state-title">You're all caught up!</h3>
             <p class="empty-state-text">You have no pending reviews at this time. Check back after your next purchase.</p>
-            <a href="{% url 'home' %}" class="action-btn btn-primary mt-20">Continue Shopping</a>
+            <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-20">Continue Shopping</a>
         </div>
     {% endif %}
 

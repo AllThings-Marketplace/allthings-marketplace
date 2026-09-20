@@ -227,3 +227,31 @@
 }
 
 .hidden-initial { display: none; }
+
+/* --- Dashboard & Layout Extended Utilities --- */
+.flex-column { display: flex; flex-direction: column; }
+.align-stretch { align-items: stretch; }
+.gap-15 { gap: 15px; }
+.gap-10 { gap: 10px; }
+.pt-15 { padding-top: 15px; }
+.border-top-light { border-top: 1px solid #f3f4f6; }
+.border-left-danger { border-left: 4px solid #ef4444; }
+.border-left-primary { border-left: 4px solid #3b82f6; }
+.text-16 { font-size: 16px; }
+
+/* Service Thumbnail Overrides */
+.service-thumb { 
+    width: 60px; 
+    height: 40px; 
+    border-radius: 4px; 
+    object-fit: cover; 
+}
+.service-thumb-fallback { 
+    width: 60px; 
+    height: 40px; 
+    border-radius: 4px; 
+    background: #e2e8f0; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+}

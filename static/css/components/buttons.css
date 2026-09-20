@@ -1,79 +1,143 @@
+/* ==========================================
+   MODERN BUTTON ARCHITECTURE
+   ========================================== */
+
+/* The Core Button Chassis */
 .action-btn {
-    padding: 12px 20px;
-    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    font-size: 14px;
     font-weight: 600;
-    text-align: center;
+    border-radius: 8px; /* Softer, modern edges */
     cursor: pointer;
-    transition: all 0.2s ease;
+    border: 1px solid transparent; /* Prevents layout shift on hover */
+    outline: none;
     text-decoration: none;
-    display: inline-block;
     box-sizing: border-box;
+    /* Smooth, physical easing curve for all state changes */
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.action-btn.btn-primary {
-    background-color: #2563eb;
+/* Primary Button (Main Actions: Send, Save, Pay) */
+.action-btn.btn-primary, .btn-book {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     color: #ffffff;
-    border: 2px solid #2563eb;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
+.action-btn.btn-primary:hover, .btn-book:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Outline Button (Secondary Actions: Cancel, Close) */
 .action-btn.btn-outline {
     background-color: transparent;
-    color: #2563eb;
-    border: 2px solid #2563eb;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.action-btn.btn-outline:hover {
+    background-color: #f8fafc;
+    color: #0f172a;
+    border-color: #94a3b8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Secondary Button (Fills, low emphasis) */
 .action-btn.btn-secondary {
-    background-color: #f3f4f6;
-    color: #4b5563;
-    border: 2px solid transparent;
+    background-color: #f1f5f9;
+    color: #334155;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .action-btn.btn-secondary:hover {
-    background-color: #e5e7eb;
+    background-color: #e2e8f0;
+    color: #0f172a;
+    transform: translateY(-1px);
 }
 
-.action-btn:active { 
-    transform: scale(0.98); 
-}
-
-.btn-book { 
-    background: #2563eb; 
-}
-
-.action-btn.btn-add {
-    background-color: #16a34a;
+/* Success Buttons (Add to Cart, Checkout) */
+.action-btn.btn-add, .btn-checkout {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #ffffff;
-    border: 2px solid #16a34a;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border: none;
 }
 
-.action-btn.btn-add:hover {
-    background-color: #15803d;
-    border-color: #15803d;
+.action-btn.btn-add:hover, .btn-checkout:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(16, 185, 129, 0.3);
 }
 
+/* Standalone Checkout override for large blocks */
 .btn-checkout {
-    display: block; 
-    margin-top: 30px; 
-    width: 100%; 
-    padding: 15px; 
-    background: #10b981; 
-    color: white; 
-    border: none; 
-    font-size: 16px; 
-    border-radius: 4px; 
-    cursor: pointer; 
-    text-align: center; 
-    text-decoration: none;
-    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 16px;
+    font-size: 16px;
+    border-radius: 8px;
+    margin-top: 30px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Danger Button (Dispute, Delete) */
+.action-btn.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+}
+
+.action-btn.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(239, 68, 68, 0.3);
+}
+
+/* Global Active "Click" State */
+.action-btn:active, .btn-checkout:active {
+    transform: translateY(0) scale(0.97) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Utility: Circular Icon Buttons (For Chat Attach/Send) */
+.action-btn.icon-only {
+    padding: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+}
+
+/* State Modifiers */
 .btn-loading {
     pointer-events: none;
-    opacity: 0.7;
+    opacity: 0.8;
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading::after {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.8s linear infinite;
 }
 
 .btn-added {
-    background-color: #10b981 !important;
-    border-color: #10b981 !important;
+    background: #059669 !important;
     pointer-events: none;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }

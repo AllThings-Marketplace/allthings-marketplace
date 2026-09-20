@@ -10,7 +10,7 @@
     
     <!-- Navigation Breadcrumb -->
     <nav class="breadcrumb grid-full-width">
-        <a href="{% url 'home' %}">Home</a> &rarr; 
+        <a href="{% url 'marketplace:home' %}">Home</a> &rarr; 
         <a href="#">{{ product.category.name }}</a> &rarr; 
         <span>{{ product.name }}</span>
     </nav>
@@ -72,7 +72,7 @@
         {% endif %}
 
         <!-- Purchase Engine (Variant Support + Add to Cart) -->
-        <form method="POST" action="{% url 'add_to_cart' product.id %}" class="purchase-actions form-mode">
+        <form method="POST" action="{% url 'orders:add_to_cart' product.id %}" class="purchase-actions form-mode">
             {% csrf_token %}
             
             {% if variants %}
@@ -142,17 +142,50 @@
         <h3 class="section-heading mt-0">Customer Reviews</h3>
         {% if recent_reviews %}
             {% for review in recent_reviews %}
-                <div class="review-card">
-                    <div class="review-header">
-                        <strong>{{ review.customer.username }}</strong>
-                        <span class="rating-highlight"><i class="fa-solid fa-star"></i> {{ review.overall_rating }}</span>
+                <div class="review-card-item mb-20">
+                    <div class="review-header flex-between mb-10">
+                        <div>
+                            <strong class="font-600-dark">{{ review.customer.username }}</strong>
+                            {% if review.is_verified %}
+                                <span class="status-badge badge-completed badge-sm ml-5"><i class="fa-solid fa-check-circle"></i> Verified Buyer</span>
+                            {% endif %}
+                        </div>
+                        <span class="rating-highlight font-600-dark"><i class="fa-solid fa-star text-warning"></i> {{ review.overall_rating }}.0</span>
                     </div>
-                    <p class="text-14-muted mt-0">{{ review.comment }}</p>
+
+                    <!-- The Review Text -->
+                    <p class="text-14-dark mt-0 mb-10">{{ review.public_review }}</p>
+                    
+                    <!-- Attribute Breakdown -->
+                    {% if review.attributes.all %}
+                        <div class="review-attributes flex-wrap gap-15 mb-15">
+                            {% for attr in review.attributes.all %}
+                                <span class="text-12-muted review-attr-tag">
+                                    <strong>{{ attr.attribute_name }}:</strong> {{ attr.rating }}/5
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Customer Photo Gallery -->
+                    {% if review.photos.all %}
+                        <div class="review-photos flex-wrap gap-10 mb-10">
+                            {% for photo in review.photos.all %}
+                                <a href="{{ photo.image.url }}" target="_blank">
+                                    <img src="{{ photo.image.url }}" alt="Customer Review Photo" class="review-photo-thumb">
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                     <small class="text-12-muted">{{ review.created_at|date:"M d, Y" }}</small>
                 </div>
             {% endfor %}
         {% else %}
-            <p class="text-14-muted">No reviews yet. Buy this item and be the first to review it!</p>
+            <div class="reviews-empty-box">
+                <i class="fa-regular fa-star text-muted reviews-empty-icon"></i>
+                <p class="text-14-muted m-0">No reviews yet. Buy this item and be the first to review it!</p>
+            </div>
         {% endif %}
     </div>
 
@@ -162,7 +195,7 @@
         <h3 class="section-heading">You May Also Like</h3>
         <div class="related-grid">
             {% for related in related_products %}
-                <a href="{% url 'product_detail' related.slug %}" class="block-link">
+                <a href="{% url 'marketplace:product_detail' related.slug %}" class="block-link">
                     <div class="main-image-container mb-10">
                         {% if related.images.first %}
                             <img src="{% if related.images.first.processed_image %}{{ related.images.first.processed_image.url }}{% else %}{{ related.images.first.original_image.url }}{% endif %}" alt="{{ related.name }}" class="related-img">

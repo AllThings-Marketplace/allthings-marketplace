@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 40px auto;">
+    <div class="dashboard-header mb-30">
+        <h2 class="section-heading checkout-page-title mb-5 text-danger"><i class="fa-solid fa-triangle-exclamation icon-spaced"></i> Report a Problem</h2>
+        <p class="text-14-muted m-0">Order Ref: <strong>{{ order.reference_code }}</strong> | Service: <strong>{{ order.service.name }}</strong></p>
+    </div>
+
+    <div class="summary-card">
+        <div class="warning-text-block mb-20" style="background-color: #fff1f2; color: #e11d48; border-color: #fecdd3;">
+            <i class="fa-solid fa-shield-halved icon-spaced"></i>
+            <strong>Payment Frozen:</strong> Submitting this form will temporarily lock the provider's payout while the AllThings support team investigates your claim.
+        </div>
+
+        <form method="POST" action="{% url 'orders:report_dispute' order.id %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="form-group mb-20">
+                <label class="form-label-dark">What is the main issue? *</label>
+                <select name="reason" class="form-control" required>
+                    <option value="" disabled selected>Select a reason...</option>
+                    {% for value, label in reasons %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group mb-20">
+                <label class="form-label-dark">Explain the problem in detail *</label>
+                <textarea name="description" class="form-control" rows="5" placeholder="Tell us exactly what went wrong..." required></textarea>
+                <small class="form-text-muted">Please be as specific as possible to help us resolve this quickly.</small>
+            </div>
+
+            <div class="form-group mb-30 border-top-light pt-20">
+                <label class="form-label-dark">Upload Evidence (Photo)</label>
+                <input type="file" name="evidence" class="form-control" accept="image/*">
+                <small class="form-text-muted">Optional, but highly recommended. Upload photos of incomplete work or damage.</small>
+            </div>
+
+            <div class="flex-between gap-15">
+                <a href="{% url 'orders:order_history' %}" class="action-btn btn-outline w-100 text-center">Cancel</a>
+                <button type="submit" class="action-btn btn-danger w-100">
+                    Submit Dispute
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

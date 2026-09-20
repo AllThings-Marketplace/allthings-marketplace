@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container text-center" style="max-width: 600px; margin: 80px auto; padding: 20px;">
+    
+    <div style="font-size: 64px; color: #10b981; margin-bottom: 20px;">
+        <i class="fa-solid fa-circle-check"></i>
+    </div>
+    
+    <h1 class="font-700-dark mb-10">Request Sent Successfully!</h1>
+    <p class="text-14-muted mb-30">
+        Your booking request for <strong>{{ order.service.name }}</strong> has been sent to {{ order.provider.business_name }}. 
+    </p>
+
+    <div class="summary-card text-left mb-30" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+        <div class="flex-between mb-15">
+            <span class="text-12-muted">Reference Code</span>
+            <strong class="text-primary">{{ order.reference_code }}</strong>
+        </div>
+        <div class="flex-between mb-15">
+            <span class="text-12-muted">Status</span>
+            <span style="color: #f59e0b; font-weight: bold;"><i class="fa-solid fa-clock"></i> Awaiting Provider</span>
+        </div>
+        <div class="flex-between mb-15">
+            <span class="text-12-muted">Scheduled For</span>
+            <strong>{{ order.preferred_date }} at {{ order.preferred_time }}</strong>
+        </div>
+        <div class="flex-between">
+            <span class="text-12-muted">Estimated Price</span>
+            <strong>
+                {% if order.agreed_price > 0 %}
+                    NGN {{ order.agreed_price }}
+                {% else %}
+                    Pending Quote
+                {% endif %}
+            </strong>
+        </div>
+    </div>
+
+    <p class="text-14-muted mb-30">
+        You have not been charged. You will receive a notification to securely pay and lock in your appointment once the provider accepts the job.
+    </p>
+
+    <a href="{% url 'orders:order_history' %}" class="action-btn btn-primary btn-lg w-100">View My Bookings</a>
+    <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline btn-lg w-100 mt-15">Return to Home</a>
+
+</div>
+{% endblock %}

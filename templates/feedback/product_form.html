@@ -5,7 +5,7 @@
 <div class="main-container feedback-wrapper">
     <div class="details-header flex-between">
         <h2 class="section-heading checkout-page-title">Rate Product</h2>
-        <a href="{% url 'order_history' %}" class="action-btn btn-secondary action-sm">Cancel</a>
+        <a href="{% url 'orders:order_history' %}" class="action-btn btn-secondary action-sm">Cancel</a>
     </div>
 
     <div class="summary-card mt-30 feedback-card">
@@ -16,7 +16,8 @@
             </div>
         </div>
 
-        <form method="POST">
+        <!-- Added enctype for image uploads -->
+        <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="form-group">
@@ -64,7 +65,14 @@
                 <small class="text-12-muted mt-5">Only the seller will see this.</small>
             </div>
 
-            <button type="submit" class="action-btn btn-primary w-100 btn-submit-lg">
+            <!-- Added Photo Upload Field -->
+            <div class="form-group border-top-light pt-20 mt-20">
+                <label><i class="fa-solid fa-camera icon-spaced"></i> Attach a Photo (Optional)</label>
+                <input type="file" name="feedback_photo" class="form-control" accept="image/*">
+                <small class="text-12-muted mt-5">Show others what you received!</small>
+            </div>
+
+            <button type="submit" class="action-btn btn-primary w-100 btn-submit-lg mt-20">
                 Submit Feedback
             </button>
         </form>

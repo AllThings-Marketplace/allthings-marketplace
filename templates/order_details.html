@@ -18,7 +18,7 @@
                 {% else %}badge-pending{% endif %} mr-15">
                 Order Status: {{ order.get_status_display }}
             </span>
-            <a href="{% url 'order_history' %}" class="action-btn btn-secondary action-sm">Back to Orders</a>
+            <a href="{% url 'orders:order_history' %}" class="action-btn btn-secondary action-sm">Back to Orders</a>
         </div>
     </div>
 
@@ -127,7 +127,7 @@
         
         {% if order.status == 'unpaid' %}
             <div style="margin-top: 15px; text-align: right;">
-                <a href="{% url 'checkout' %}" class="action-btn btn-primary">Pay Now</a>
+                <a href="{% url 'orders:checkout' %}" class="action-btn btn-primary">Pay Now</a>
             </div>
         {% endif %}
 

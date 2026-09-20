@@ -87,46 +87,51 @@ def dispatch_gigl_rider(item):
     # response = requests.post(url, json=payload, headers=headers)
     # return response.json()
 
-def create_job_escrow(job):
+def create_service_escrow(service_order):
     """
-    Creates a pending escrow ledger entry when a technician accepts a paid job.
+    Creates a pending escrow ledger entry when a customer successfully pays for a service request.
     """
     COMMISSION_RATE = Decimal('0.10') # 10% Platform Fee
-    provider_profile = getattr(job.provider, 'provider_profile', None)
+    provider_profile = service_order.provider
     
-    if provider_profile and hasattr(provider_profile, 'wallet') and job.service:
+    if provider_profile and hasattr(provider_profile, 'wallet') and service_order.agreed_price:
         wallet = provider_profile.wallet
-        gross_amount = job.service.base_price
+        gross_amount = service_order.agreed_price
         commission = gross_amount * COMMISSION_RATE
         net_amount = gross_amount - commission
         
         VendorTransaction.objects.create(
             wallet=wallet,
-            order=job.order,
             transaction_type='SERVICE',
             gross_amount=gross_amount,
             commission=commission,
             net_amount=net_amount,
-            reference=f"ORD-{job.order.id}-JOB-{job.id}",
+            reference=f"SRV-{service_order.reference_code}",
             status='PENDING'
         )
         
+        # Securely increase the vendor's pending escrow balance
         wallet.pending_balance += net_amount
         wallet.save()
 
-def release_job_escrow(job):
+def release_service_escrow(service_order):
     """
-    Releases pending escrow funds into the technician's available wallet balance.
+    Releases pending escrow funds into the service provider's available wallet balance.
     """
-    txn_ref = f"ORD-{job.order.id}-JOB-{job.id}"
+    txn_ref = f"SRV-{service_order.reference_code}"
     txn = VendorTransaction.objects.filter(reference=txn_ref, status='PENDING').first()
     
     if txn:
         wallet = txn.wallet
+        
+        # 1. Deduct from escrow
         wallet.pending_balance -= txn.net_amount
+        
+        # 2. Add to withdrawable balance
         wallet.available_balance += txn.net_amount
         wallet.save()
         
+        # 3. Permanently clear the ledger record
         txn.status = 'CLEARED'
         txn.cleared_at = timezone.now()
         txn.save()

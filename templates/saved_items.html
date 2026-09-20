@@ -14,7 +14,7 @@
         <h2 class="section-heading checkout-page-title mb-5">Saved Items</h2>
         <p class="section-subtitle text-muted mt-0">Products you're keeping an eye on.</p>
     </div>
-    <a href="{% url 'home' %}" class="action-btn btn-outline action-sm">Continue Shopping</a>
+    <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">Continue Shopping</a>
 </div>
 
 <main class="marketplace-feed feed-full-width">
@@ -22,7 +22,7 @@
         <ul class="item-list">
             {% for item in saved_items %}
                 <li class="product-card-wrapper" id="saved-item-card-{{ item.product.id }}">
-                    <a href="{% url 'product_detail' item.product.slug %}" class="block-link">
+                    <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="block-link">
                         <!-- NEW: Upgraded Image Fetching Logic -->
                         {% if item.product.images.first %}
                             <img src="{% if item.product.images.first.processed_image %}{{ item.product.images.first.processed_image.url }}{% else %}{{ item.product.images.first.original_image.url }}{% endif %}" alt="{{ item.product.name }}" class="card-img">
@@ -34,7 +34,7 @@
                     <!-- Information Layout -->
                     <div class="card-info-layout">
                         <div class="card-text-col">
-                            <a href="{% url 'product_detail' item.product.slug %}" class="item-info block-link">
+                            <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="item-info block-link">
                                 <strong>{{ item.product.name }}</strong>
                             </a>
                             <strong class="block-mt-10 card-price">NGN {{ item.product.price }}</strong>
@@ -64,7 +64,7 @@
             <i class="fa-regular fa-heart empty-state-icon text-muted"></i>
             <h3 class="empty-state-title">Your wishlist is empty</h3>
             <p class="empty-state-text">Explore the marketplace and save items you love.</p>
-            <a href="{% url 'home' %}" class="action-btn btn-primary mt-20">Start Exploring</a>
+            <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-20">Start Exploring</a>
         </div>
     {% endif %}
 </main>
