@@ -45,7 +45,8 @@
 
         <div class="form-group mb-20">
             <label class="form-label-dark">Available Stock *</label>
-            <input type="number" name="stock_count" class="form-control" value="{{ product.stock_count }}" required>
+            <!-- SAFGUARDED: Will not force a trailing zero -->
+            <input type="number" name="stock_count" class="form-control" value="{{ product.stock_count|default_if_none:'' }}" placeholder="0" required>
             <small class="form-text-muted">Set to 0 to temporarily mark this item as out of stock.</small>
         </div>
 

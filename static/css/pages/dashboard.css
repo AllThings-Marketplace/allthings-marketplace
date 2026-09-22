@@ -247,13 +247,14 @@
         box-sizing: border-box;
     }
     
-    /* 3. Fix the floating wallet/clock icons above the balances */
+    /* 3. Fix the floating wallet/clock icons above the balances & Handle proper big numbers */
     .amount-title {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 8px;
+        margin-bottom: 25px;
         margin-top: 20px;
+        font-size: 22px;
     }
 
     .amount-title i {
@@ -261,12 +262,7 @@
         font-size: 16px;
     }
     
-    /* 4. Add breathing room to the big numbers */
-    .font-700-block {
-        display: block;
-        font-size: 22px;
-        margin-bottom: 25px;
-    }
+    /* Removed the rogue .font-700-block override that was breaking the layout */
 }
 
 /* --- Provider Onboarding Specifics --- */

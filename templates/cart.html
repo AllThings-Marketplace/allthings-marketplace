@@ -65,7 +65,7 @@
                     <span id="cartTotalDisplay">NGN {{ cart.get_cart_total }}</span>
                 </div>
                 
-                <button type="submit" class="action-btn checkout-btn">
+                <button type="submit" class="action-btn btn-checkout">
                     Proceed to Checkout
                 </button>
             </div>
@@ -78,8 +78,8 @@
         <i class="fa-solid fa-cart-arrow-down empty-state-icon"></i>
         <h3 class="empty-state-title">Your cart is empty</h3>
         <p class="empty-state-text">Looks like you haven't added any items or booked any services yet.</p>
-        <a href="{% url 'marketplace:home' %}" class="action-btn">
-            <i class="fa-solid fa-magnifying-glass"></i> Browse Catalog
+        <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary">
+            <i class="fa-solid fa-magnifying-glass icon-white-spaced"></i> Browse Catalog
         </a>
     </div>
 {% endif %}

@@ -19,12 +19,12 @@
 <div class="transaction-list mt-40">
     {% if jobs %}
         {% for job in jobs %}
-            <div class="transaction-item" style="flex-direction: column; align-items: stretch; gap: 15px;">
+            <div class="transaction-item flex-column align-stretch gap-15">
                 
                 <!-- Job Information Row -->
-                <div class="flex-between w-100" style="flex-wrap: wrap; gap: 15px;">
+                <div class="flex-between w-100 flex-wrap gap-15">
                     <div>
-                        <span class="font-600-dark" style="font-size: 16px;">{{ job.service.name }}</span>
+                        <span class="font-600-dark text-16">{{ job.service.name }}</span>
                         <span class="text-12-muted block mt-5">Order #{{ job.order.id }}</span>
                         
                         <span class="text-12-muted block mt-5">
@@ -32,14 +32,14 @@
                         </span>
                         
                         {% if job.order_note %}
-                            <span class="text-12-muted block mt-5" style="color: #d97706; background-color: #fef3c7; padding: 6px 10px; border-radius: 4px; display: inline-block;">
+                            <span class="text-12-muted block mt-5 note-highlight">
                                 <i class="fa-solid fa-note-sticky icon-spaced"></i> Note: {{ job.order_note }}
                             </span>
                         {% endif %}
                     </div>
                     
-                    <div style="text-align: right;">
-                        <span class="font-700-block text-blue mb-5" style="font-size: 18px;">NGN {{ job.service.base_price }}</span>
+                    <div class="text-right">
+                        <span class="font-700-block text-blue mb-5 text-18">NGN {{ job.service.base_price }}</span>
                         
                         {% if job.scheduled_time %}
                             <span class="status-badge badge-pending badge-sm">
@@ -54,10 +54,10 @@
                 </div>
                 
                 <!-- Action Controls Row -->
-                <div class="w-100" style="border-top: 1px solid #f3f4f6; padding-top: 15px;">
+                <div class="w-100 border-top-light pt-15">
                     <form method="POST" action="{% url 'accept_job' job.id %}">
                         {% csrf_token %}
-                        <button type="submit" class="action-btn btn-success action-sm w-100" style="font-size: 14px; padding: 12px;">
+                        <button type="submit" class="action-btn btn-success action-sm w-100">
                             <i class="fa-solid fa-check icon-spaced"></i> Accept Job
                         </button>
                     </form>
@@ -67,7 +67,7 @@
         {% endfor %}
     {% else %}
         <!-- Premium Empty State -->
-        <div class="empty-state-wrapper" style="margin: 20px;">
+        <div class="empty-state-wrapper m-20">
             <i class="fa-solid fa-toolbox empty-state-icon"></i>
             <h3 class="empty-state-title">No Available Jobs</h3>
             <p class="empty-state-text">There are currently no open service requests in your area. Check back later!</p>

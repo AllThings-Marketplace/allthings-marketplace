@@ -15,6 +15,7 @@ urlpatterns = [
     path('product/<int:product_id>/upload-images/', views.upload_product_images, name='upload_product_images'),
     path('add-service/', views.add_service, name='add_service'),
     path('service/<int:service_id>/edit/', views.edit_service, name='edit_service'),
+    path('product/<int:product_id>/edit/', views.edit_product, name='edit_product'),
 
     # --- VENDOR ORDER MANAGEMENT (Moved from orders) ---
     path('store-orders/', views.vendor_orders, name='vendor_orders'),

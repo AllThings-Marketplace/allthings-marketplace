@@ -21,6 +21,7 @@ urlpatterns = [
     path('checkout/', views.checkout_view, name='checkout'),
     path('payment-verify/', views.verify_payment, name='verify_payment'),
     path('webhook/paystack/', views.paystack_webhook, name='paystack_webhook'),
+    path('order/<int:order_id>/pay/', views.retry_payment, name='retry_payment'),
 
     # 4. Customer Order History & Actions
     path('success/<int:order_id>/', views.order_success, name='order_success'),

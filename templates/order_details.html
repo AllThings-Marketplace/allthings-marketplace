@@ -9,7 +9,7 @@
 {% block content %}
 <div class="details-page-wrapper">
     <div class="details-header flex-between">
-        <h2 class="section-heading checkout-page-title">Order #{{ order.reference }}</h2> <!-- Changed to Reference -->
+        <h2 class="section-heading checkout-page-title">Order #{{ order.reference }}</h2>
         <div>
             <!-- Show overall order status -->
             <span class="status-badge 
@@ -55,7 +55,7 @@
                                 <strong class="font-700-block text-lg letter-spacing-2 text-primary-blue">{{ item.delivery_code }}</strong>
                             </div>
 
-                            <form method="POST" action="{% url 'confirm_item_delivery' item.id %}" class="otp-input-group">
+                            <form method="POST" action="{% url 'orders:confirm_item_delivery' item.id %}" class="otp-input-group">
                                 {% csrf_token %}
                                 <input type="text" name="delivery_code" class="form-control otp-input" placeholder="6-Digit OTP" maxlength="6" required>
                                 <button type="submit" class="action-btn btn-success action-sm">Confirm Receipt</button>
@@ -126,8 +126,13 @@
         </div>
         
         {% if order.status == 'unpaid' %}
-            <div style="margin-top: 15px; text-align: right;">
-                <a href="{% url 'orders:checkout' %}" class="action-btn btn-primary">Pay Now</a>
+            <div class="mt-15 text-right">
+                <form method="POST" action="{% url 'orders:retry_payment' order.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="action-btn btn-primary w-100">
+                        Pay Now
+                    </button>
+                </form>
             </div>
         {% endif %}
 

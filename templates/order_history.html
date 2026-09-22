@@ -6,193 +6,173 @@
 {% endblock %}
 
 {% block content %}
-    <h2 class="section-heading">My Bookings & Orders</h2>
+    <div class="premium-header-section">
+        <h2 class="section-heading">My Bookings & Orders</h2>
+    </div>
 
     <!-- ========================================== -->
     <!-- SERVICE CONTRACTS SECTION                  -->
     <!-- ========================================== -->
-    <h3 class="history-category-title">
-        <i class="fa-solid fa-briefcase history-category-icon"></i> Service Contracts
+    <h3 class="premium-category-title mt-30">
+        <div class="icon-circle"><i class="fa-solid fa-briefcase"></i></div> 
+        Service Contracts
     </h3>
     
-    {% for booking in service_bookings %}
-        <div class="summary-card history-card">
-            <div class="history-card-header">
-                <div>
-                    <h3 class="history-card-title">{{ booking.service.name }}</h3>
-                    <span class="status-badge status-badge-inline 
-                        {% if booking.status == 'REQUESTED' %}badge-pending
-                        {% elif booking.status == 'QUOTE_SENT' %}badge-warning
-                        {% elif booking.status == 'ACCEPTED' %}badge-blue
-                        {% elif booking.status == 'PAID' %}badge-success
-                        {% elif booking.status == 'IN_PROGRESS' %}badge-blue
-                        {% elif booking.status == 'COMPLETED' %}badge-warning
-                        {% elif booking.status == 'DISPUTED' %}badge-danger
-                        {% elif booking.status == 'CONFIRMED' %}badge-completed
-                        {% else %}badge-pending{% endif %}">
-                        
-                        {% if booking.status == 'PAID' %}
-                            <i class="fa-solid fa-check"></i> Paid & Scheduled
-                        {% elif booking.status == 'IN_PROGRESS' %}
-                            <i class="fa-solid fa-person-digging"></i> Work In Progress
-                        {% elif booking.status == 'COMPLETED' %}
-                            <i class="fa-solid fa-clipboard-check"></i> Pending Your Review
-                        {% elif booking.status == 'ACCEPTED' %}
-                            Awaiting Your Payment
-                        {% elif booking.status == 'QUOTE_SENT' %}
-                            <i class="fa-solid fa-file-invoice-dollar"></i> Quote Received
-                        {% elif booking.status == 'DISPUTED' %}
-                            <i class="fa-solid fa-triangle-exclamation"></i> Disputed (Under Review)
-                        {% elif booking.status == 'CONFIRMED' %}
-                            <i class="fa-solid fa-check-double"></i> Completed
-                        {% else %}
-                            {{ booking.get_status_display }}
-                        {% endif %}
+    <div class="premium-grid">
+        {% for booking in service_bookings %}
+            <div class="premium-card">
+                <!-- Card Header -->
+                <div class="premium-card-header flex-between">
+                    <div class="header-info">
+                        <span class="ref-number">{{ booking.reference_code }}</span>
+                        <span class="date-text">{{ booking.preferred_date }} at {{ booking.preferred_time }}</span>
+                    </div>
+                    <span class="soft-badge status-{{ booking.status|lower }}">
+                        {% if booking.status == 'PAID' %}<i class="fa-solid fa-check"></i> Scheduled
+                        {% elif booking.status == 'IN_PROGRESS' %}<i class="fa-solid fa-person-digging"></i> In Progress
+                        {% elif booking.status == 'COMPLETED' %}<i class="fa-solid fa-clipboard-check"></i> Review
+                        {% elif booking.status == 'ACCEPTED' %}Awaiting Payment
+                        {% elif booking.status == 'QUOTE_SENT' %}<i class="fa-solid fa-file-invoice-dollar"></i> Quote
+                        {% elif booking.status == 'DISPUTED' %}<i class="fa-solid fa-triangle-exclamation"></i> Disputed
+                        {% elif booking.status == 'CONFIRMED' %}<i class="fa-solid fa-check-double"></i> Completed
+                        {% else %}{{ booking.get_status_display }}{% endif %}
                     </span>
                 </div>
                 
-                <div class="history-actions-right">
-                    <h3 class="history-card-title amount-title">
-                        {% if booking.agreed_price %}NGN {{ booking.agreed_price }}{% else %}Pending{% endif %}
-                    </h3>
-                    
-                    {% if booking.status == 'ACCEPTED' %}
-                        <form method="POST" action="{% url 'orders:service_checkout' booking.id %}" class="inline-form">
-                            {% csrf_token %}
-                            <button type="submit" class="action-btn action-sm btn-success ml-10">Pay Now to Confirm</button>
-                        </form>
-                    {% elif booking.status == 'COMPLETED' %}
-                        <form method="POST" action="{% url 'orders:customer_confirm_service' booking.id %}" class="inline-form">
-                            {% csrf_token %}
-                            <button type="submit" class="action-btn action-sm btn-success ml-10">Confirm Job Done</button>
-                        </form>
-                        <!-- Dispute Button -->
-                        <a href="{% url 'orders:report_dispute' booking.id %}" class="action-btn action-sm btn-danger btn-outline ml-10">
-                            Report Problem
-                        </a>
-                    {% elif booking.status == 'CONFIRMED' %}
-                        <a href="{% url 'feedback:service_feedback' booking.id %}" class="action-btn action-sm btn-outline ml-10">
-                            <i class="fa-solid fa-star text-warning"></i> Leave Feedback
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <p class="history-date">Ref: {{ booking.reference_code }} &nbsp;|&nbsp; Scheduled for: {{ booking.preferred_date }} at {{ booking.preferred_time }}</p>
-            
-            <ul class="history-item-list mb-15">
-                <li class="history-item">
-                    <span>Assigned Professional</span>
-                    <span class="history-qty">{{ booking.provider.business_name }}</span>
-                </li>
-                <li class="history-item">
-                    <span>Service Location</span>
-                    <span class="history-qty">{{ booking.service_location }}</span>
-                </li>
-            </ul>
-
-            <!-- CHAT INTEGRATION -->
-            <div class="border-top-light pt-15 mt-10 mb-15">
-                <a href="{% url 'orders:order_chat' booking.id %}" class="action-btn action-sm btn-outline">
-                    <i class="fa-regular fa-message icon-spaced"></i> Message Provider
-                </a>
-            </div>
-
-            <!-- ========================================== -->
-            <!-- QUOTE REVIEW BLOCK                         -->
-            <!-- ========================================== -->
-            {% if booking.status == 'QUOTE_SENT' and booking.quote %}
-                <div class="quote-review-card mt-15 p-15 border-radius-8">
-                    <h4 class="text-14 mb-10"><i class="fa-solid fa-file-invoice-dollar text-blue icon-spaced"></i> Provider Quote Received</h4>
-                    
-                    <div class="flex-between mb-5">
-                        <span class="text-14-muted">Labor Cost</span>
-                        <span class="font-600-dark">NGN {{ booking.quote.labor_cost }}</span>
-                    </div>
-                    <div class="flex-between mb-5">
-                        <span class="text-14-muted">Materials Cost</span>
-                        <span class="font-600-dark">NGN {{ booking.quote.materials_cost }}</span>
-                    </div>
-                    <div class="flex-between border-top-light pt-5 mt-5 mb-10">
-                        <span class="font-600-dark">Total Due</span>
-                        <span class="font-700-block text-blue">NGN {{ booking.quote.total_amount }}</span>
+                <!-- Card Body -->
+                <div class="premium-card-body">
+                    <h3 class="service-title">{{ booking.service.name }}</h3>
+                    <div class="service-meta">
+                        <div class="meta-row">
+                            <i class="fa-solid fa-user-tie text-muted"></i>
+                            <span>{{ booking.provider.business_name }}</span>
+                        </div>
+                        <div class="meta-row">
+                            <i class="fa-solid fa-location-dot text-muted"></i>
+                            <span class="truncate-text">{{ booking.service_location }}</span>
+                        </div>
                     </div>
 
-                    {% if booking.quote.provider_notes %}
-                        <div class="quote-notes-box mb-15 p-10 border-radius-4">
-                            <span class="text-12-muted display-block mb-5"><strong>Note from Provider:</strong></span>
-                            <p class="text-12-muted m-0">{{ booking.quote.provider_notes }}</p>
+                    <!-- Quote Review Box -->
+                    {% if booking.status == 'QUOTE_SENT' and booking.quote %}
+                        <div class="premium-quote-box mt-15">
+                            <h4 class="quote-title"><i class="fa-solid fa-file-invoice-dollar"></i> Quote Details</h4>
+                            <div class="quote-row"><span>Labor</span><span>NGN {{ booking.quote.labor_cost }}</span></div>
+                            <div class="quote-row"><span>Materials</span><span>NGN {{ booking.quote.materials_cost }}</span></div>
+                            <div class="quote-total-row"><span>Total Due</span><span class="text-blue">NGN {{ booking.quote.total_amount }}</span></div>
+                            
+                            {% if booking.quote.provider_notes %}
+                                <div class="quote-notes">
+                                    <strong>Note:</strong> {{ booking.quote.provider_notes }}
+                                </div>
+                            {% endif %}
+                            
+                            <div class="quote-actions mt-10">
+                                <form action="{% url 'orders:reject_quote' booking.id %}" method="POST" class="flex-grow">
+                                    {% csrf_token %}
+                                    <button type="submit" class="action-btn btn-outline btn-danger w-100">Reject</button>
+                                </form>
+                                <a href="{% url 'orders:service_checkout' booking.id %}" class="action-btn btn-primary text-center flex-grow">Accept & Pay</a>
+                            </div>
                         </div>
                     {% endif %}
-
-                    <div class="flex-between gap-10 mt-15">
-                        <form action="{% url 'orders:reject_quote' booking.id %}" method="POST" class="w-100">
-                            {% csrf_token %}
-                            <button type="submit" class="action-btn btn-danger btn-outline action-sm w-100">Reject</button>
-                        </form>
-                        <a href="{% url 'orders:service_checkout' booking.id %}" class="action-btn btn-primary action-sm w-100 text-center">
-                            Accept & Pay
-                        </a>
+                </div>
+                
+                <!-- Card Footer (Price & Actions) -->
+                <div class="premium-card-footer flex-between align-center">
+                    <div class="price-block">
+                        <span class="price-label">Total Amount</span>
+                        <span class="price-value">{% if booking.agreed_price %}NGN {{ booking.agreed_price }}{% else %}Pending{% endif %}</span>
+                    </div>
+                    <div class="action-buttons flex-gap-10">
+                        <a href="{% url 'orders:order_chat' booking.id %}" class="btn-icon-only" title="Message Provider"><i class="fa-regular fa-message"></i></a>
+                        
+                        {% if booking.status == 'ACCEPTED' %}
+                            <form method="POST" action="{% url 'orders:service_checkout' booking.id %}" class="m-0">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn action-sm btn-primary">Pay Now</button>
+                            </form>
+                        {% elif booking.status == 'COMPLETED' %}
+                            <form method="POST" action="{% url 'orders:customer_confirm_service' booking.id %}" class="m-0">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn action-sm btn-success">Confirm Job</button>
+                            </form>
+                        {% elif booking.status == 'CONFIRMED' %}
+                            <a href="{% url 'feedback:service_feedback' booking.id %}" class="action-btn action-sm btn-outline"><i class="fa-solid fa-star text-warning"></i> Rate</a>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
-
-        </div>
-    {% empty %}
-        <div class="empty-state-wrapper empty-state-spaced">
-            <i class="fa-solid fa-toolbox empty-state-icon"></i>
-            <h3 class="empty-state-title">No service bookings</h3>
-            <p class="empty-state-text">You haven't booked any professional services yet.</p>
-        </div>
-    {% endfor %}
+            </div>
+        {% empty %}
+            <div class="premium-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-toolbox"></i></div>
+                <h3>No service bookings</h3>
+                <p>You haven't booked any professional services yet.</p>
+            </div>
+        {% endfor %}
+    </div>
 
     <!-- ========================================== -->
     <!-- PHYSICAL PRODUCT ORDERS SECTION            -->
     <!-- ========================================== -->
-    <h3 class="history-category-title spaced-top">
-        <i class="fa-solid fa-box history-category-icon"></i> Physical Orders
+    <h3 class="premium-category-title mt-40">
+        <div class="icon-circle"><i class="fa-solid fa-box"></i></div> 
+        Physical Orders
     </h3>
     
-    {% for order in orders %}
-        <div class="summary-card history-card">
-            <div class="history-card-header">
-                <div>
-                    <h3 class="history-card-title">Order #{{ order.reference }}</h3>
-                    <span class="status-badge status-badge-inline 
-                        {% if order.status == 'completed' %}badge-completed
-                        {% elif order.status == 'unpaid' %}badge-danger
-                        {% else %}badge-pending{% endif %}">
+    <div class="premium-grid mb-40">
+        {% for order in orders %}
+            <div class="premium-card">
+                <!-- Card Header -->
+                <div class="premium-card-header flex-between">
+                    <div class="header-info">
+                        <span class="ref-number">Order #{{ order.reference }}</span>
+                        <span class="date-text">{{ order.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <span class="soft-badge status-{{ order.status|lower }}">
                         {{ order.get_status_display }}
                     </span>
                 </div>
                 
-                <div class="history-actions-right">
-                    <h3 class="history-card-title amount-title">NGN {{ order.total_amount }}</h3>
-                    <a href="{% url 'orders:order_details' order.id %}" class="action-btn action-sm btn-outline">View Order</a>
-                    {% if order.status == 'unpaid' %}
-                        <a href="{% url 'orders:checkout' %}" class="action-btn action-sm btn-primary ml-10">Pay Now</a>
-                    {% endif %}
+                <!-- Card Body (Items) -->
+                <div class="premium-card-body">
+                    <ul class="premium-item-list">
+                        {% for item in order.items.all %}
+                            <li>
+                                <div class="item-details">
+                                    <span class="item-name">{{ item.product.name }}</span>
+                                    {% if item.variant %}<span class="item-variant text-muted text-12">{{ item.variant.name }}</span>{% endif %}
+                                </div>
+                                <span class="item-qty badge-gray">x{{ item.quantity }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                
+                <!-- Card Footer (Price & Actions) -->
+                <div class="premium-card-footer flex-between align-center">
+                    <div class="price-block">
+                        <span class="price-label">Total Amount</span>
+                        <span class="price-value">NGN {{ order.total_amount }}</span>
+                    </div>
+                    <div class="action-buttons flex-gap-10">
+                        <a href="{% url 'orders:order_details' order.id %}" class="action-btn action-sm btn-outline">Details</a>
+                        {% if order.status == 'unpaid' %}
+                            <form method="POST" action="{% url 'orders:retry_payment' order.id %}" class="m-0">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn action-sm btn-primary">Pay Now</button>
+                            </form>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-            <p class="history-date">Placed on: {{ order.created_at|date:"M d, Y - h:i A" }}</p>
-
-            {% if order.items.exists %}
-                <ul class="history-item-list">
-                    {% for item in order.items.all %}
-                        <li class="history-item">
-                            <span>{{ item.product.name }}</span>
-                            <span class="history-qty">x{{ item.quantity }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        </div>
-    {% empty %}
-        <div class="empty-state-wrapper">
-            <i class="fa-solid fa-box-open empty-state-icon"></i>
-            <h3 class="empty-state-title">No orders found</h3>
-            <p class="empty-state-text">You haven't placed any physical orders yet.</p>
-            <a href="{% url 'marketplace:home' %}" class="action-btn">Browse Catalog</a>
-        </div>
-    {% endfor %}
+        {% empty %}
+            <div class="premium-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
+                <h3>No physical orders</h3>
+                <p>You haven't placed any physical orders yet.</p>
+                <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-15">Browse Catalog</a>
+            </div>
+        {% endfor %}
+    </div>
 {% endblock %}

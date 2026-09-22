@@ -46,7 +46,7 @@
                         <input type="file" name="selfie_image" class="form-control" accept="image/*" capture="user" required>
                     </div>
                 </div>
-                <button type="submit" class="action-btn btn-success btn-full-width">Submit Identity Details</button>
+                <button type="submit" class="action-btn btn-success w-100 mt-15">Submit Identity Details</button>
             </form>
 
         <!-- STAGE 3: BUSINESS VERIFICATION -->
@@ -73,7 +73,7 @@
                         <input type="file" name="business_certificate" class="form-control" accept="image/*,.pdf">
                     </div>
                 </div>
-                <button type="submit" class="action-btn btn-success btn-full-width">Submit Business Details</button>
+                <button type="submit" class="action-btn btn-success w-100 mt-15">Submit Business Details</button>
             </form>
 
         <!-- STAGE 4: LOCATION VERIFICATION -->
@@ -125,14 +125,14 @@
                     <input type="file" name="signboard_image" class="form-control" accept="image/*" capture="environment">
                 </div>
 
-                <button type="submit" class="action-btn btn-success btn-full-width">Submit Location Details</button>
+                <button type="submit" class="action-btn btn-success w-100 mt-15">Submit Location Details</button>
             </form>
 
         <!-- PENDING ADMIN REVIEW -->
         {% elif profile.verification_status == 'STAGE_4_LOCATION' %}
             <div class="review-status-box">
                 <i class="fa-solid fa-hourglass-half review-icon"></i>
-                <h3 class="checkout-section-title" style="margin: 0;">Under Admin Review</h3>
+                <h3 class="checkout-section-title m-0">Under Admin Review</h3>
                 <p class="review-text">Your identity, business, and location data have been successfully captured. Our compliance team is reviewing your profile.</p>
             </div>
 
@@ -167,7 +167,7 @@
                      <p>Your bank account name will be verified automatically through Paystack. It must match your registered identity.</p>
                 </div>
 
-                <button type="submit" class="action-btn btn-success btn-full-width">Verify Bank & Activate Account</button>
+                <button type="submit" class="action-btn btn-success w-100 mt-15">Verify Bank & Activate Account</button>
             </form>
         {% endif %}
     </div>

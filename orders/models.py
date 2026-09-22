@@ -1,5 +1,6 @@
 import uuid
 import random
+import string
 from django.utils import timezone
 from datetime import timedelta
 from django.db import models
@@ -96,6 +97,29 @@ class OrderItem(models.Model):
     logistics_provider = models.CharField(max_length=50, default='GIGL')
     tracking_number = models.CharField(max_length=100, blank=True, null=True)
     rider_name = models.CharField(max_length=100, blank=True, null=True)
+
+    @property
+    def get_total(self):
+        """Calculates the total cost for this specific cart/order item."""
+        return self.price * self.quantity
+
+    def generate_handshake_codes(self):
+        """Generates secure 6-digit PINs for both vendor/rider and rider/customer handoffs."""
+        needs_save = False
+        
+        # 1. Generate the vendor's pickup code
+        if not self.pickup_code:
+            self.pickup_code = ''.join(random.choices(string.digits, k=6))
+            needs_save = True
+            
+        # 2. Generate the customer's delivery code
+        if not self.delivery_code:
+            self.delivery_code = ''.join(random.choices(string.digits, k=6))
+            needs_save = True
+            
+        # Save both to the database at once
+        if needs_save:
+            self.save(update_fields=['pickup_code', 'delivery_code'])
 
 
 # --- 3. THE NEW SERVICE BOOKING ENGINE ---

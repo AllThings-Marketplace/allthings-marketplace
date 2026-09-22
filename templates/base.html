@@ -91,10 +91,8 @@
 
             <div class="search-dropdown" id="searchDropdown">
                 <div class="dropdown-section">
-                    <!-- Changed heading to feel more curated -->
                     <h4 class="dropdown-heading">Popular Categories</h4>
                     <div class="search-pills-container">
-                        <!-- Added |slice:":6" to limit the output to just 6 items -->
                         {% for cat in nav_categories|slice:":6" %}
                             <a href="{% url 'marketplace:home' %}?category={{ cat.id }}" class="search-pill">{{ cat.name }}</a>
                         {% endfor %}
@@ -116,7 +114,6 @@
                 <a href="#" class="icon-link hidden-mobile"><i class="fa-solid fa-tag"></i> Sell on AllThings</a>
             {% endif %}
             
-            <!-- NEW: Upgraded Cart Link with Badge -->
             <a href="{% url 'orders:cart' %}" class="icon-link requires-auth nav-cart-wrapper">
                 <i class="fa-solid fa-cart-shopping"></i> Cart
                 {% if cart_count > 0 %}
@@ -161,16 +158,37 @@
     </nav>
 
     {% if messages %}
-        <div class="toast-container">
+        <div class="premium-toast-container">
             {% for message in messages %}
-                <div class="toast toast-{{ message.tags }}">
-                    {{ message }}
+                <div class="premium-toast premium-toast-{{ message.tags }}">
+                    <div class="toast-icon">
+                        {% if message.tags == 'success' %}
+                            <i class="fa-solid fa-circle-check"></i>
+                        {% elif message.tags == 'error' %}
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                        {% elif message.tags == 'warning' %}
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        {% else %}
+                            <i class="fa-solid fa-bell"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="toast-content">
+                        <span class="toast-message">{{ message }}</span>
+                    </div>
+                    
+                    <button class="toast-close" onclick="this.parentElement.remove();">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    
+                    <!-- Animated countdown line -->
+                    <div class="toast-progress-bar"></div>
                 </div>
             {% endfor %}
         </div>
     {% endif %}
     
-    <main class="main-container">
+    <main class="main-container animate-fade-in">
         {% block content %}
         {% endblock %}
     </main>
@@ -208,7 +226,6 @@
         </div>
     </footer>
 
-    <!-- Global Auth Guard Modal -->
     <div class="modal-overlay" id="authGuardModal">
         <div class="modal-card">
             <div class="modal-icon-wrapper auth-modal-icon">

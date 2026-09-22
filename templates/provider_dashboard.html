@@ -6,407 +6,415 @@
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-header flex-between">
-    <div>
-        <h2 class="section-heading checkout-page-title mb-5">{{ profile.business_name }}</h2>
-        <span class="status-badge badge-completed badge-sm">
-            {{ profile.get_provider_type_display }}
-        </span>
-    </div>
-    
-    <div class="dashboard-actions">
-        {% if profile.provider_type in 'VENDOR,BOTH' %}
-            <a href="{% url 'dashboard:vendor_orders' %}" class="action-btn action-sm"><i class="fa-solid fa-box-archive icon-spaced"></i> Store Orders</a>
-            <a href="{% url 'dashboard:add_product' %}" class="action-btn action-sm"><i class="fa-solid fa-cart-plus icon-spaced"></i> Add Product</a>
-        {% endif %}
+<div class="animate-fade-in">
+    <div class="dashboard-header flex-between">
+        <div>
+            <h2 class="section-heading checkout-page-title mb-5">{{ profile.business_name }}</h2>
+            <span class="status-badge badge-completed badge-sm">
+                {{ profile.get_provider_type_display }}
+            </span>
+        </div>
         
-        {% if profile.provider_type in 'SERVICE,BOTH' %}
-            <a href="{% url 'dashboard:add_service' %}" class="action-btn btn-primary action-sm"><i class="fa-solid fa-briefcase icon-spaced"></i> Add Service</a>
-        {% endif %}
-        
-        <a href="#withdrawal-section" class="action-btn btn-outline action-sm">Withdraw Funds</a>
-    </div>
-</div>
-
-<!-- Financial KPI Cards -->
-<div class="kpi-grid mt-20">
-    <div class="summary-card kpi-card">
-        <div class="kpi-icon-wrapper success-bg">
-            <i class="fa-solid fa-wallet"></i>
-        </div>
-        <div>
-            <p class="kpi-label">Available for Withdrawal</p>
-            <h3 class="kpi-value">NGN {{ wallet.available_balance }}</h3>
-        </div>
-    </div>
-
-    <div class="summary-card kpi-card">
-        <div class="kpi-icon-wrapper pending-bg">
-            <i class="fa-solid fa-clock-rotate-left"></i>
-        </div>
-        <div>
-            <p class="kpi-label">Pending in Escrow</p>
-            <h3 class="kpi-value text-muted">NGN {{ wallet.pending_balance }}</h3>
-        </div>
-    </div>
-
-    <div class="summary-card kpi-card">
-        <div class="kpi-icon-wrapper neutral-bg">
-            <i class="fa-solid fa-money-bill-trend-up"></i>
-        </div>
-        <div>
-            <p class="kpi-label">Lifetime Earnings</p>
-            <h3 class="kpi-value">NGN {{ wallet.total_withdrawn }}</h3>
-        </div>
-    </div>
-</div>
-
-<!-- ========================================== -->
-<!-- SERVICE PROVIDER ENGINE                    -->
-<!-- ========================================== -->
-{% if profile.provider_type in 'SERVICE,BOTH' %}
-
-    <!-- 1. Incoming Booking Requests (Needs Attention) -->
-    <div class="flex-between align-center mt-40 mb-15">
-        <h3 class="checkout-section-title m-0">
-            <i class="fa-solid fa-bell text-danger icon-spaced"></i> Incoming Requests
-        </h3>
-        {% if pending_requests %}
-            <span class="status-badge badge-danger">{{ pending_requests|length }} New</span>
-        {% endif %}
-    </div>
-
-    <div class="transaction-list">
-        {% for request in pending_requests %}
-            <div class="transaction-item border-left-danger flex-column align-stretch gap-15">
-                <div class="flex-between w-100">
-                    <div>
-                        <span class="font-600-dark text-16">{{ request.service.name }}</span>
-                        {% if request.package %}
-                            <span class="status-badge badge-pending badge-sm ml-10">{{ request.package.name }} Package</span>
-                        {% endif %}
-                        <span class="text-12-muted block mt-5"><i class="fa-regular fa-user"></i> Client: {{ request.customer.get_full_name|default:request.customer.username }}</span>
-                        <span class="text-12-muted block mt-5"><i class="fa-regular fa-calendar"></i> Requested for: {{ request.preferred_date }} at {{ request.preferred_time }}</span>
-                        <span class="text-12-muted block mt-5"><i class="fa-solid fa-location-dot"></i> {{ request.service_location }}</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="font-700-block text-blue mb-5">
-                            {% if request.agreed_price > 0 %}NGN {{ request.agreed_price }}{% else %}Requires Quote{% endif %}
-                        </span>
-                        <span class="status-badge badge-pending badge-sm">Awaiting Your Approval</span>
-                    </div>
-                </div>
-                
-                <!-- Action Controls -->
-                <div class="flex-between align-start w-100 border-top-light pt-15 mt-10">
-                    <div class="flex-align-center gap-10">
-                        <form method="POST" action="{% url 'dashboard:decline_service_request' request.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="action-btn btn-danger action-sm btn-outline">Decline</button>
-                        </form>
-                        <!-- Chat Integration -->
-                        <a href="{% url 'orders:order_chat' request.id %}" class="action-btn btn-outline action-sm">
-                            <i class="fa-regular fa-message icon-spaced"></i> Chat
-                        </a>
-                    </div>
-                    
-                    {% if request.agreed_price > 0 %}
-                        <!-- Standard Flow: Fixed Price or Package -->
-                        <form method="POST" action="{% url 'dashboard:accept_service_request' request.id %}">
-                            {% csrf_token %}
-                            <button type="submit" class="action-btn btn-primary action-sm">Accept & Request Payment</button>
-                        </form>
-                    {% else %}
-                        <!-- Quote Flow: Custom Pricing -->
-                        <div class="w-100 ml-20">
-                            <p class="text-12-muted mb-5 mt-0"><i class="fa-solid fa-calculator icon-spaced"></i> Requires a custom quote</p>
-                            <form action="{% url 'dashboard:send_quote' request.id %}" method="POST" class="quote-form flex-align-center gap-10">
-                                {% csrf_token %}
-                                <input type="number" name="labor_cost" class="form-control quote-input-sm" step="0.01" placeholder="Labor (NGN)" required>
-                                <input type="number" name="materials_cost" class="form-control quote-input-md" step="0.01" placeholder="Materials (NGN)" value="0">
-                                <input type="text" name="provider_notes" class="form-control quote-input-grow" placeholder="Briefly explain costs...">
-                                <button type="submit" class="action-btn btn-primary action-sm text-nowrap">
-                                    <i class="fa-solid fa-paper-plane"></i> Send Quote
-                                </button>
-                            </form>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-        {% empty %}
-            <div class="empty-state">
-                <i class="fa-regular fa-calendar-check empty-state-icon"></i>
-                <p>No pending booking requests. Ensure your services are active!</p>
-            </div>
-        {% endfor %}
-    </div>
-
-    <!-- 2. Active Jobs (In Progress or Scheduled) -->
-    <h3 class="checkout-section-title mt-40">My Active Jobs</h3>
-    <div class="transaction-list">
-        {% for job in active_jobs %}
-            <div class="transaction-item border-left-primary flex-column align-stretch gap-15">
-                <div class="flex-between w-100">
-                    <div>
-                        <span class="font-600-dark text-16">{{ job.service.name }}</span>
-                        <span class="text-12-muted block mt-5">Ref: {{ job.reference_code }}</span>
-                        <span class="text-12-muted block mt-5"><i class="fa-regular fa-calendar text-blue"></i> Scheduled: {{ job.preferred_date }} at {{ job.preferred_time }}</span>
-                    </div>
-                    <div class="text-right">
-                        <span class="font-700-block mb-5">NGN {{ job.agreed_price }}</span>
-                        <span class="status-badge 
-                            {% if job.status == 'PAID' %}badge-success
-                            {% elif job.status == 'ACCEPTED' %}badge-pending
-                            {% else %}badge-blue{% endif %} badge-sm">
-                            {{ job.get_status_display }}
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="w-100 flex-between align-center border-top-light pt-15 mt-10">
-                    <div>
-                        {% if job.status == 'QUOTE_SENT' %}
-                            <p class="text-12-muted m-0"><i class="fa-solid fa-paper-plane text-blue"></i> Quote sent. Waiting for customer to accept and pay.</p>
-                        {% elif job.status == 'ACCEPTED' %}
-                            <p class="text-12-muted m-0"><i class="fa-solid fa-clock text-warning"></i> Waiting for customer to complete payment.</p>
-                        {% elif job.status == 'COMPLETED' %}
-                            <p class="text-12-muted m-0"><i class="fa-solid fa-check-double text-success"></i> Waiting for customer final confirmation.</p>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="flex-align-center gap-10">
-                        <!-- Chat Integration -->
-                        <a href="{% url 'orders:order_chat' job.id %}" class="action-btn btn-outline action-sm">
-                            <i class="fa-regular fa-message icon-spaced"></i> Message Client
-                        </a>
-
-                        {% if job.status == 'PAID' %}
-                            <form method="POST" action="{% url 'dashboard:provider_start_service' job.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="action-btn btn-primary action-sm">Mark as In Progress</button>
-                            </form>
-                        {% elif job.status == 'IN_PROGRESS' %}
-                            <form method="POST" action="{% url 'dashboard:provider_complete_service' job.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="action-btn btn-success action-sm">Complete Job</button>
-                            </form>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        {% empty %}
-            <div class="empty-state">
-                <i class="fa-solid fa-toolbox empty-state-icon"></i>
-                <p>You have no active jobs currently.</p>
-            </div>
-        {% endfor %}
-    </div>
-
-    <!-- 2.5 Completed & Past Jobs (Recent History) -->
-    <div class="flex-between align-center mt-40 mb-15">
-        <h3 class="checkout-section-title m-0">Recent Completed Jobs</h3>
-        <a href="#" class="text-12-muted">View All History &rarr;</a>
-    </div>
-    
-    <div class="transaction-list mb-40">
-        {% for job in past_jobs %}
-            <div class="transaction-item border-left-success flex-between align-center">
-                <div>
-                    <span class="font-600-dark text-16">{{ job.service.name }}</span>
-                    <span class="text-12-muted block mt-5">Ref: {{ job.reference_code }} | Updated: {{ job.updated_at|date:"M d, Y" }}</span>
-                </div>
-                <div class="text-right">
-                    <span class="font-700-block mb-5">
-                        {% if job.agreed_price %}NGN {{ job.agreed_price }}{% else %}-{% endif %}
-                    </span>
-                    <span class="status-badge 
-                        {% if job.status == 'CONFIRMED' %}badge-success
-                        {% elif job.status == 'DISPUTED' or job.status == 'CANCELLED' or job.status == 'DECLINED' %}badge-danger
-                        {% else %}badge-completed{% endif %} badge-sm mb-10 display-block">
-                        {{ job.get_status_display }}
-                    </span>
-                    <a href="{% url 'orders:order_chat' job.id %}" class="action-btn btn-outline action-sm" title="View Chat History">
-                        <i class="fa-regular fa-comments"></i>
-                    </a>
-                </div>
-            </div>
-        {% empty %}
-            <div class="empty-state">
-                <i class="fa-solid fa-clipboard-check empty-state-icon"></i>
-                <p>No completed jobs yet in your recent history.</p>
-            </div>
-        {% endfor %}
-    </div>
-
-    <!-- 3. My Listed Services -->
-    <h3 class="checkout-section-title mt-40">My Published Services</h3>
-    <div class="transaction-list">
-        {% for srv in my_services %}
-            <div class="transaction-item flex-between align-center">
-                <div class="flex-align-center gap-15">
-                    {% if srv.cover_image %}
-                        <img src="{{ srv.cover_image.url }}" alt="{{ srv.name }}" class="service-thumb">
-                    {% else %}
-                        <div class="service-thumb-fallback"><i class="fa-solid fa-image text-muted"></i></div>
-                    {% endif %}
-                    <div>
-                        <span class="font-600-dark display-block">{{ srv.name }}</span>
-                        <span class="text-12-muted">{{ srv.get_pricing_type_display }}</span>
-                    </div>
-                </div>
-                <div>
-                    <span class="status-badge {% if srv.is_active %}badge-completed{% else %}badge-danger{% endif %} badge-sm">
-                        {% if srv.is_active %}Active{% else %}Hidden{% endif %}
-                    </span>
-                    <!-- New Edit Button -->
-                    <a href="{% url 'dashboard:edit_service' srv.id %}" class="action-btn btn-outline action-sm ml-10">
-                        <i class="fa-solid fa-pen"></i> Edit
-                    </a>
-                    <a href="{% url 'marketplace:service_detail' srv.slug %}" class="action-btn btn-outline action-sm ml-10" target="_blank">View</a>
-                </div>
-            </div>
-        {% empty %}
-            <div class="empty-state">
-                <p>You haven't listed any services yet.</p>
-            </div>
-        {% endfor %}
-    </div>
-
-{% endif %}
-
-<!-- ========================================== -->
-<!-- VENDOR ENGINE (E-COMMERCE)                 -->
-<!-- ========================================== -->
-{% if profile.provider_type in 'VENDOR,BOTH' %}
-
-    <h3 class="checkout-section-title mt-40">My Product Catalog</h3>
-    <div class="summary-card p-0 mb-40">
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Price & Stock</th>
-                        <th>Status</th>
-                        <th>Moderator Feedback</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in products %}
-                        <tr>
-                            <td>
-                                <span class="font-600-dark display-block">{{ item.name }}</span>
-                                <span class="text-12-muted">{{ item.category.name }}</span>
-                            </td>
-                            <td>
-                                <span class="display-block">NGN {{ item.price }}</span>
-                                <span class="text-12-muted">Stock: {{ item.stock_count }}</span>
-                            </td>
-                            <td>
-                                <span class="status-badge 
-                                    {% if item.status == 'APPROVED' %}badge-completed
-                                    {% elif item.status == 'REJECTED' %}badge-danger
-                                    {% else %}badge-pending{% endif %}">
-                                    {{ item.get_status_display }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if item.moderation_note %}
-                                    <span class="feedback-alert"><i class="fa-solid fa-triangle-exclamation"></i> {{ item.moderation_note }}</span>
-                                {% else %}
-                                    <span class="text-12-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'dashboard:upload_product_images' item.id %}" class="action-btn btn-outline action-sm">
-                                    <i class="fa-solid fa-camera"></i> Photos
-                                </a>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="5" class="table-empty-cell">No products submitted yet.</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-{% endif %}
-
-<!-- ========================================== -->
-<!-- FINANCIALS & WITHDRAWALS                   -->
-<!-- ========================================== -->
-<div id="withdrawal-section" class="summary-card mt-40">
-    <div class="profile-settings-header">
-        <h3 class="profile-settings-title"><i class="fa-solid fa-money-bill-transfer text-blue icon-spaced"></i> Request Withdrawal</h3>
-        <p class="profile-settings-subtitle">Funds will be sent to {{ profile.bank_name|default:"your registered bank account" }} ({{ profile.account_number|default:"N/A" }}).</p>
-    </div>
-
-    <form method="POST" action="#">
-        {% csrf_token %}
-        <div class="form-group">
-            <label class="form-label-dark">Amount to Withdraw (NGN) *</label>
-            <div class="withdrawal-form-group">
-                {% if can_withdraw %}
-                    <input type="number" name="amount" class="form-control" step="0.01" min="100" max="{{ wallet.available_balance }}" placeholder="0.00" required>
-                    <button type="submit" class="action-btn btn-success text-nowrap">
-                        Submit Request
-                    </button>
-                {% else %}
-                    <input type="text" class="form-control" placeholder="Locked" disabled>
-                    <button type="button" class="action-btn btn-disabled text-nowrap" disabled>
-                        Locked ({{ days_left }} Days Left)
-                    </button>
-                {% endif %}
-            </div>
+        <div class="dashboard-actions">
+            {% if profile.provider_type in 'VENDOR,BOTH' %}
+                <a href="{% url 'dashboard:vendor_orders' %}" class="action-btn action-sm"><i class="fa-solid fa-box-archive icon-spaced"></i> Store Orders</a>
+                <a href="{% url 'dashboard:add_product' %}" class="action-btn action-sm"><i class="fa-solid fa-cart-plus icon-spaced"></i> Add Product</a>
+            {% endif %}
             
-            {% if can_withdraw %}
-                <small class="form-text-muted">Available Balance: NGN {{ wallet.available_balance|floatformat:2 }}</small>
-            {% else %}
-                <small class="warning-text-block">
-                    <i class="fa-solid fa-lock icon-spaced"></i> 
-                    You can only withdraw once per week. Your next payout unlocks in {{ days_left }} day(s).
-                </small>
+            {% if profile.provider_type in 'SERVICE,BOTH' %}
+                <a href="{% url 'dashboard:add_service' %}" class="action-btn btn-primary action-sm"><i class="fa-solid fa-briefcase icon-spaced"></i> Add Service</a>
+            {% endif %}
+            
+            <a href="#withdrawal-section" class="action-btn btn-outline action-sm">Withdraw Funds</a>
+        </div>
+    </div>
+
+    <!-- Financial KPI Cards -->
+    <div class="kpi-grid mt-20">
+        <div class="summary-card kpi-card">
+            <div class="kpi-icon-wrapper success-bg">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+            <div>
+                <p class="kpi-label">Available for Withdrawal</p>
+                <h3 class="kpi-value">NGN {{ wallet.available_balance }}</h3>
+            </div>
+        </div>
+
+        <div class="summary-card kpi-card">
+            <div class="kpi-icon-wrapper pending-bg">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+            </div>
+            <div>
+                <p class="kpi-label">Pending in Escrow</p>
+                <h3 class="kpi-value text-muted">NGN {{ wallet.pending_balance }}</h3>
+            </div>
+        </div>
+
+        <div class="summary-card kpi-card">
+            <div class="kpi-icon-wrapper neutral-bg">
+                <i class="fa-solid fa-money-bill-trend-up"></i>
+            </div>
+            <div>
+                <p class="kpi-label">Lifetime Earnings</p>
+                <h3 class="kpi-value">NGN {{ wallet.total_withdrawn }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SERVICE PROVIDER ENGINE                    -->
+    <!-- ========================================== -->
+    {% if profile.provider_type in 'SERVICE,BOTH' %}
+
+        <!-- 1. Incoming Booking Requests (Needs Attention) -->
+        <div class="flex-between align-center mt-40 mb-15">
+            <h3 class="checkout-section-title m-0">
+                <i class="fa-solid fa-bell text-danger icon-spaced"></i> Incoming Requests
+            </h3>
+            {% if pending_requests %}
+                <span class="status-badge badge-danger">{{ pending_requests|length }} New</span>
             {% endif %}
         </div>
-    </form>
-</div>
 
-<!-- Recent Ledger Activity -->
-<h3 class="checkout-section-title mt-40">Recent Transactions</h3>
-<div class="transaction-list">
-    {% if recent_transactions %}
-        {% for txn in recent_transactions %}
-            <div class="transaction-item">
-                <div class="transaction-info">
-                    <span class="transaction-title">
-                        {% if txn.transaction_type == 'PAYOUT' %}
-                            <i class="fa-solid fa-building-columns icon-spaced"></i>
+        <div class="transaction-list">
+            {% for request in pending_requests %}
+                <div class="transaction-item border-left-danger flex-column align-stretch gap-15">
+                    <div class="flex-between w-100">
+                        <div>
+                            <span class="font-600-dark text-16">{{ request.service.name }}</span>
+                            {% if request.package %}
+                                <span class="status-badge badge-pending badge-sm ml-10">{{ request.package.name }} Package</span>
+                            {% endif %}
+                            <span class="text-12-muted block mt-5"><i class="fa-regular fa-user"></i> Client: {{ request.customer.get_full_name|default:request.customer.username }}</span>
+                            <span class="text-12-muted block mt-5"><i class="fa-regular fa-calendar"></i> Requested for: {{ request.preferred_date }} at {{ request.preferred_time }}</span>
+                            <span class="text-12-muted block mt-5"><i class="fa-solid fa-location-dot"></i> {{ request.service_location }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-700-block text-blue mb-5">
+                                {% if request.agreed_price > 0 %}NGN {{ request.agreed_price }}{% else %}Requires Quote{% endif %}
+                            </span>
+                            <span class="status-badge badge-pending badge-sm">Awaiting Your Approval</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Controls -->
+                    <div class="flex-between align-start w-100 border-top-light pt-15 mt-10">
+                        <div class="flex-align-center gap-10">
+                            <form method="POST" action="{% url 'dashboard:decline_service_request' request.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn btn-danger action-sm btn-outline">Decline</button>
+                            </form>
+                            <!-- Chat Integration -->
+                            <a href="{% url 'orders:order_chat' request.id %}" class="action-btn btn-outline action-sm">
+                                <i class="fa-regular fa-message icon-spaced"></i> Chat
+                            </a>
+                        </div>
+                        
+                        {% if request.agreed_price > 0 %}
+                            <!-- Standard Flow: Fixed Price or Package -->
+                            <form method="POST" action="{% url 'dashboard:accept_service_request' request.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn btn-primary action-sm">Accept & Request Payment</button>
+                            </form>
                         {% else %}
-                            <i class="fa-solid fa-cart-shopping icon-spaced"></i>
+                            <!-- Quote Flow: Custom Pricing -->
+                            <div class="w-100 ml-20">
+                                <p class="text-12-muted mb-5 mt-0"><i class="fa-solid fa-calculator icon-spaced"></i> Requires a custom quote</p>
+                                <form action="{% url 'dashboard:send_quote' request.id %}" method="POST" class="quote-form flex-align-center gap-10">
+                                    {% csrf_token %}
+                                    <input type="number" name="labor_cost" class="form-control quote-input-sm" step="0.01" placeholder="Labor (NGN)" required>
+                                    <input type="number" name="materials_cost" class="form-control quote-input-md" step="0.01" placeholder="Materials (NGN)" value="0">
+                                    <input type="text" name="provider_notes" class="form-control quote-input-grow" placeholder="Briefly explain costs...">
+                                    <button type="submit" class="action-btn btn-primary action-sm text-nowrap">
+                                        <i class="fa-solid fa-paper-plane"></i> Send Quote
+                                    </button>
+                                </form>
+                            </div>
                         {% endif %}
-                        {{ txn.get_transaction_type_display }}
-                    </span>
-                    <span class="transaction-meta">{{ txn.created_at|date:"M d, Y - h:i A" }} | {{ txn.reference }}</span>
+                    </div>
                 </div>
-                <div class="transaction-amount-status">
-                    <span class="{% if txn.transaction_type == 'PAYOUT' %}amount-negative{% else %}amount-positive{% endif %}">
-                        {% if txn.transaction_type == 'PAYOUT' %}-{% else %}+{% endif %} NGN {{ txn.net_amount }}
-                    </span>
-                    <span class="status-badge {% if txn.status == 'CLEARED' or txn.status == 'COMPLETED' %}badge-completed{% else %}badge-pending{% endif %} badge-sm">
-                        {{ txn.get_status_display }}
-                    </span>
+            {% empty %}
+                <div class="empty-state">
+                    <i class="fa-regular fa-calendar-check empty-state-icon"></i>
+                    <p>No pending booking requests. Ensure your services are active!</p>
                 </div>
-            </div>
-        {% endfor %}
-    {% else %}
-        <div class="empty-state">
-            <p>No transactions yet. Start selling or providing services to see your balance grow!</p>
+            {% endfor %}
         </div>
+
+        <!-- 2. Active Jobs (In Progress or Scheduled) -->
+        <h3 class="checkout-section-title mt-40">My Active Jobs</h3>
+        <div class="transaction-list">
+            {% for job in active_jobs %}
+                <div class="transaction-item border-left-primary flex-column align-stretch gap-15">
+                    <div class="flex-between w-100">
+                        <div>
+                            <span class="font-600-dark text-16">{{ job.service.name }}</span>
+                            <span class="text-12-muted block mt-5">Ref: {{ job.reference_code }}</span>
+                            <span class="text-12-muted block mt-5"><i class="fa-regular fa-calendar text-blue"></i> Scheduled: {{ job.preferred_date }} at {{ job.preferred_time }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-700-block mb-5">NGN {{ job.agreed_price }}</span>
+                            <span class="status-badge 
+                                {% if job.status == 'PAID' %}badge-success
+                                {% elif job.status == 'ACCEPTED' %}badge-pending
+                                {% else %}badge-blue{% endif %} badge-sm">
+                                {{ job.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="w-100 flex-between align-center border-top-light pt-15 mt-10">
+                        <div>
+                            {% if job.status == 'QUOTE_SENT' %}
+                                <p class="text-12-muted m-0"><i class="fa-solid fa-paper-plane text-blue"></i> Quote sent. Waiting for customer to accept and pay.</p>
+                            {% elif job.status == 'ACCEPTED' %}
+                                <p class="text-12-muted m-0"><i class="fa-solid fa-clock text-warning"></i> Waiting for customer to complete payment.</p>
+                            {% elif job.status == 'COMPLETED' %}
+                                <p class="text-12-muted m-0"><i class="fa-solid fa-check-double text-success"></i> Waiting for customer final confirmation.</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="flex-align-center gap-10">
+                            <!-- Chat Integration -->
+                            <a href="{% url 'orders:order_chat' job.id %}" class="action-btn btn-outline action-sm">
+                                <i class="fa-regular fa-message icon-spaced"></i> Message Client
+                            </a>
+
+                            {% if job.status == 'PAID' %}
+                                <form method="POST" action="{% url 'dashboard:provider_start_service' job.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="action-btn btn-primary action-sm">Mark as In Progress</button>
+                                </form>
+                            {% elif job.status == 'IN_PROGRESS' %}
+                                <form method="POST" action="{% url 'dashboard:provider_complete_service' job.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="action-btn btn-success action-sm">Complete Job</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-toolbox empty-state-icon"></i>
+                    <p>You have no active jobs currently.</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- 2.5 Completed & Past Jobs (Recent History) -->
+        <div class="flex-between align-center mt-40 mb-15">
+            <h3 class="checkout-section-title m-0">Recent Completed Jobs</h3>
+            <a href="#" class="text-12-muted">View All History &rarr;</a>
+        </div>
+        
+        <div class="transaction-list mb-40">
+            {% for job in past_jobs %}
+                <div class="transaction-item border-left-success flex-wrap gap-15">
+                    <div class="flex-grow-1">
+                        <span class="font-600-dark text-16">{{ job.service.name }}</span>
+                        <span class="text-12-muted block mt-5">Ref: {{ job.reference_code }} | Updated: {{ job.updated_at|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="transaction-amount-status">
+                        <span class="font-700-block mb-5 text-16">
+                            {% if job.agreed_price %}NGN {{ job.agreed_price }}{% else %}-{% endif %}
+                        </span>
+                        <span class="status-badge 
+                            {% if job.status == 'CONFIRMED' %}badge-success
+                            {% elif job.status == 'DISPUTED' or job.status == 'CANCELLED' or job.status == 'DECLINED' %}badge-danger
+                            {% else %}badge-completed{% endif %} badge-sm mb-10 display-block w-100 text-center">
+                            {{ job.get_status_display }}
+                        </span>
+                        <a href="{% url 'orders:order_chat' job.id %}" class="action-btn btn-outline action-sm w-100" title="View Chat History">
+                            <i class="fa-regular fa-comments"></i> View Chat
+                        </a>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-clipboard-check empty-state-icon"></i>
+                    <p>No completed jobs yet in your recent history.</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- 3. My Listed Services -->
+        <h3 class="checkout-section-title mt-40">My Published Services</h3>
+        <div class="transaction-list">
+            {% for srv in my_services %}
+                <div class="transaction-item flex-between align-center">
+                    <div class="flex-align-center gap-15">
+                        {% if srv.cover_image %}
+                            <img src="{{ srv.cover_image.url }}" alt="{{ srv.name }}" class="service-thumb">
+                        {% else %}
+                            <div class="service-thumb-fallback"><i class="fa-solid fa-image text-muted"></i></div>
+                        {% endif %}
+                        <div>
+                            <span class="font-600-dark display-block">{{ srv.name }}</span>
+                            <span class="text-12-muted">{{ srv.get_pricing_type_display }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="status-badge {% if srv.is_active %}badge-completed{% else %}badge-danger{% endif %} badge-sm">
+                            {% if srv.is_active %}Active{% else %}Hidden{% endif %}
+                        </span>
+                        <!-- New Edit Button -->
+                        <a href="{% url 'dashboard:edit_service' srv.id %}" class="action-btn btn-outline action-sm ml-10">
+                            <i class="fa-solid fa-pen"></i> Edit
+                        </a>
+                        <a href="{% url 'marketplace:service_detail' srv.slug %}" class="action-btn btn-outline action-sm ml-10" target="_blank">View</a>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <p>You haven't listed any services yet.</p>
+                </div>
+            {% endfor %}
+        </div>
+
     {% endif %}
+
+    <!-- ========================================== -->
+    <!-- VENDOR ENGINE (E-COMMERCE)                 -->
+    <!-- ========================================== -->
+    {% if profile.provider_type in 'VENDOR,BOTH' %}
+
+        <h3 class="checkout-section-title mt-40">My Product Catalog</h3>
+        <div class="summary-card p-0 mb-40">
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Price & Stock</th>
+                            <th>Status</th>
+                            <th>Moderator Feedback</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in products %}
+                            <tr>
+                                <td>
+                                    <span class="font-600-dark display-block">{{ item.name }}</span>
+                                    <span class="text-12-muted">{{ item.category.name }}</span>
+                                </td>
+                                <td>
+                                    <span class="display-block">NGN {{ item.price }}</span>
+                                    <span class="text-12-muted">Stock: {{ item.stock_count }}</span>
+                                </td>
+                                <td>
+                                    <span class="status-badge 
+                                        {% if item.status == 'APPROVED' %}badge-completed
+                                        {% elif item.status == 'REJECTED' %}badge-danger
+                                        {% else %}badge-pending{% endif %}">
+                                        {{ item.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if item.moderation_note %}
+                                        <span class="feedback-alert"><i class="fa-solid fa-triangle-exclamation"></i> {{ item.moderation_note }}</span>
+                                    {% else %}
+                                        <span class="text-12-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="flex-align-center gap-10">
+                                        <!-- LINKED EDIT BUTTON -->
+                                        <a href="{% url 'dashboard:edit_product' item.id %}" class="action-btn btn-outline action-sm">
+                                            <i class="fa-solid fa-pen"></i> Edit
+                                        </a>
+                                        <a href="{% url 'dashboard:upload_product_images' item.id %}" class="action-btn btn-outline action-sm">
+                                            <i class="fa-solid fa-camera"></i> Photos
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="table-empty-cell">No products submitted yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    {% endif %}
+
+    <!-- ========================================== -->
+    <!-- FINANCIALS & WITHDRAWALS                   -->
+    <!-- ========================================== -->
+    <div id="withdrawal-section" class="summary-card mt-40">
+        <div class="profile-settings-header">
+            <h3 class="profile-settings-title"><i class="fa-solid fa-money-bill-transfer text-blue icon-spaced"></i> Request Withdrawal</h3>
+            <p class="profile-settings-subtitle">Funds will be sent to {{ profile.bank_name|default:"your registered bank account" }} ({{ profile.account_number|default:"N/A" }}).</p>
+        </div>
+
+        <form method="POST" action="#">
+            {% csrf_token %}
+            <div class="form-group">
+                <label class="form-label-dark">Amount to Withdraw (NGN) *</label>
+                <div class="withdrawal-form-group">
+                    {% if can_withdraw %}
+                        <input type="number" name="amount" class="form-control" step="0.01" min="100" max="{{ wallet.available_balance }}" placeholder="0.00" required>
+                        <button type="submit" class="action-btn btn-success text-nowrap">
+                            Submit Request
+                        </button>
+                    {% else %}
+                        <input type="text" class="form-control" placeholder="Locked" disabled>
+                        <button type="button" class="action-btn btn-disabled text-nowrap" disabled>
+                            Locked ({{ days_left }} Days Left)
+                        </button>
+                    {% endif %}
+                </div>
+                
+                {% if can_withdraw %}
+                    <small class="form-text-muted">Available Balance: NGN {{ wallet.available_balance|floatformat:2 }}</small>
+                {% else %}
+                    <small class="warning-text-block">
+                        <i class="fa-solid fa-lock icon-spaced"></i> 
+                        You can only withdraw once per week. Your next payout unlocks in {{ days_left }} day(s).
+                    </small>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- Recent Ledger Activity -->
+    <h3 class="checkout-section-title mt-40">Recent Transactions</h3>
+    <div class="transaction-list">
+        {% if recent_transactions %}
+            {% for txn in recent_transactions %}
+                <div class="transaction-item">
+                    <div class="transaction-info">
+                        <span class="transaction-title">
+                            {% if txn.transaction_type == 'PAYOUT' %}
+                                <i class="fa-solid fa-building-columns icon-spaced"></i>
+                            {% else %}
+                                <i class="fa-solid fa-cart-shopping icon-spaced"></i>
+                            {% endif %}
+                            {{ txn.get_transaction_type_display }}
+                        </span>
+                        <span class="transaction-meta">{{ txn.created_at|date:"M d, Y - h:i A" }} | {{ txn.reference }}</span>
+                    </div>
+                    <div class="transaction-amount-status">
+                        <span class="{% if txn.transaction_type == 'PAYOUT' %}amount-negative{% else %}amount-positive{% endif %}">
+                            {% if txn.transaction_type == 'PAYOUT' %}-{% else %}+{% endif %} NGN {{ txn.net_amount }}
+                        </span>
+                        <span class="status-badge {% if txn.status == 'CLEARED' or txn.status == 'COMPLETED' %}badge-completed{% else %}badge-pending{% endif %} badge-sm">
+                            {{ txn.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <p>No transactions yet. Start selling or providing services to see your balance grow!</p>
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 

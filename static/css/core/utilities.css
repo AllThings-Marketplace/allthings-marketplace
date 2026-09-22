@@ -255,3 +255,27 @@
     align-items: center; 
     justify-content: center; 
 }
+
+/* Extracted Utility & Layout Classes */
+.flex-wrap { flex-wrap: wrap; }
+.flex-grow-1 { flex-grow: 1; }
+.cursor-pointer { cursor: pointer; }
+.no-underline { text-decoration: none; }
+.m-20 { margin: 20px; }
+.mt-25 { margin-top: 25px; }
+.py-15 { padding-top: 15px; padding-bottom: 15px; }
+.text-18 { font-size: 18px; }
+.text-24 { font-size: 24px; }
+.text-14-muted { font-size: 14px; color: #6b7280; }
+
+/* Login specific */
+.login-wrapper { max-width: 400px; margin: 40px auto 50px auto; }
+
+/* Highlight Box */
+.note-highlight { 
+    color: #d97706; 
+    background-color: #fef3c7; 
+    padding: 6px 10px; 
+    border-radius: 4px; 
+    display: inline-block; 
+}

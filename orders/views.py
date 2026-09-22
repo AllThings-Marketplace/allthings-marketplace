@@ -3,13 +3,14 @@ import hashlib
 import json
 from django.conf import settings
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 from django.db.models import F
 from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.utils import timezone
 
 from .models import Order, OrderItem, ShippingAddress, Cart, CartItem, PaymentAttempt, ServiceOrder, OrderMessage, ServiceDispute
 from marketplace.models import Product, Service, ProductVariant, ServicePackage
@@ -136,7 +137,7 @@ def process_service_booking(request, service_id):
         )
 
         messages.success(request, f"Your request for '{service.name}' has been sent to the provider!")
-        return redirect('service_booking_success', reference=service_order.reference_code)
+        return redirect('orders:service_booking_success', reference=service_order.reference_code)
         
     return redirect('dashboard:service_detail', slug=service.slug)
 
@@ -291,54 +292,69 @@ def checkout_view(request):
 def verify_payment(request):
     reference = request.GET.get('reference')
     if not reference:
-        return redirect('orders:cart')
+        messages.error(request, "Payment was cancelled or no reference was provided.")
+        return redirect('orders:order_history')
 
     paystack = PaystackAPI()
     response = paystack.verify_transaction(reference)
 
-    if response.get('data') and response['data']['status'] == 'success':
+    if response.get('data'):
         metadata = response['data'].get('metadata', {})
         order_type = metadata.get('type', 'product')
         order_id = metadata.get('order_id')
         
-        if order_type == 'service':
-            service_order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user)
-            if service_order.status == 'ACCEPTED':
-                service_order.status = 'PAID'
-                service_order.is_paid = True
-                service_order.save(update_fields=['status', 'is_paid'])
-                
-                create_service_escrow(service_order)
-                
-                messages.success(request, f"Payment successful! Your booking for {service_order.service.name} is confirmed.")
-            return redirect('orders:order_history')
-            
-        else:
-            order = get_object_or_404(Order, id=order_id, customer=request.user)
-            PaymentAttempt.objects.filter(reference=reference).update(status='successful')
-            
-            if order.status == 'unpaid':
-                order.status = 'confirmed'
-                order.save(update_fields=['status'])
-                
-                for item in order.items.all():
-                    item.status = 'PAID'
-                    item.save(update_fields=['status'])
-                    item.generate_handshake_codes()
+        # --- SUCCESSFUL PAYMENT ---
+        if response['data']['status'] == 'success':
+            if order_type == 'service':
+                service_order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user)
+                if service_order.status == 'ACCEPTED':
+                    service_order.status = 'PAID'
+                    service_order.is_paid = True
+                    service_order.save(update_fields=['status', 'is_paid'])
                     
-                    if item.variant:
-                        item.variant.stock = F('stock') - item.quantity
-                        item.variant.save()
-                    if item.product:
-                        item.product.stock_count = F('stock_count') - item.quantity
-                        item.product.save()
+                    create_service_escrow(service_order)
+                    messages.success(request, f"Payment successful! Your booking for {service_order.service.name} is confirmed.")
+                return redirect('orders:order_history')
                 
-                process_order_commissions(order)
+            else:
+                order = get_object_or_404(Order, id=order_id, customer=request.user)
+                PaymentAttempt.objects.filter(reference=reference).update(status='successful')
+                
+                if order.status == 'unpaid':
+                    order.status = 'confirmed'
+                    order.save(update_fields=['status'])
+                    
+                    for item in order.items.all():
+                        item.status = 'PAID'
+                        item.save(update_fields=['status'])
+                        item.generate_handshake_codes()
+                        
+                        if item.variant:
+                            item.variant.stock = F('stock') - item.quantity
+                            item.variant.save()
+                        if item.product:
+                            item.product.stock_count = F('stock_count') - item.quantity
+                            item.product.save()
+                    
+                    process_order_commissions(order)
 
-            return redirect('order_success', order_id=order.id)
+                return redirect('orders:order_success', order_id=order.id)
+        
+        # --- CANCELLED OR FAILED PAYMENT ---
+        else:
+            if order_type == 'service':
+                messages.error(request, "Service payment was cancelled or failed. Please try again.")
+                return redirect('orders:order_history')
+            else:
+                PaymentAttempt.objects.filter(reference=reference).update(status='failed')
+                messages.error(request, "Payment was cancelled or failed. You can retry the payment below.")
+                # Redirect straight to the order details so they can use the "Pay Now" button
+                return redirect('orders:order_details', order_id=order_id)
     
+    # --- API FAILURE FALLBACK ---
     PaymentAttempt.objects.filter(reference=reference).update(status='failed')
-    return redirect('orders:cart')
+    messages.error(request, "We could not verify the payment status with our provider. If you were debited, please contact support.")
+    return redirect('orders:order_history')
 
 @csrf_exempt
 def paystack_webhook(request):
@@ -362,6 +378,43 @@ def paystack_webhook(request):
 
         return HttpResponse(status=200)
     return HttpResponse(status=405)
+
+@login_required
+def retry_payment(request, order_id):
+    if request.method == 'POST':
+        # Fetch the existing unpaid order
+        order = get_object_or_404(Order, id=order_id, customer=request.user, status='unpaid')
+        
+        paystack = PaystackAPI()
+        dynamic_callback = request.build_absolute_uri(reverse('orders:verify_payment'))
+        
+        metadata = {
+            "order_id": order.id,
+            "type": "product"
+        }
+        
+        # Request a new payment link from Paystack
+        response = paystack.initialize_transaction(
+            email=request.user.email,
+            amount=order.total_amount,
+            order_id=order.id,
+            callback_url=dynamic_callback,
+            metadata=metadata
+        )
+
+        if response.get('status'):
+            PaymentAttempt.objects.create(
+                order=order,
+                reference=response['data']['reference'],
+                amount=order.total_amount,
+                status='pending'
+            )
+            return redirect(response['data']['authorization_url'])
+        else:
+            messages.error(request, "Payment gateway unavailable. Please try again.")
+            return redirect('orders:order_details', order_id=order.id)
+            
+    return redirect('orders:order_details', order_id=order_id)
 
 
 # --- 4. CUSTOMER DASHBOARD VIEWS ---
@@ -398,7 +451,7 @@ def confirm_item_delivery(request, item_id):
         
         if item.status in ['DELIVERED', 'COMPLETED']:
             messages.info(request, "This item has already been marked as completed.")
-            return redirect('order_details', order_id=item.order.id)
+            return redirect('orders:order_details', order_id=item.order.id)
             
         if submitted_code == item.delivery_code:
             item.status = 'COMPLETED'
@@ -414,7 +467,7 @@ def confirm_item_delivery(request, item_id):
         else:
             messages.error(request, "Invalid delivery code. Please check the code provided for this item.")
             
-    return redirect('order_details', order_id=item.order.id)
+    return redirect('orders:order_details', order_id=item.order.id)
 
 @login_required
 def customer_confirm_service(request, order_id):
@@ -464,14 +517,23 @@ def send_order_message(request, order_id):
         attachment = request.FILES.get('attachment')
         
         if body or attachment:
-            OrderMessage.objects.create(
+            message = OrderMessage.objects.create(
                 order=order,
                 sender=request.user,
                 body=body,
                 attachment=attachment
             )
             
-        # Redirect the user back to the exact page they sent the message from (either dashboard or order history)
+            # AJAX Intercept: Return JSON data if triggered by the new chat.js file
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'success',
+                    'body': message.body,
+                    'attachment_url': message.attachment.url if message.attachment else None,
+                    'time': timezone.localtime(message.created_at).strftime("%I:%M %p")
+                })
+                
+        # Fallback: Redirect the user back to the exact page if Javascript fails or is disabled
         return redirect(request.META.get('HTTP_REFERER', 'marketplace:home'))
 
 @login_required

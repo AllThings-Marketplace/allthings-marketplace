@@ -66,7 +66,7 @@ def dispatch_gigl_rider(item):
     """
     Triggers a pickup request to the GIGL API.
     """
-    url = "https://api.giglogistics.com/v1/shipments" # Example endpoint
+    url = "https://api.giglogistics.com/v1/shipments" 
     headers = {
         "Authorization": f"Bearer {settings.GIGL_API_KEY}",
         "Content-Type": "application/json"
@@ -74,13 +74,15 @@ def dispatch_gigl_rider(item):
     
     payload = {
         "senderName": item.product.provider.business_name,
-        "senderAddress": item.product.provider.address,
+        
+        # THE FIX: Updated from .address to .store_address
+        "senderAddress": item.product.provider.store_address, 
+        
         "receiverName": f"{item.order.first_name} {item.order.last_name}",
         "receiverAddress": item.order.street_address,
         "receiverPhoneNumber": item.order.phone,
         "itemName": item.product.name,
         "quantity": item.quantity,
-        # We pass your custom pickup code in the delivery notes for the rider
         "specialInstruction": f"Provide PIN {item.pickup_code} to vendor upon pickup."
     }
     
@@ -134,4 +136,21 @@ def release_service_escrow(service_order):
         # 3. Permanently clear the ledger record
         txn.status = 'CLEARED'
         txn.cleared_at = timezone.now()
+        txn.save()
+
+def refund_service_escrow(service_order):
+    """
+    Wipes pending escrow funds if a service is cancelled or a dispute is lost.
+    """
+    txn_ref = f"SRV-{service_order.reference_code}"
+    txn = VendorTransaction.objects.filter(reference=txn_ref, status='PENDING').first()
+    
+    if txn:
+        wallet = txn.wallet
+        # Deduct from escrow, but DO NOT add to available balance
+        wallet.pending_balance -= txn.net_amount
+        wallet.save()
+        
+        # Permanently mark the ledger record as refunded
+        txn.status = 'REFUNDED'
         txn.save()

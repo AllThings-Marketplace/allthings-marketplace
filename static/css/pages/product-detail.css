@@ -214,6 +214,10 @@
         z-index: 1000;
         background-color: #ffffff;
         box-sizing: border-box;
+        
+        /* Bulletproof iOS Support: Adds padding for the iPhone Home Bar */
+        padding: 15px 20px;
+        padding-bottom: calc(15px + env(safe-area-inset-bottom)); 
     }
 }
 

@@ -408,6 +408,37 @@ def edit_service(request, service_id):
     }
     return render(request, 'edit_service.html', context)
 
+@login_required
+def edit_product(request, product_id):
+    # Security: Fetch the product but ONLY if it belongs to the logged-in provider
+    product = get_object_or_404(Product, id=product_id, provider=request.user.provider_profile)
+    
+    if request.method == 'POST':
+        # Update the product attributes
+        product.name = request.POST.get('name')
+        product.category_id = request.POST.get('category_id')
+        product.price = request.POST.get('price')
+        
+        # Safely handle the stock count to prevent zero-traps or empty strings
+        stock_input = request.POST.get('stock_count', '')
+        product.stock_count = int(stock_input) if stock_input.isdigit() else 0
+        
+        product.description = request.POST.get('description')
+        
+        # Save and redirect
+        product.save()
+        messages.success(request, f"'{product.name}' has been updated successfully.")
+        return redirect('dashboard:provider_dashboard')
+
+    # For GET requests, fetch the categories to populate the dropdown
+    parent_categories = Category.objects.filter(parent__isnull=True)
+    
+    context = {
+        'product': product,
+        'parent_categories': parent_categories,
+    }
+    return render(request, 'edit_product.html', context)
+
 
 # --- 4. VENDOR & SERVICE CONTRACT ACTIONS ---
 

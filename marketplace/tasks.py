@@ -87,10 +87,10 @@ def process_product_image_task(image_id):
         response = cloudinary.uploader.upload(
             raw_bytes,
             folder="marketplace_products",
+            background_removal="cloudinary_ai",
             transformation=[
                 {"effect": "upscale"},
-                # Note: Cloudinary has a "background_removal": "cloudinary_ai" add-on you can enable in your dashboard
-                {"width": 1080, "height": 1080, "crop": "pad", "background": "white"}, # E-commerce standard padding
+                {"width": 1080, "height": 1080, "crop": "pad", "background": "white"},
                 {"fetch_format": "webp", "quality": "auto"}
             ]
         )

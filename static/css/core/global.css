@@ -703,7 +703,7 @@ body {
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: none; /* THIS LINE FIXES THE STICKY BAR */
     }
 }
 
@@ -739,3 +739,19 @@ body {
 .animate-stagger-children > *:nth-child(3) { animation-delay: 0.3s; }
 .animate-stagger-children > *:nth-child(4) { animation-delay: 0.4s; }
 .animate-stagger-children > *:nth-child(5) { animation-delay: 0.5s; }
+
+/* ==========================================
+   MOBILE-SPECIFIC ANIMATION OVERRIDES
+   ========================================== */
+@media (max-width: 768px) {
+    .animate-fade-in {
+        /* Replaces the sliding animation with a pure fade on mobile */
+        animation-name: pureFadeIn !important;
+        transform: none !important;
+    }
+}
+
+@keyframes pureFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
