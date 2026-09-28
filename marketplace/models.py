@@ -245,3 +245,16 @@ class SavedItem(models.Model):
 
     def __str__(self):
         return f"{self.user.username} saved {self.product.name}"
+
+class ProviderInquiry(models.Model):
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_inquiries')
+    provider = models.ForeignKey('accounts.ProviderProfile', on_delete=models.CASCADE, related_name='received_inquiries')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Inquiry from {self.sender.username} to {self.provider.business_name}"

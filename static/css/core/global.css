@@ -246,6 +246,11 @@ body {
     border-bottom: 1px solid #e5e7eb;
 }
 
+.drawer-header .brand-logo {
+    margin: 0;
+    font-size: 20px;
+}
+
 .drawer-header h3 {
     margin: 0;
     font-size: 18px;
@@ -496,12 +501,6 @@ body {
     width: 100%;
 }
 
-.badge-danger {
-    background-color: #fee2e2;
-    color: #ef4444;
-    border: 1px solid #fca5a5;
-}
-
 .pickup-code-box {
     background-color: #f3f4f6;
     border: 1px dashed #9ca3af;
@@ -562,21 +561,7 @@ body {
     margin-top: 30px;
 }
 
-/* --- Navigation & Mobile Drawer --- */
-.drawer-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid #f3f4f6;
-}
-
-.drawer-header .brand-logo {
-    margin: 0;
-    font-size: 20px;
-}
-
-.drawer-content {
-    padding: 0;
-}
-
+/* --- Mobile Drawer Overrides --- */
 .mobile-cat-item i.text-muted {
     font-size: 14px;
 }

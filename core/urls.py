@@ -16,6 +16,7 @@ urlpatterns = [
     
     # The Marketplace catalog acts as the homepage (root)
     path('', include('marketplace.urls')),
+    path('notifications/', include('notifications.urls'))
 ]
 
 if settings.DEBUG:

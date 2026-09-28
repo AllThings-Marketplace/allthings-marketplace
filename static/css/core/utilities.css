@@ -104,8 +104,8 @@
     display: none; 
 }
 
-/* Show dropdown on hover */
-.nav-dropdown-container:hover .nav-dropdown-menu {
+/* Show account dropdown on hover, but leave notifications to JS */
+.nav-dropdown-container:hover .nav-dropdown-menu:not(.notification-menu) {
     display: block;
 }
 

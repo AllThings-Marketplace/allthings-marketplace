@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="history-container animate-fade-in">
+    <div class="history-header">
+        <h1 class="m-0 font-600-dark">Account Activity</h1>
+        <a href="{% url 'notifications:mark_all_read' %}" class="action-btn btn-outline action-sm">
+            <i class="fa-solid fa-check-double mr-5"></i> Mark All as Read
+        </a>
+    </div>
+
+    <div class="history-card">
+        {% for notif in notifications %}
+            <div class="history-item {% if not notif.is_read %}unread{% endif %}">
+                <div class="history-icon">
+                    {% if notif.notification_type == 'ORDER' %}
+                        <i class="fa-solid fa-box text-primary"></i>
+                    {% elif notif.notification_type == 'INQUIRY' %}
+                        <i class="fa-regular fa-message text-success"></i>
+                    {% else %}
+                        <i class="fa-solid fa-bell text-warning"></i>
+                    {% endif %}
+                </div>
+                
+                <div class="history-content-body">
+                    <div class="history-item-header">
+                        <strong class="text-15-dark">{{ notif.title }}</strong>
+                        <span class="text-12-muted">{{ notif.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <p class="text-14-muted m-0 history-text">{{ notif.message }}</p>
+                </div>
+            </div>
+        {% empty %}
+            <div class="history-empty-state">
+                <i class="fa-solid fa-bell-slash history-empty-icon"></i>
+                <h3 class="text-16-dark m-0 mb-5">No notifications yet</h3>
+                <p class="text-14-muted m-0">When you interact with providers or place orders, alerts will appear here.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

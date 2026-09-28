@@ -111,3 +111,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Select all dropdown triggers (Bell and User Profile)
+    const dropdownTriggers = document.querySelectorAll('.nav-dropdown-trigger');
+
+    dropdownTriggers.forEach(trigger => {
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent the document click listener from firing immediately
+            
+            const menu = trigger.nextElementSibling;
+            const isCurrentlyOpen = menu.classList.contains('active');
+
+            // Close ALL open dropdowns first
+            document.querySelectorAll('.nav-dropdown-menu').forEach(m => m.classList.remove('active'));
+
+            // If the clicked one wasn't open, open it
+            if (!isCurrentlyOpen) {
+                menu.classList.add('active');
+            }
+        });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.nav-dropdown-menu').forEach(menu => {
+            menu.classList.remove('active');
+        });
+    });
+});

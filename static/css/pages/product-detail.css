@@ -416,3 +416,15 @@
     font-size: 24px;
     margin-bottom: 10px;
 }
+
+/* Product Page Provider Link */
+.provider-profile-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+.provider-profile-link:hover {
+    color: #1e40af;
+    text-decoration: underline;
+}

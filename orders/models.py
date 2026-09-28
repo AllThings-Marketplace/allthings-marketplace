@@ -91,6 +91,9 @@ class OrderItem(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2) # Immutable price snapshot
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING')
     
+    # NEW FIELD: Tracks exactly when the 72-hour timer begins
+    delivered_at = models.DateTimeField(null=True, blank=True, help_text="When the rider handed over the item")
+    
     # Logistics codes
     pickup_code = models.CharField(max_length=6, blank=True, null=True)
     delivery_code = models.CharField(max_length=6, blank=True, null=True)
@@ -168,7 +171,6 @@ class ServiceOrder(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.reference_code:
-            # Generates a unique tracking code like SRV-A1B2C3D4
             self.reference_code = f"SRV-{uuid.uuid4().hex[:8].upper()}"
         super().save(*args, **kwargs)
 
@@ -184,7 +186,7 @@ class OrderMessage(models.Model):
     is_read = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['created_at'] # Oldest messages at the top, newest at the bottom
+        ordering = ['created_at']
 
     def __str__(self):
         return f"Message from {self.sender.username} on {self.order.reference_code}"
@@ -235,28 +237,20 @@ class ServiceQuote(models.Model):
         ('REJECTED', 'Rejected by Customer'),
     )
 
-    # Links directly to the existing service order
     order = models.OneToOneField('ServiceOrder', on_delete=models.CASCADE, related_name='quote')
-    
-    # Itemized costs
     labor_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     materials_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
     
-    # Context for the customer
     provider_notes = models.TextField(blank=True, null=True, help_text="Explain the costs to the customer.")
     valid_until = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
-        # Automatically calculate the total before saving
         self.total_amount = self.labor_cost + self.materials_cost
-        
-        # Set quote expiration to 3 days from creation if not provided
         if not self.valid_until:
             self.valid_until = timezone.now() + timedelta(days=3)
-            
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -281,7 +275,6 @@ class ServiceDispute(models.Model):
     evidence = models.ImageField(upload_to='dispute_evidence/', blank=True, null=True, help_text="Optional photo proof.")
     status = models.CharField(max_length=20, choices=DisputeStatus.choices, default=DisputeStatus.OPEN)
     
-    # Audit Trail
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     resolved_at = models.DateTimeField(null=True, blank=True)

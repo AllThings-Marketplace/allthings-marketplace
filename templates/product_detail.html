@@ -56,7 +56,12 @@
         </div>
         
         <div class="product-meta">
-            <span class="store-name">Store: {{ product.provider.business_name }}</span>
+            <span class="store-name">
+                Store: 
+                <a href="{% url 'marketplace:public_provider' product.provider.id %}" class="provider-profile-link">
+                    {{ product.provider.business_name }}
+                </a>
+            </span>
             <span class="rating-highlight">
                 <i class="fa-solid fa-star"></i> {{ avg_rating }} 
                 <span class="rating-count">({{ review_count }} reviews)</span>

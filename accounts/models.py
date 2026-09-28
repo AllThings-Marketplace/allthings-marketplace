@@ -71,6 +71,7 @@ class ProviderProfile(models.Model):
     # SCREEN 5: Payouts (Unlocked post-approval)
     bank_name = models.CharField(max_length=100, null=True, blank=True)
     account_number = models.CharField(max_length=20, null=True, blank=True)
+    bank_code = models.CharField(max_length=10, null=True, blank=True, help_text="The 3-digit Paystack bank code")
     account_name = models.CharField(max_length=150, null=True, blank=True)
     
     # System Tracking
@@ -136,3 +137,16 @@ class VendorTransaction(models.Model):
 
     def __str__(self):
         return f"{self.get_transaction_type_display()} - {self.status} - NGN {self.net_amount}"
+
+class Follower(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='following')
+    provider = models.ForeignKey('ProviderProfile', on_delete=models.CASCADE, related_name='followers')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # A user can only follow a specific provider once
+        unique_together = ('user', 'provider')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} follows {self.provider.business_name}"

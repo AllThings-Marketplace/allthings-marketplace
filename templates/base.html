@@ -17,7 +17,6 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<!-- Global Auth State Tracker -->
 <body data-user-auth="{{ user.is_authenticated|yesno:'true,false' }}">
 
     <div class="mobile-overlay" id="mobileOverlay"></div>
@@ -60,7 +59,6 @@
                                     <i class="fa-solid fa-circle-chevron-right text-muted"></i> {{ cat.name }}
                                 </a>
                                 {% if cat.subcategories.all %}
-                                    <!-- Passes the first layer of subcategories into our recursive snippet -->
                                     {% include 'category_menu_node.html' with current_categories=cat.subcategories.all %}
                                 {% endif %}
                             </li>
@@ -120,6 +118,52 @@
                     <span class="cart-badge">{{ cart_count }}</span>
                 {% endif %}
             </a>
+
+            <!-- Global Notification Bell -->
+            {% if user.is_authenticated %}
+            <div class="nav-dropdown-container">
+                <button class="icon-link nav-dropdown-trigger bell-trigger">
+                    <i class="fa-regular fa-bell"></i> Alerts
+                    {% if global_unread_count > 0 %}
+                        <span class="cart-badge badge-red">{{ global_unread_count }}</span>
+                    {% endif %}
+                </button>
+                
+                <div class="nav-dropdown-menu notification-menu">
+                    <div class="dropdown-header-flex px-15 py-10 notification-header">
+                        <h4 class="m-0 font-600-dark text-14">Notifications</h4>
+                        <a href="{% url 'notifications:mark_all_read' %}" class="text-12 text-primary">Mark all read</a>
+                    </div>
+                    
+                    <div class="notification-list">
+                        {% for notif in global_recent_notifications %}
+                            <a href="#" class="notification-item {% if not notif.is_read %}unread{% endif %}">
+                                <div class="notif-icon">
+                                    {% if notif.notification_type == 'ORDER' %}
+                                        <i class="fa-solid fa-box text-primary"></i>
+                                    {% elif notif.notification_type == 'INQUIRY' %}
+                                        <i class="fa-regular fa-message text-success"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-bell text-warning"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="notif-content">
+                                    <strong class="text-13-dark block">{{ notif.title }}</strong>
+                                    <span class="text-12-muted block mt-5">{{ notif.message|truncatechars:45 }}</span>
+                                    <span class="text-10-muted mt-5 block">{{ notif.created_at|timesince }} ago</span>
+                                </div>
+                            </a>
+                        {% empty %}
+                            <div class="notification-empty">No new notifications.</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="px-15 py-10 text-center notification-footer">
+                        <a href="{% url 'notifications:history' %}" class="text-13 text-primary font-600">View All Activity</a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             
             <div class="nav-dropdown-container">
                 <button class="nav-dropdown-trigger">
@@ -138,7 +182,10 @@
                     {% if user.is_authenticated %}
                         <a href="{% url 'accounts:profile' %}"><i class="fa-regular fa-user"></i> My Account</a>
                         <a href="{% url 'orders:order_history' %}"><i class="fa-solid fa-box"></i> Orders</a>
-                        <a href="#"><i class="fa-regular fa-envelope"></i> Inbox</a>
+                        <a href="{% url 'marketplace:inbox' %}">
+                            <i class="fa-regular fa-envelope"></i> Inbox 
+                            {% if global_unread_count > 0 %}<span class="badge-sm badge-danger ml-5">{{ global_unread_count }}</span>{% endif %}
+                        </a>
                         <a href="{% url 'feedback:pending_reviews' %}"><i class="fa-regular fa-star"></i> Pending Reviews</a>
                         <a href="{% url 'marketplace:saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a>
                         {% if request.user.provider_profile %}
@@ -181,7 +228,6 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                     
-                    <!-- Animated countdown line -->
                     <div class="toast-progress-bar"></div>
                 </div>
             {% endfor %}

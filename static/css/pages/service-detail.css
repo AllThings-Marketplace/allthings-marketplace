@@ -312,3 +312,16 @@
     padding: 16px; 
     border-radius: 12px;
 }
+
+/* Service Page Provider Badge Link */
+.provider-badge-link {
+    text-decoration: none;
+    color: inherit;
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+.provider-badge-link:hover .provider-badge {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    background-color: #f8fafc;
+}

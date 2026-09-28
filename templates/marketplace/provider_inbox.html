@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/inbox.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- Hidden input for secure JS fetch requests -->
+<input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+
+<div class="inbox-container">
+    <div class="inbox-header">
+        <h1 class="m-0 font-600-dark">Message Center</h1>
+        {% if unread_count > 0 %}
+            <span class="status-badge badge-danger">{{ unread_count }} New Leads</span>
+        {% endif %}
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="inbox-tabs">
+        <button class="tab-btn active" data-target="leads-tab">New Leads (Inquiries)</button>
+        <button class="tab-btn" data-target="orders-tab">Active Jobs (Orders)</button>
+    </div>
+
+    <!-- TAB 1: Pre-Booking Inquiries -->
+    <div id="leads-tab" class="tab-content active">
+        <div class="inbox-grid">
+            <div class="inquiry-list">
+                {% for inquiry in inquiries %}
+                    <!-- Securely passing data to JS via data attributes -->
+                    <div class="inquiry-item {% if not inquiry.is_read %}unread{% endif %}" 
+                         data-id="{{ inquiry.id }}"
+                         data-name="{{ inquiry.sender.username }}"
+                         data-email="{{ inquiry.sender.email }}"
+                         data-date="{{ inquiry.created_at|date:'M d, Y h:i A' }}"
+                         data-message="{{ inquiry.message|escape }}">
+                        
+                        <div class="flex-between mb-5">
+                            <strong class="text-14-dark">{{ inquiry.sender.username }}</strong>
+                            <span class="text-12-muted">{{ inquiry.created_at|date:"M d" }}</span>
+                        </div>
+                        <div class="inquiry-preview">{{ inquiry.message }}</div>
+                    </div>
+                {% empty %}
+                    <div class="p-30 text-center text-muted">
+                        <i class="fa-regular fa-folder-open mb-10 icon-24"></i>
+                        <p class="m-0">No unread inquiries.</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="reader-area">
+                <div id="readerEmpty" class="reader-empty">
+                    <i class="fa-regular fa-envelope mb-15 icon-40"></i>
+                    <p>Select a lead to read their message.</p>
+                </div>
+                
+                <div id="readerContent" class="inquiry-reader">
+                    <div class="reader-header-flex">
+                        <div>
+                            <h3 class="m-0 font-600-dark" id="readerName">Username</h3>
+                            <p class="text-14-muted m-0 mt-5" id="readerEmail">email@example.com</p>
+                        </div>
+                        <span class="text-12-muted" id="readerDate">Date</span>
+                    </div>
+                    
+                    <p id="readerMessage" class="reader-message-text"></p>
+                    
+                    <div class="mt-30">
+                        <a href="#" id="replyBtn" class="action-btn btn-primary w-100 text-center">
+                            <i class="fa-solid fa-reply icon-spaced"></i> Reply via Email
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: Active Job Chats -->
+    <div id="orders-tab" class="tab-content">
+        <div class="orders-grid">
+            {% for order in active_orders %}
+                <!-- TODO: Update this href with your actual order chat URL -->
+                <a href="{% url 'orders:order_chat' order.id %}" class="order-card">  
+                    <div class="flex-between mb-15">
+                        <span class="status-badge badge-pending">{{ order.get_status_display }}</span>
+                        <span class="text-12-muted">{{ order.updated_at|timesince }} ago</span>
+                    </div>
+                    
+                    <h3 class="text-16-dark m-0 mb-5">{{ order.reference_code }}</h3>
+                    <p class="text-14-muted m-0 mb-15">{{ order.service.name|default:"Custom Service" }}</p>
+                    
+                    <div class="order-card-footer">
+                        <span class="text-14-dark font-600">
+                            <i class="fa-regular fa-user mr-5"></i> {{ order.customer.username }}
+                        </span>
+                        <span class="text-primary text-13 font-600">
+                            Open Chat <i class="fa-solid fa-arrow-right ml-5"></i>
+                        </span>
+                    </div>
+                </a>
+            {% empty %}
+                <div class="p-30 text-center text-muted grid-full-width">
+                    <i class="fa-solid fa-box-open mb-10 icon-24"></i>
+                    <p class="m-0">You have no active orders right now.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/inbox.js' %}"></script>
+{% endblock %}

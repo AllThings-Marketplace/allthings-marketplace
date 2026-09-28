@@ -1,13 +1,15 @@
-from django.shortcuts import render, get_object_or_404
+import json
+from django.shortcuts import redirect, render, get_object_or_404
 from django.db.models import Avg, Count, Prefetch
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 
 from .models import (
     Product, Service, Category, SavedItem, ProductImage, 
-    PromoBanner, ProductVariant, ServicePackage, ServiceImage
+    PromoBanner, ProviderInquiry
 )
-from accounts.models import ProviderProfile
+from accounts.models import ProviderProfile, Follower
+from orders.models import ServiceOrder
 from feedback.models import Feedback
 
 
@@ -161,28 +163,157 @@ def saved_items_list(request):
     saved_items = SavedItem.objects.filter(user=request.user).select_related('product')
     return render(request, 'saved_items.html', {'saved_items': saved_items})
 
-def provider_storefront(request, provider_id):
-    # Fetch the provider's public profile
-    provider = get_object_or_404(ProviderProfile, id=provider_id)
+
+def public_provider_profile(request, provider_id):
+    # 1. Security: Only fetch the provider if they have passed verification
+    provider = get_object_or_404(ProviderProfile, id=provider_id, verification_status='ACTIVE')
     
-    # Fetch their active catalog
+    # 2. Fetch active services
     services = Service.objects.filter(provider=provider, is_active=True)
-    products = Product.objects.filter(provider=provider, status='APPROVED')
     
-    # Fetch all approved reviews for this provider
-    reviews = Feedback.objects.filter(target_provider=provider.user, status='APPROVED').order_by('-created_at')
+    # 3. Fetch active products utilizing your existing Celery-approved image prefetch
+    approved_images_prefetch = Prefetch(
+        'images', 
+        queryset=ProductImage.objects.filter(processing_status='APPROVED')
+    )
+    products = Product.objects.filter(
+        provider=provider, 
+        is_active=True
+    ).prefetch_related(approved_images_prefetch)
     
-    # Calculate lifetime trust metrics
+    # 4. Aggregate real trust metrics from the Feedback model
+    reviews = Feedback.objects.filter(
+        target_provider=provider.user, 
+        status='APPROVED'
+    ).select_related('customer').order_by('-created_at')
+    
     review_count = reviews.count()
     avg_rating_dict = reviews.aggregate(Avg('overall_rating'))
-    avg_rating = round(avg_rating_dict['overall_rating__avg'] or 0, 1)
+    rating = round(avg_rating_dict['overall_rating__avg'] or 0, 1)
+    
+    # 5. Calculate genuine completed jobs (Services that reached the end of the lifecycle)
+    total_completed = ServiceOrder.objects.filter(
+        provider=provider,
+        status__in=['COMPLETED', 'CONFIRMED']
+    ).count()
+
+    # 6. Check if the current user is following this provider
+    is_following = False
+    if request.user.is_authenticated:
+        is_following = Follower.objects.filter(user=request.user, provider=provider).exists()
     
     context = {
         'provider': provider,
         'services': services,
         'products': products,
-        'reviews': reviews,
+        'reviews': reviews, 
         'review_count': review_count,
-        'avg_rating': avg_rating,
+        'rating': rating,
+        'total_completed': total_completed,
+        'is_following': is_following,
     }
-    return render(request, 'provider_storefront.html', context)
+    return render(request, 'provider_profile.html', context)
+
+
+@login_required
+def toggle_follow_provider(request, provider_id):
+    if request.method == 'POST':
+        provider = get_object_or_404(ProviderProfile, id=provider_id)
+        
+        # get_or_create tries to find the follow record. If it doesn't exist, it creates it.
+        follow, created = Follower.objects.get_or_create(user=request.user, provider=provider)
+        
+        if not created:
+            # If it already existed, they are trying to unfollow
+            follow.delete()
+            is_following = False
+            message = f"You unfollowed {provider.business_name}."
+        else:
+            is_following = True
+            message = f"You are now following {provider.business_name}."
+            
+        return JsonResponse({'is_following': is_following, 'message': message})
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@login_required
+def submit_inquiry(request, provider_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            message_text = data.get('message', '').strip()
+            
+            if not message_text:
+                return JsonResponse({'error': 'Message cannot be empty'}, status=400)
+            
+            provider = get_object_or_404(ProviderProfile, id=provider_id)
+            
+            # Save the inquiry to the database
+            ProviderInquiry.objects.create(
+                sender=request.user,
+                provider=provider,
+                message=message_text
+            )
+            
+            return JsonResponse({'success': True, 'message': 'Inquiry sent successfully!'})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+            
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+def universal_inbox(request):
+    """
+    Acts as a smart router. If the user is a provider, it shows the provider dashboard.
+    If they are a customer, it shows the customer dashboard.
+    """
+    user = request.user
+    
+    # --- PROVIDER ROUTE ---
+    if hasattr(user, 'providerprofile'):
+        provider = user.providerprofile
+        inquiries = ProviderInquiry.objects.filter(provider=provider).select_related('sender').order_by('-created_at')
+        active_orders = ServiceOrder.objects.filter(provider=provider).exclude(
+            status__in=['COMPLETED', 'CONFIRMED', 'DECLINED', 'CANCELLED']
+        ).select_related('customer', 'service').order_by('-updated_at')
+        
+        context = {
+            'is_provider': True,
+            'inquiries': inquiries,
+            'unread_count': inquiries.filter(is_read=False).count(),
+            'active_orders': active_orders,
+        }
+        return render(request, 'marketplace/provider_inbox.html', context)
+        
+    # --- CUSTOMER ROUTE ---
+    else:
+        # Fetch inquiries the customer has sent to providers
+        sent_inquiries = ProviderInquiry.objects.filter(sender=user).select_related('provider').order_by('-created_at')
+        
+        # Fetch active jobs the customer has booked
+        active_orders = ServiceOrder.objects.filter(customer=user).exclude(
+            status__in=['COMPLETED', 'CONFIRMED', 'DECLINED', 'CANCELLED']
+        ).select_related('provider', 'service').order_by('-updated_at')
+        
+        context = {
+            'is_provider': False,
+            'sent_inquiries': sent_inquiries,
+            'active_orders': active_orders,
+        }
+        return render(request, 'marketplace/customer_inbox.html', context)
+
+@login_required
+def mark_inquiry_read(request, inquiry_id):
+    if request.method == 'POST':
+        # Fetch the inquiry and strictly ensure it belongs to the logged-in provider
+        inquiry = get_object_or_404(ProviderInquiry, id=inquiry_id, provider__user=request.user)
+        
+        if not inquiry.is_read:
+            inquiry.is_read = True
+            inquiry.save(update_fields=['is_read'])
+            
+        return JsonResponse({'success': True})
+        
+    return JsonResponse({'error': 'Invalid request method'}, status=405)

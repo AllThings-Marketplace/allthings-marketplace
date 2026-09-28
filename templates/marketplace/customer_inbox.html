@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/inbox.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="inbox-container">
+    <div class="inbox-header">
+        <h1 class="m-0 font-600-dark">My Messages</h1>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="inbox-tabs">
+        <button class="tab-btn active" data-target="orders-tab">Active Orders</button>
+        <button class="tab-btn" data-target="sent-tab">Sent Inquiries</button>
+    </div>
+
+    <!-- TAB 1: Active Job Chats -->
+    <div id="orders-tab" class="tab-content active">
+        <div class="orders-grid">
+            {% for order in active_orders %}
+                <a href="{% url 'orders:order_chat' order.id %}" class="order-card">  
+                    <div class="flex-between mb-15">
+                        <span class="status-badge badge-pending">{{ order.get_status_display }}</span>
+                        <span class="text-12-muted">{{ order.updated_at|timesince }} ago</span>
+                    </div>
+                    
+                    <h3 class="text-16-dark m-0 mb-5">{{ order.reference_code }}</h3>
+                    <p class="text-14-muted m-0 mb-15">{{ order.service.name|default:"Custom Service" }}</p>
+                    
+                    <div class="order-card-footer">
+                        <span class="text-14-dark font-600">
+                            <i class="fa-solid fa-store mr-5"></i> {{ order.provider.business_name }}
+                        </span>
+                        <span class="text-primary text-13 font-600">
+                            Open Chat <i class="fa-solid fa-arrow-right ml-5"></i>
+                        </span>
+                    </div>
+                </a>
+            {% empty %}
+                <div class="p-30 text-center text-muted grid-full-width">
+                    <i class="fa-solid fa-box-open mb-10 icon-24"></i>
+                    <p class="m-0">You have no active orders right now.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- TAB 2: Sent Inquiries -->
+    <div id="sent-tab" class="tab-content">
+        <div class="orders-grid">
+            {% for inquiry in sent_inquiries %}
+                <div class="order-card">
+                    <div class="flex-between mb-15">
+                        <span class="text-12-muted">{{ inquiry.created_at|date:"M d, Y h:i A" }}</span>
+                        {% if inquiry.is_read %}
+                            <span class="text-12 text-success"><i class="fa-solid fa-check-double"></i> Read by Provider</span>
+                        {% else %}
+                            <span class="text-12 text-muted"><i class="fa-solid fa-check"></i> Delivered</span>
+                        {% endif %}
+                    </div>
+                    <h4 class="m-0 mb-10 font-600-dark">To: {{ inquiry.provider.business_name }}</h4>
+                    <p class="text-14-dark m-0" style="line-height: 1.6;">"{{ inquiry.message }}"</p>
+                </div>
+            {% empty %}
+                <div class="p-30 text-center text-muted grid-full-width">
+                    <i class="fa-regular fa-paper-plane mb-10 icon-24"></i>
+                    <p class="m-0">You haven't sent any pre-booking inquiries yet.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/inbox.js' %}"></script>
+{% endblock %}

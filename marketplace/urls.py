@@ -17,5 +17,13 @@ urlpatterns = [
     path('api/toggle-save/<int:product_id>/', views.toggle_saved_item, name='toggle_save'),
 
     # Provider Profile
-    path('provider/<int:provider_id>/', views.provider_storefront, name='provider_storefront'),
+    path('provider/<int:provider_id>/', views.public_provider_profile, name='public_provider'),
+    path('api/toggle-follow/<int:provider_id>/', views.toggle_follow_provider, name='toggle_follow_provider'),
+    path('api/provider/<int:provider_id>/inquiry/', views.submit_inquiry, name='submit_inquiry'),
+    
+    # Unified Inbox (Smart Router for Customers & Providers)
+    path('inbox/', views.universal_inbox, name='inbox'),
+    
+    # Inbox APIs
+    path('api/inquiry/<int:inquiry_id>/read/', views.mark_inquiry_read, name='mark_inquiry_read'),
 ]

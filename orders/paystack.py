@@ -36,3 +36,32 @@ class PaystackAPI:
         }
         response = requests.get(url, headers=headers)
         return response.json()
+
+    def create_transfer_recipient(self, name, account_number, bank_code):
+        """Registers a vendor's bank account with Paystack to receive funds."""
+        url = "https://api.paystack.co/transferrecipient"
+        payload = {
+            "type": "nuban",
+            "name": name,
+            "account_number": account_number,
+            "bank_code": bank_code,
+            "currency": "NGN"
+        }
+        response = requests.post(url, headers=self.headers, json=payload)
+        return response.json()
+
+    def initiate_transfer(self, amount_in_naira, recipient_code, reference, reason="Vendor Payout"):
+        """Wires money from your Paystack balance to the registered recipient."""
+        url = "https://api.paystack.co/transfer"
+        # Paystack requires outbound transfers to be in Kobo (multiply by 100)
+        amount_in_kobo = int(float(amount_in_naira) * 100)
+        
+        payload = {
+            "source": "balance",
+            "amount": amount_in_kobo,
+            "recipient": recipient_code,
+            "reason": reason,
+            "reference": reference
+        }
+        response = requests.post(url, headers=self.headers, json=payload)
+        return response.json()

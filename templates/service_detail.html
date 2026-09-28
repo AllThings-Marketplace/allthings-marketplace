@@ -37,7 +37,11 @@
                     <i class="fa-solid fa-store"></i>
                 </div>
                 <div class="provider-info">
-                    <strong class="provider-name-lg">{{ service.provider.business_name }}</strong>
+                    <strong class="provider-name-lg">
+                        <a href="{% url 'marketplace:public_provider' service.provider.id %}" class="provider-profile-link">
+                            {{ service.provider.business_name }}
+                        </a>
+                    </strong>
                     <span class="text-12-muted block mt-5"><i class="fa-solid fa-circle-check text-success"></i> Identity Verified</span>
                 </div>
             </div>

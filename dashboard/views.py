@@ -14,6 +14,7 @@ from django.contrib import messages
 # Models from your other apps
 from accounts.models import ProviderProfile, VendorWallet, VendorTransaction
 from orders.models import Order, OrderItem, ServiceOrder, ServiceQuote
+from orders.paystack import PaystackAPI
 from marketplace.models import (
     Product, Service, ProductImage, ServiceImage, 
     Category, ProductVariant, ServicePackage
@@ -90,6 +91,7 @@ def request_payout(request):
 
         wallet = profile.wallet
 
+        # Check weekly withdrawal limit
         last_payout = VendorTransaction.objects.filter(
             wallet=wallet, 
             transaction_type='PAYOUT'
@@ -105,6 +107,11 @@ def request_payout(request):
                 )
                 return redirect('dashboard:provider_dashboard')
         
+        # Verify provider has banking details set up
+        if not all([profile.account_name, profile.account_number, profile.bank_code]):
+            messages.error(request, "Please complete your bank details (including Bank Code) in your profile settings before withdrawing.")
+            return redirect('dashboard:provider_dashboard')
+        
         try:
             amount = Decimal(request.POST.get('amount'))
         except (InvalidOperation, TypeError, ValueError):
@@ -116,21 +123,50 @@ def request_payout(request):
         elif amount > wallet.available_balance:
             messages.error(request, "Insufficient funds.")
         else:
-            wallet.available_balance -= amount
-            wallet.save()
-
+            paystack = PaystackAPI()
             unique_ref = f"WD-{uuid.uuid4().hex[:8].upper()}"
-            VendorTransaction.objects.create(
-                wallet=wallet,
-                transaction_type='PAYOUT',
-                gross_amount=amount,
-                commission=Decimal('0.00'),
-                net_amount=amount,
-                reference=unique_ref,
-                status='PENDING' 
+            
+            # Step 1: Register the recipient with Paystack
+            recipient_response = paystack.create_transfer_recipient(
+                name=profile.account_name,
+                account_number=profile.account_number,
+                bank_code=profile.bank_code
             )
             
-            messages.success(request, f"Withdrawal request submitted! Reference: {unique_ref}")
+            if not recipient_response.get('status'):
+                messages.error(request, f"Bank Verification Failed: {recipient_response.get('message')}")
+                return redirect('dashboard:provider_dashboard')
+                
+            recipient_code = recipient_response['data']['recipient_code']
+            
+            # Step 2: Instruct Paystack to send the money
+            transfer_response = paystack.initiate_transfer(
+                amount_in_naira=amount,
+                recipient_code=recipient_code,
+                reference=unique_ref,
+                reason=f"AllThings Payout for {profile.business_name}"
+            )
+            
+            if transfer_response.get('status'):
+                # Step 3: Only deduct the database balance if Paystack accepted the transfer
+                with transaction.atomic():
+                    wallet.available_balance -= amount
+                    wallet.total_withdrawn += amount
+                    wallet.save()
+
+                    VendorTransaction.objects.create(
+                        wallet=wallet,
+                        transaction_type='PAYOUT',
+                        gross_amount=amount,
+                        commission=Decimal('0.00'),
+                        net_amount=amount,
+                        reference=unique_ref,
+                        status='PENDING' # Will be updated to COMPLETED by your webhook later
+                    )
+                
+                messages.success(request, f"Withdrawal initiated successfully! The funds will reflect in your bank account shortly.")
+            else:
+                messages.error(request, f"Transfer Failed: {transfer_response.get('message')}")
 
     return redirect('dashboard:provider_dashboard')
 
@@ -538,8 +574,12 @@ def provider_complete_service(request, order_id):
         profile = getattr(request.user, 'provider_profile', None)
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='IN_PROGRESS')
         
+        # --- THE FIX ---
+        # We stamp the exact time the provider clicks "Mark Job as Done"
+        # This starts the 72-hour countdown clock for the auto-escrow release task.
         service_order.status = 'COMPLETED'
-        service_order.save(update_fields=['status'])
+        service_order.completed_at = timezone.now()
+        service_order.save(update_fields=['status', 'completed_at'])
         
         messages.success(request, f"You marked '{service_order.service.name}' as completed. Waiting for customer confirmation.")
     return redirect('dashboard:provider_dashboard')

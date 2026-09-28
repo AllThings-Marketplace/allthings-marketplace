@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}">
+{% endblock %}
+
+{% block content %}
+    <!-- Hero Banner -->
+    <div class="provider-hero" 
+         {% if provider.exterior_image %}
+         style="background-image: url('{{ provider.exterior_image.url }}');"
+         {% endif %}>
+        <div class="hero-overlay"></div>
+    </div>
+
+    <div class="provider-layout-grid">
+        
+        <!-- LEFT: Sticky Trust Card -->
+        <aside class="provider-sidebar">
+            <div class="provider-trust-card">
+                <div class="provider-avatar">
+                    {{ provider.business_name|make_list|first|upper }}
+                </div>
+                
+                <h1 class="provider-name">
+                    {{ provider.business_name }}
+                    <i class="fa-solid fa-circle-check verified-badge" title="Identity Verified"></i>
+                </h1>
+                
+                <p class="provider-category">{{ provider.business_category|default:"Professional Services" }}</p>
+                
+                <div class="provider-stats-row">
+                    <div class="stat-box">
+                        <span class="stat-value"><i class="fa-solid fa-star text-warning"></i> {{ rating }}</span>
+                        <span class="stat-label">{{ review_count }} Reviews</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value">{{ total_completed }}</span>
+                        <span class="stat-label">Jobs Done</span>
+                    </div>
+                </div>
+
+                <div class="trust-signals">
+                    <h4 class="sidebar-heading">Verifications</h4>
+                    <ul class="trust-list">
+                        {% if provider.id_type %}
+                            <li><i class="fa-solid fa-shield-halved text-success"></i> {{ provider.get_id_type_display }} Verified</li>
+                        {% endif %}
+                        {% if provider.cac_registration_number %}
+                            <li><i class="fa-solid fa-file-contract text-blue"></i> CAC Registered</li>
+                        {% endif %}
+                        {% if provider.store_address %}
+                            <li><i class="fa-solid fa-location-dot text-danger"></i> Location Verified</li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div class="sidebar-actions">
+                    <!-- Secure Internal Messaging Trigger -->
+                    <button class="action-btn btn-primary w-100 mb-10 text-center requires-auth" onclick="openInquiryModal()">
+                        <i class="fa-regular fa-message icon-spaced"></i> Message Provider
+                    </button>
+                    
+                    <div class="flex-between gap-10">
+                        <!-- Dynamic Follow Button -->
+                        <button type="button" class="action-btn {% if is_following %}btn-success following{% else %}btn-outline{% endif %} w-100 toggle-follow-btn requires-auth" data-provider-id="{{ provider.id }}" id="followBtn">
+                            {% if is_following %}
+                                <i class="fa-solid fa-user-check icon-spaced"></i> Following
+                            {% else %}
+                                <i class="fa-solid fa-user-plus icon-spaced"></i> Follow
+                            {% endif %}
+                        </button>
+                        
+                        <!-- Share Icon (Secondary action) -->
+                        <button type="button" class="action-btn btn-outline" style="padding: 10px 15px;" onclick="copyProfileLink()" title="Share Profile">
+                            <i class="fa-solid fa-share-nodes"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Trust Micro-Signal -->
+                    <div class="text-center mt-15 text-12-muted">
+                        <i class="fa-solid fa-bolt text-warning mr-5"></i> Usually responds in 1 hour
+                    </div>
+                </div>
+            </div>
+            
+            {% if provider.store_address %}
+            <div class="provider-info-card mt-20">
+                <h4 class="sidebar-heading">Location</h4>
+                <p class="text-14-muted m-0">{{ provider.store_address }}</p>
+                {% if provider.region %}<p class="text-14-muted mt-5"><strong>Region:</strong> {{ provider.region }}</p>{% endif %}
+            </div>
+            {% endif %}
+        </aside>
+
+        <!-- RIGHT: Main Content -->
+        <main class="provider-main-content">
+            
+            {% if provider.business_description %}
+                <section class="content-section mb-30">
+                    <h2 class="section-title">About {{ provider.business_name }}</h2>
+                    <p class="provider-bio">{{ provider.business_description }}</p>
+                </section>
+            {% endif %}
+
+            <!-- Custom Tab Navigation -->
+            <div class="premium-tabs mb-20">
+                {% if provider.provider_type in 'SERVICE, BOTH' %}
+                    <button class="tab-btn active" data-tab="services">Services Offered</button>
+                {% endif %}
+                
+                {% if provider.provider_type in 'VENDOR, BOTH' %}
+                    <button class="tab-btn {% if provider.provider_type == 'VENDOR' %}active{% endif %}" data-tab="products">Store Products</button>
+                {% endif %}
+                
+                <button class="tab-btn" data-tab="reviews">Reviews</button>
+            </div>
+
+            <!-- TAB CONTENT: Services -->
+            {% if provider.provider_type in 'SERVICE, BOTH' %}
+            <div id="services-tab" class="tab-content active">
+                <div class="service-grid">
+                    {% for service in services %}
+                        <div class="premium-card">
+                            <div class="card-image" 
+                                {% if service.cover_image %}
+                                    style="background-image: url('{{ service.cover_image.url }}');"
+                                {% endif %}>
+                            </div>
+                            <div class="premium-card-body">
+                                <h3 class="service-title">{{ service.name }}</h3>
+                                <p class="price-value mt-10">
+                                    {% if service.pricing_type == 'FIXED' %}
+                                        NGN {{ service.base_price }}
+                                    {% elif service.pricing_type == 'STARTING' %}
+                                        From NGN {{ service.base_price }}
+                                    {% else %}
+                                        Custom Quote
+                                    {% endif %}
+                                </p>
+                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">View Details</a>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">This provider has not listed any services yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- TAB CONTENT: Products -->
+            {% if provider.provider_type in 'VENDOR, BOTH' %}
+            <div id="products-tab" class="tab-content {% if provider.provider_type == 'VENDOR' %}active{% endif %}">
+                <div class="service-grid">
+                    {% for product in products %}
+                        <div class="premium-card">
+                            <div class="card-image" 
+                                {% if product.images.first %}
+                                    style="background-image: url('{{ product.images.first.processed_image.url }}');"
+                                {% endif %}>
+                            </div>
+                            <div class="premium-card-body">
+                                <h3 class="service-title text-14">{{ product.name }}</h3>
+                                <p class="price-value text-16 mt-5">NGN {{ product.price }}</p>
+                                <a href="{% url 'marketplace:product_detail' product.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">View Product</a>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">This store currently has no products.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- TAB CONTENT: Reviews -->
+            <div id="reviews-tab" class="tab-content">
+                {% if reviews %}
+                    <div class="reviews-list mt-20">
+                        {% for review in reviews %}
+                            <div class="review-card p-20 mb-15 border-radius-8" style="border: 1px solid #e5e7eb; background: #fff;">
+                                <div class="flex-between mb-10">
+                                    <strong class="text-15">{{ review.customer.get_full_name|default:review.customer.username }}</strong>
+                                    <span class="text-12-muted">{{ review.created_at|date:"M d, Y" }}</span>
+                                </div>
+                                <div class="rating-stars mb-10 text-warning text-14">
+                                    <i class="fa-solid fa-star"></i>
+                                    <span class="text-dark font-600 ml-5">{{ review.overall_rating }}/5</span>
+                                </div>
+                                {% if review.comment %}
+                                    <p class="text-14 text-muted m-0" style="line-height: 1.6;">"{{ review.comment }}"</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="premium-empty-state">
+                        <div class="empty-icon"><i class="fa-regular fa-star"></i></div>
+                        <h3>No reviews yet</h3>
+                        <p>Be the first to leave a review after completing an order.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Pre-Booking Inquiry Modal (Hidden by Default) -->
+    <div id="inquiryModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header flex-between mb-15">
+                <h3 class="m-0 font-600-dark">Message {{ provider.business_name }}</h3>
+                <button class="btn-close-naked" onclick="closeInquiryModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-14-muted mb-15">Ask about availability, custom quotes, or specific product details before you book.</p>
+                <form id="inquiryForm" data-provider-id="{{ provider.id }}" onsubmit="submitInquiry(event)">
+                    {% csrf_token %}
+                    <textarea id="inquiryMessage" class="form-control mb-15" rows="4" placeholder="Hi, do you offer..." required></textarea>
+                    <button type="submit" class="action-btn btn-primary w-100" id="sendInquiryBtn">
+                        Send Message
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/provider.js' %}"></script>
+{% endblock %}
