@@ -18,7 +18,6 @@ class Cart(models.Model):
 
     @property
     def get_cart_total(self):
-        # Cart now exclusively handles products
         return sum(item.get_total for item in self.items.all())
 
 class CartItem(models.Model):
@@ -58,17 +57,23 @@ class Order(models.Model):
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
-    # Contact & Delivery
+    # Contact & Delivery Snapshot
     first_name = models.CharField(max_length=50, null=True, blank=True)
     last_name = models.CharField(max_length=50, null=True, blank=True)
     phone = models.CharField(max_length=20, null=True, blank=True)
     alt_phone = models.CharField(max_length=20, null=True, blank=True)
     whatsapp = models.CharField(max_length=20, null=True, blank=True)
     region = models.CharField(max_length=100, null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True, help_text="City or LGA (e.g., Oyigbo, Port Harcourt)")
     street_address = models.TextField(null=True, blank=True)
+    landmark = models.CharField(max_length=200, null=True, blank=True, help_text="Nearby junction or recognizable building")
+    selected_courier = models.CharField(max_length=50, default='GIGL', help_text="Selected logistics partner code")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.reference} ({self.status})"
 
 class OrderItem(models.Model):
     STATUS_CHOICES = [
@@ -80,7 +85,9 @@ class OrderItem(models.Model):
         ('PICKED_UP', 'In Transit'),
         ('DELIVERED', 'Delivered'),
         ('COMPLETED', 'Completed & Paid Out'),
-        ('CANCELLED', 'Cancelled')
+        ('DISPUTED', 'Disputed (Escrow Frozen)'),
+        ('REFUNDED', 'Refunded to Customer'),
+        ('CANCELLED', 'Cancelled'),
     ]
     
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
@@ -89,9 +96,10 @@ class OrderItem(models.Model):
     
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2) # Immutable price snapshot
+    shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='PENDING')
     
-    # NEW FIELD: Tracks exactly when the 72-hour timer begins
+    # Tracks when the 72-hour timer begins
     delivered_at = models.DateTimeField(null=True, blank=True, help_text="When the rider handed over the item")
     
     # Logistics codes
@@ -103,29 +111,30 @@ class OrderItem(models.Model):
 
     @property
     def get_total(self):
-        """Calculates the total cost for this specific cart/order item."""
+        """Calculates the total product cost for this specific cart/order item."""
         return self.price * self.quantity
 
     def generate_handshake_codes(self):
         """Generates secure 6-digit PINs for both vendor/rider and rider/customer handoffs."""
         needs_save = False
         
-        # 1. Generate the vendor's pickup code
         if not self.pickup_code:
             self.pickup_code = ''.join(random.choices(string.digits, k=6))
             needs_save = True
             
-        # 2. Generate the customer's delivery code
         if not self.delivery_code:
             self.delivery_code = ''.join(random.choices(string.digits, k=6))
             needs_save = True
             
-        # Save both to the database at once
         if needs_save:
             self.save(update_fields=['pickup_code', 'delivery_code'])
 
+    def __str__(self):
+        product_name = self.product.name if self.product else "Deleted Product"
+        return f"{self.order.reference} - {product_name} ({self.status})"
 
-# --- 3. THE NEW SERVICE BOOKING ENGINE ---
+
+# --- 3. THE SERVICE BOOKING ENGINE ---
 
 class ServiceOrder(models.Model):
     class ServiceStatus(models.TextChoices):
@@ -140,28 +149,23 @@ class ServiceOrder(models.Model):
         CANCELLED = 'CANCELLED', 'Cancelled'
         DISPUTED = 'DISPUTED', 'Disputed'
 
-    # Core Relationships
     reference_code = models.CharField(max_length=50, unique=True, editable=False)
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='service_bookings')
     provider = models.ForeignKey(ProviderProfile, on_delete=models.CASCADE, related_name='received_bookings')
     service = models.ForeignKey(Service, on_delete=models.SET_NULL, null=True, related_name='bookings')
     package = models.ForeignKey(ServicePackage, on_delete=models.SET_NULL, null=True, blank=True)
 
-    # Fulfillment Details
     preferred_date = models.DateField()
     preferred_time = models.TimeField()
     service_location = models.TextField(help_text="The exact address where the service will be performed.")
     customer_notes = models.TextField(blank=True, help_text="Extra details or instructions for the provider.")
 
-    # Financials
     agreed_price = models.DecimalField(max_digits=12, decimal_places=2, help_text="The locked-in price at the time of booking.")
     is_paid = models.BooleanField(default=False)
     paystack_reference = models.CharField(max_length=100, blank=True, null=True)
 
-    # State Machine
     status = models.CharField(max_length=20, choices=ServiceStatus.choices, default=ServiceStatus.REQUESTED)
     
-    # Audit Trail
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -203,9 +207,7 @@ class PaymentAttempt(models.Model):
     
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payment_attempts')
     reference = models.CharField(max_length=100, unique=True)
-    
     idempotency_key = models.UUIDField(default=uuid.uuid4, unique=True) 
-    
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
@@ -217,18 +219,25 @@ class PaymentAttempt(models.Model):
 
 class ShippingAddress(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='addresses')
+    label = models.CharField(max_length=50, default='Home', help_text="e.g., Home, Office, Project Site")
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20)
     alt_phone = models.CharField(max_length=20, blank=True, null=True)
     whatsapp = models.CharField(max_length=20, blank=True, null=True)
-    region = models.CharField(max_length=100)
+    region = models.CharField(max_length=100, help_text="State (e.g., Rivers State)")
+    city = models.CharField(max_length=100, blank=True, null=True, help_text="City / LGA (e.g., Oyigbo, Port Harcourt)")
     street_address = models.TextField()
+    landmark = models.CharField(max_length=200, blank=True, null=True)
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-is_default', '-created_at']
+
     def __str__(self):
-        return f"{self.street_address}, {self.region}"
+        city_part = f", {self.city}" if self.city else ""
+        return f"[{self.label}] {self.street_address}{city_part}, {self.region}"
 
 class ServiceQuote(models.Model):
     STATUS_CHOICES = (
@@ -285,3 +294,124 @@ class ServiceDispute(models.Model):
 
     def __str__(self):
         return f"Dispute on {self.order.reference_code} - {self.get_status_display()}"
+
+
+# --- 5. UNIFIED CUSTOMER SUPPORT & ESCROW ARBITRATION ---
+
+class SupportTicket(models.Model):
+    class Category(models.TextChoices):
+        PRODUCT_DISPUTE = 'PRODUCT_DISPUTE', 'Physical Product Dispute (Damaged / Wrong Item)'
+        SERVICE_DISPUTE = 'SERVICE_DISPUTE', 'Service Booking Dispute'
+        PAYMENT_ISSUE = 'PAYMENT_ISSUE', 'Payment / Unverified Debit Issue'
+        VENDOR_PAYOUT = 'VENDOR_PAYOUT', 'Vendor Wallet / Payout Inquiry'
+        GENERAL = 'GENERAL', 'General Account / Platform Help'
+
+    class Status(models.TextChoices):
+        OPEN = 'OPEN', 'Open (Awaiting Support)'
+        IN_PROGRESS = 'IN_PROGRESS', 'Under Review'
+        RESOLVED_CUSTOMER = 'RESOLVED_CUSTOMER', 'Resolved (Refunded Customer)'
+        RESOLVED_PROVIDER = 'RESOLVED_PROVIDER', 'Resolved (Released to Provider)'
+        CLOSED = 'CLOSED', 'Closed'
+
+    class Priority(models.TextChoices):
+        LOW = 'LOW', 'Low'
+        MEDIUM = 'MEDIUM', 'Medium'
+        HIGH = 'HIGH', 'High'
+        URGENT = 'URGENT', 'Urgent (Escrow / Payment)'
+
+    ticket_reference = models.CharField(max_length=20, unique=True, editable=False, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='support_tickets'
+    )
+    category = models.CharField(
+        max_length=30,
+        choices=Category.choices,
+        default=Category.GENERAL
+    )
+    status = models.CharField(
+        max_length=25,
+        choices=Status.choices,
+        default=Status.OPEN
+    )
+    priority = models.CharField(
+        max_length=15,
+        choices=Priority.choices,
+        default=Priority.MEDIUM
+    )
+
+    order = models.ForeignKey(
+        'Order',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='support_tickets'
+    )
+    order_item = models.ForeignKey(
+        'OrderItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='support_tickets'
+    )
+    service_order = models.ForeignKey(
+        'ServiceOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='support_tickets'
+    )
+    payment_attempt = models.ForeignKey(
+        'PaymentAttempt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='support_tickets'
+    )
+
+    subject = models.CharField(max_length=255)
+    description = models.TextField()
+    evidence = models.FileField(upload_to='support_evidence/', null=True, blank=True)
+    resolution_notes = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.ticket_reference:
+            self.ticket_reference = f"TKT-{uuid.uuid4().hex[:8].upper()}"
+        if self.category in [self.Category.PRODUCT_DISPUTE, self.Category.SERVICE_DISPUTE, self.Category.PAYMENT_ISSUE]:
+            if self.priority == self.Priority.MEDIUM:
+                self.priority = self.Priority.URGENT
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.ticket_reference} - {self.get_category_display()} ({self.status})"
+
+
+class TicketMessage(models.Model):
+    ticket = models.ForeignKey(
+        SupportTicket,
+        on_delete=models.CASCADE,
+        related_name='messages'
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    body = models.TextField(blank=True)
+    attachment = models.FileField(upload_to='support_attachments/', null=True, blank=True)
+    is_staff_reply = models.BooleanField(default=False)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Reply on {self.ticket.ticket_reference} by {self.sender.username}"

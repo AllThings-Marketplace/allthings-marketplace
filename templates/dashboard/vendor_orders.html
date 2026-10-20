@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.1">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">Store Orders &amp; Fulfillment</h2>
+        <p class="section-subtitle m-0">Accept orders, prepare packages, and hand off to dispatch riders using your 6-digit Pickup PIN.</p>
+    </div>
+    <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-outline action-sm">
+        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<!-- Real-time Analytics Engine -->
+<div class="metrics-grid mt-20">
+    <div class="metric-card">
+        <div class="metric-title"><i class="fa-solid fa-wallet text-success"></i> Cleared Net Earnings (90%)</div>
+        <p class="metric-value success">NGN {{ net_earnings|floatformat:2|intcomma }}</p>
+        <small class="text-12-muted display-block">Gross Completed Sales: NGN {{ total_revenue|floatformat:2|intcomma }}</small>
+    </div>
+    
+    <div class="metric-card">
+        <div class="metric-title"><i class="fa-solid fa-box-open text-warning"></i> Pending Fulfillment</div>
+        <p class="metric-value {% if pending_fulfillment > 0 %}warning{% endif %}">
+            {{ pending_fulfillment }} Item(s)
+        </p>
+        <small class="text-12-muted display-block">Paid orders awaiting your acceptance or packaging</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-title"><i class="fa-solid fa-triangle-exclamation text-danger"></i> Low Stock Alerts</div>
+        <p class="metric-value {% if low_stock_alerts %}warning{% endif %}">
+            {{ low_stock_alerts.count }} Product(s)
+        </p>
+        {% if low_stock_alerts %}
+            <small class="text-12-muted text-danger display-block">Restock needed (&lt; 5 units remaining)</small>
+        {% else %}
+            <small class="text-12-muted display-block">All inventory levels are healthy</small>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filter & Search Bar -->
+<div class="catalog-header-bar mt-30 mb-15">
+    <div class="dashboard-tabs-bar border-none p-0" id="orderStatusFilters">
+        <button type="button" class="dash-tab-btn active" data-status="ALL">All ({{ vendor_items|length }})</button>
+        <button type="button" class="dash-tab-btn" data-status="PAID,ACCEPTED">Needs Action</button>
+        <button type="button" class="dash-tab-btn" data-status="READY_FOR_PICKUP,RIDER_ASSIGNED,PICKED_UP">In Transit / Pickup</button>
+        <button type="button" class="dash-tab-btn" data-status="DELIVERED,COMPLETED">Delivered &amp; Paid</button>
+        <button type="button" class="dash-tab-btn" data-status="DISPUTED">Disputed</button>
+    </div>
+    <input type="text" id="vendorOrderSearch" class="form-control catalog-search-box" placeholder="Search Order Ref, product, or customer...">
+</div>
+
+<!-- Order Fulfillment Table -->
+<div class="summary-card p-0 mb-40">
+    {% if vendor_items %}
+        <div class="table-responsive">
+            <table class="data-table" id="vendorOrdersTable">
+                <thead>
+                    <tr>
+                        <th>Order &amp; Product</th>
+                        <th>Qty &amp; Payout</th>
+                        <th>Customer &amp; Destination</th>
+                        <th>Courier &amp; Logistics</th>
+                        <th>Status &amp; Fulfillment Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in vendor_items %}
+                        <tr class="vendor-order-row"
+                            data-status="{{ item.status }}"
+                            data-search="{{ item.order.reference|lower }} {{ item.product.name|lower }} {{ item.order.first_name|lower }} {{ item.order.last_name|lower }} {{ item.order.city|default:''|lower }}">
+                            <td>
+                                <span class="ticket-ref-tag block">{{ item.order.reference }}</span>
+                                <span class="font-600-dark display-block mt-5">{{ item.product.name }}</span>
+                                {% if item.variant %}
+                                    <span class="text-12-muted display-block">
+                                        {{ item.variant.attribute_name }}: <strong>{{ item.variant.attribute_value }}</strong>
+                                    </span>
+                                {% endif %}
+                                <span class="text-12-muted display-block mt-5">
+                                    <i class="fa-regular fa-clock"></i> {{ item.order.created_at|date:"M d, Y g:i A" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="shipping-tier-pill">Qty: {{ item.quantity }}</span>
+                                <span class="font-700-block text-blue mt-5">NGN {{ item.get_total|floatformat:0|intcomma }}</span>
+                                <small class="text-12-muted block">Item Subtotal</small>
+                            </td>
+                            <td>
+                                <strong class="display-block">{{ item.order.first_name }} {{ item.order.last_name }}</strong>
+                                <span class="text-12-muted display-block mt-5">
+                                    <i class="fa-solid fa-phone"></i> {{ item.order.phone }}
+                                    {% if item.order.whatsapp %} &bull; <i class="fa-brands fa-whatsapp text-success"></i> {{ item.order.whatsapp }}{% endif %}
+                                </span>
+                                <span class="text-12-muted display-block mt-5">
+                                    <i class="fa-solid fa-location-dot text-danger"></i>
+                                    {{ item.order.street_address }}{% if item.order.city %}, {{ item.order.city }}{% endif %}, {{ item.order.region }}
+                                </span>
+                                {% if item.order.landmark %}
+                                    <span class="text-12-muted display-block mt-5">
+                                        <i class="fa-solid fa-map-pin"></i> Landmark: <em>{{ item.order.landmark }}</em>
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="shipping-tier-pill">
+                                    <i class="fa-solid fa-truck-fast"></i> {{ item.logistics_provider|default:item.order.selected_courier }}
+                                </span>
+                                {% if item.tracking_number %}
+                                    <span class="text-12-muted block mt-5">Track: <strong>{{ item.tracking_number }}</strong></span>
+                                {% endif %}
+                                {% if item.rider_name %}
+                                    <span class="text-12-muted block mt-5"><i class="fa-solid fa-motorcycle"></i> {{ item.rider_name }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="flex-column-gap-5">
+                                    <span class="status-badge 
+                                        {% if item.status in 'DELIVERED,COMPLETED' %}badge-completed
+                                        {% elif item.status in 'CANCELLED,DISPUTED,REFUNDED' %}badge-danger
+                                        {% else %}badge-pending{% endif %}">
+                                        {{ item.get_status_display }}
+                                    </span>
+                                    
+                                    {% if item.status == 'PAID' %}
+                                        <form method="POST" action="{% url 'dashboard:update_item_status' item.id 'ACCEPTED' %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="action-btn btn-success action-sm w-100 mt-10">
+                                                <i class="fa-solid fa-check"></i> Accept Order
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{% url 'dashboard:update_item_status' item.id 'CANCELLED' %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="action-btn btn-outline action-sm w-100 mt-5">
+                                                Reject
+                                            </button>
+                                        </form>
+                                    
+                                    {% elif item.status == 'ACCEPTED' %}
+                                        <form method="POST" action="{% url 'dashboard:update_item_status' item.id 'READY_FOR_PICKUP' %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="action-btn btn-primary action-sm w-100 mt-10">
+                                                <i class="fa-solid fa-box-archive"></i> Mark Ready for Pickup
+                                            </button>
+                                        </form>
+                                    
+                                    {% elif item.status in 'READY_FOR_PICKUP,RIDER_ASSIGNED' %}
+                                        <div class="pickup-code-box mt-10">
+                                            <span class="text-12-muted block">Give PIN to Dispatch Rider</span>
+                                            <strong class="font-700-block text-lg letter-spacing-2 text-blue">{{ item.pickup_code }}</strong>
+                                        </div>
+
+                                    {% elif item.status == 'DISPUTED' %}
+                                        <a href="{% url 'orders:support_center' %}" class="action-btn btn-danger action-sm w-100 mt-10 text-center">
+                                            <i class="fa-solid fa-scale-balanced"></i> View Dispute
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state m-20">
+            <i class="fa-solid fa-box-open empty-state-icon"></i>
+            <h3 class="empty-state-title">No Store Orders Yet</h3>
+            <p class="empty-state-text">Paid customer orders for your products will appear here automatically.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+{% endblock %}

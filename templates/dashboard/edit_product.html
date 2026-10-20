@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header flex-between align-center mb-40">
+    <div>
+        <h2 class="section-heading checkout-page-title mb-5">Edit Product</h2>
+        <p class="text-14-muted m-0">Updating: <strong>{{ product.name }}</strong></p>
+    </div>
+    <div class="flex-align-center gap-10">
+        <a href="{% url 'dashboard:upload_product_images' product.id %}" class="action-btn btn-outline action-sm">
+            <i class="fa-solid fa-camera"></i> Manage Photos
+        </a>
+        <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="summary-card">
+    <form method="POST" action="{% url 'dashboard:edit_product' product.id %}">
+        {% csrf_token %}
+        
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
+                <label class="form-label-dark">Product Name *</label>
+                <input type="text" name="name" class="form-control" value="{{ product.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark">Category *</label>
+                <select name="category_id" class="form-control" required>
+                    {% for cat in parent_categories %}
+                        <option value="{{ cat.id }}" {% if cat.id == product.category_id %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% if cat.subcategories.all %}
+                            {% for sub in cat.subcategories.all %}
+                                <option value="{{ sub.id }}" {% if sub.id == product.category_id %}selected{% endif %}>
+                                    -- {{ sub.name }}
+                                </option>
+                                {% if sub.subcategories.all %}
+                                    {% for sub2 in sub.subcategories.all %}
+                                        <option value="{{ sub2.id }}" {% if sub2.id == product.category_id %}selected{% endif %}>
+                                            ---- {{ sub2.name }}
+                                        </option>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
+                <label class="form-label-dark">Price (NGN) *</label>
+                <input type="number" name="price" class="form-control" step="0.01" value="{{ product.price }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark">Available Stock *</label>
+                <input type="number" name="stock_count" class="form-control" value="{{ product.stock_count|default_if_none:'' }}" placeholder="0" required>
+                <small class="form-text-muted">Set to 0 to temporarily mark this item as out of stock.</small>
+            </div>
+        </div>
+
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
+                <label class="form-label-dark" for="shipping_class">Package Size / Delivery Tier *</label>
+                <select name="shipping_class" id="shipping_class" class="form-control" required>
+                    <option value="SMALL" {% if product.shipping_class == 'SMALL' %}selected{% endif %}>
+                        Small Parcel / Bike-Friendly (&lt; 5kg — Bulbs, Switches, Tools)
+                    </option>
+                    <option value="MEDIUM" {% if product.shipping_class == 'MEDIUM' %}selected{% endif %}>
+                        Medium Box (5–20kg — Fans, Cable Coils, Stabilizers)
+                    </option>
+                    <option value="HEAVY" {% if product.shipping_class == 'HEAVY' %}selected{% endif %}>
+                        Heavy / Bulky Cargo (&gt; 20kg — Inverters, Solar Panels, Batteries)
+                    </option>
+                </select>
+                <small class="form-text-muted">Determines bike vs. cargo van dispatch pricing at checkout.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark" for="weight_kg">Estimated Weight per Unit (kg) *</label>
+                <input type="number"
+                       name="weight_kg"
+                       id="weight_kg"
+                       class="form-control"
+                       step="0.1"
+                       min="0.1"
+                       max="9999"
+                       value="{{ product.weight_kg|default:'1.00' }}"
+                       required>
+                <small class="form-text-muted">Packaged weight in kilograms.</small>
+            </div>
+        </div>
+
+        <div class="form-group mb-30">
+            <label class="form-label-dark">Description *</label>
+            <textarea name="description" class="form-control" rows="5" required>{{ product.description }}</textarea>
+        </div>
+
+        <button type="submit" class="action-btn btn-primary w-100 py-15 text-16 font-600-block">
+            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Changes
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
+{% endblock %}
+
+{% block content %}
+<div class="details-page-wrapper animate-fade-in">
+    
+    <!-- Top Header -->
+    <div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
+        <div>
+            <h2 class="section-heading checkout-page-title mb-5">Store, Dispatch &amp; Payout Settings</h2>
+            <p class="text-14-muted m-0">
+                Manage public branding, origin courier location, and verified payout banking for <strong>{{ profile.business_name }}</strong>.
+            </p>
+        </div>
+        <div class="flex-align-center gap-10">
+            <a href="{% url 'marketplace:public_provider' profile.id %}" class="action-btn btn-outline action-sm" target="_blank">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> View Public Storefront
+            </a>
+            <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
+                <i class="fa-solid fa-arrow-left"></i> Back to Portal
+            </a>
+        </div>
+    </div>
+
+    <!-- 1. Public Storefront & Branding -->
+    <div class="summary-card mb-30">
+        <div class="flex-between align-center mb-15 flex-wrap gap-10">
+            <div>
+                <h3 class="checkout-section-title m-0">
+                    <i class="fa-solid fa-store icon-primary-spaced"></i> 1. Public Storefront &amp; Identity
+                </h3>
+                <p class="text-12-muted mt-5 mb-0">Shown to customers on your public profile and product/service cards.</p>
+            </div>
+            <span class="status-badge badge-completed badge-sm">
+                <i class="fa-solid fa-circle-check"></i> KYC Verified ({{ profile.get_provider_type_display }})
+            </span>
+        </div>
+
+        <form method="POST" action="{% url 'dashboard:provider_settings' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="section" value="storefront">
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label-dark">Registered Business Name (KYC Locked)</label>
+                    <input type="text" class="form-control" value="{{ profile.business_name }}" disabled>
+                    <small class="text-12-muted">To change your legal business name, please open a Support Ticket with your CAC certificate.</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label-dark">Primary Specialty / Category *</label>
+                    <input type="text" name="business_category" class="form-control" value="{{ profile.business_category }}" placeholder="E.g., Solar &amp; Inverter Engineering, Electrical Supplies" required>
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label-dark">Business Contact Phone *</label>
+                    <input type="text" name="phone" class="form-control" value="{{ profile.phone }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label-dark">Update Storefront Banner Photo (Optional)</label>
+                    <input type="file" name="exterior_image" class="form-control" accept="image/*">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark">About Your Business / Bio *</label>
+                <textarea name="business_description" class="form-control" rows="4" placeholder="Tell customers about your experience, warranties, and certifications..." required>{{ profile.business_description }}</textarea>
+            </div>
+
+            <button type="submit" class="action-btn btn-primary mt-10">
+                <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Storefront Changes
+            </button>
+        </form>
+    </div>
+
+    <!-- 2. Dispatch Base & GPS Coordinates -->
+    <div class="summary-card mb-30">
+        <h3 class="checkout-section-title mt-0">
+            <i class="fa-solid fa-truck-fast icon-primary-spaced"></i> 2. Dispatch Hub &amp; Service Location
+        </h3>
+        <p class="text-13-muted mb-20">
+            Your <strong>Dispatch State/Region</strong> is used by our multi-courier engine (AllThings Express, GIGL, Eco Waybill) to calculate real-time shipping fees from your store to the buyer.
+        </p>
+
+        <form method="POST" action="{% url 'dashboard:provider_settings' %}">
+            {% csrf_token %}
+            <input type="hidden" name="section" value="location">
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label-dark">Origin Dispatch State / Region *</label>
+                    <select name="region" class="form-control" required>
+                        <option value="{{ profile.region }}" selected>{{ profile.region|default:"Rivers State" }} (Current)</option>
+                        <option value="Rivers State">Rivers State</option>
+                        <option value="Lagos State">Lagos State</option>
+                        <option value="Abuja (FCT)">Abuja (FCT)</option>
+                        <option value="Abia State">Abia State</option>
+                        <option value="Delta State">Delta State</option>
+                        <option value="Akwa Ibom">Akwa Ibom</option>
+                        <option value="Bayelsa State">Bayelsa State</option>
+                        <option value="Enugu State">Enugu State</option>
+                        <option value="Imo State">Imo State</option>
+                        <option value="Anambra State">Anambra State</option>
+                        <option value="Edo State">Edo State</option>
+                        <option value="Oyo State">Oyo State</option>
+                        <option value="Kano State">Kano State</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label-dark">Physical Store / Workshop Address *</label>
+                    <input type="text" name="store_address" class="form-control" value="{{ profile.store_address }}" placeholder="Full street address for courier pickup" required>
+                </div>
+            </div>
+
+            <div class="form-grid-2 align-center">
+                <div class="form-group">
+                    <label class="form-label-dark">GPS Latitude</label>
+                    <input type="text" name="latitude" id="latInput" class="form-control" value="{{ profile.latitude|default:'' }}" placeholder="4.8156" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label-dark">GPS Longitude</label>
+                    <input type="text" name="longitude" id="lonInput" class="form-control" value="{{ profile.longitude|default:'' }}" placeholder="7.0498" readonly>
+                </div>
+            </div>
+
+            <div class="flex-between align-center flex-wrap gap-10 mt-10">
+                <button type="button" class="action-btn btn-outline action-sm" id="getLocationBtn">
+                    <i class="fa-solid fa-location-crosshairs icon-spaced"></i> Refresh GPS Pin from My Current Location
+                </button>
+                <button type="submit" class="action-btn btn-primary">
+                    <i class="fa-solid fa-map-pin icon-spaced"></i> Update Dispatch Location
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 3. Protected Payout Bank Account -->
+    <div class="summary-card">
+        <div class="flex-between align-center mb-15 flex-wrap gap-10">
+            <div>
+                <h3 class="checkout-section-title m-0">
+                    <i class="fa-solid fa-building-columns icon-primary-spaced"></i> 3. Escrow Payout Bank Account
+                </h3>
+                <p class="text-12-muted mt-5 mb-0">
+                    For your security, changing your payout bank requires your account password and live Paystack name verification.
+                </p>
+            </div>
+            <span class="status-badge badge-accepted badge-sm">
+                <i class="fa-solid fa-shield-halved"></i> Name-Match Protected
+            </span>
+        </div>
+
+        <div class="payout-current-box mb-20">
+            <div class="text-12-muted">CURRENT VERIFIED PAYOUT ACCOUNT</div>
+            <div class="text-16 font-700-block mt-5">{{ profile.bank_name|default:"No Bank Linked" }} &bull; {{ profile.account_number|default:"-" }}</div>
+            <div class="text-13-muted mt-5">Account Name: <strong>{{ profile.account_name|default:"-" }}</strong></div>
+        </div>
+
+        <form method="POST" action="{% url 'dashboard:provider_settings' %}">
+            {% csrf_token %}
+            <input type="hidden" name="section" value="payout">
+            <input type="hidden" name="bank_name" id="bankNameInput" value="{{ profile.bank_name }}">
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label-dark">Select New Bank *</label>
+                    <select name="bank_code" id="bankSelect" class="form-control" required>
+                        <option value="">Choose your bank...</option>
+                        {% for bank in banks %}
+                            <option value="{{ bank.code }}" data-name="{{ bank.name }}">{{ bank.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label-dark">10-Digit Account Number (NUBAN) *</label>
+                    <input type="text" name="account_number" class="form-control" maxlength="10" pattern="\d{10}" placeholder="0123456789" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark"><i class="fa-solid fa-lock text-danger"></i> Confirm Your Current Password *</label>
+                <input type="password" name="current_password" class="form-control" placeholder="Enter your login password to authorize bank change" autocomplete="current-password" required>
+            </div>
+
+            <button type="submit" class="action-btn btn-dark mt-10">
+                <i class="fa-solid fa-check-double icon-white-spaced"></i> Verify &amp; Update Payout Bank
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+{% endblock %}

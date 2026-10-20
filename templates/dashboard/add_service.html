@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.3">
+{% endblock %}
+
+{% block content %}
+<div class="details-page-wrapper animate-fade-in">
+    <div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
+        <div>
+            <h2 class="section-heading checkout-page-title mb-5">Offer a Professional Service</h2>
+            <p class="text-14-muted m-0">Define your service scope, pricing structure, and portfolio so clients can book with confidence.</p>
+        </div>
+        <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <form method="POST" action="{% url 'dashboard:add_service' %}" enctype="multipart/form-data" class="summary-card" id="addServiceForm">
+        {% csrf_token %}
+        
+        <!-- 1. Basic Information -->
+        <h3 class="checkout-section-title mt-0">
+            <i class="fa-solid fa-briefcase icon-primary-spaced"></i> 1. Basic Information
+        </h3>
+        <div class="form-grid-2">
+            <div class="form-group">
+                <label class="form-label-dark">Service Title *</label>
+                <input type="text" name="name" class="form-control" placeholder="E.g., Complete Inverter &amp; Solar Panel Installation" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label-dark">Service Category *</label>
+                <select name="category_id" class="form-control" required>
+                    <option value="">Select a category...</option>
+                    {% for cat in parent_categories %}
+                        <option value="{{ cat.id }}" class="parent-category-option">{{ cat.name }}</option>
+                        {% if cat.subcategories.all %}
+                            {% include 'partials/category_option_node.html' with current_categories=cat.subcategories.all prefix="--" %}
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label-dark">Service Description *</label>
+            <textarea name="description" class="form-control" rows="4" placeholder="Detail your certifications, workflow, and what the client can expect..." required></textarea>
+        </div>
+
+        <!-- 2. Location & Fulfillment -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-location-dot icon-primary-spaced"></i> 2. Location &amp; Coverage
+        </h3>
+        <div class="form-grid-2">
+            <div class="form-group">
+                <label class="form-label-dark">Where is this service performed? *</label>
+                <select name="service_mode" id="serviceModeSelect" class="form-control" required>
+                    <option value="CUSTOMER_LOC">I travel to the customer's site</option>
+                    <option value="PROVIDER_LOC">The customer brings item to my workshop</option>
+                    <option value="BOTH">Either location (On-site or Workshop)</option>
+                    <option value="REMOTE">Remote / Online Consultation</option>
+                </select>
+            </div>
+            <div class="form-group" id="serviceRadiusGroup">
+                <label class="form-label-dark">Travel Coverage Radius (km)</label>
+                <input type="number" name="service_radius_km" id="serviceRadiusInput" class="form-control" min="1" placeholder="E.g., 25 (Leave blank if workshop/remote)">
+                <small class="text-12-muted">Maximum distance you travel for on-site bookings.</small>
+            </div>
+        </div>
+
+        <!-- 3. Scope of Work -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-list-check icon-primary-spaced"></i> 3. Scope of Work (Escrow Protection)
+        </h3>
+        <p class="text-12-muted mb-15">
+            <i class="fa-solid fa-shield-halved text-primary"></i> Clear scopes prevent disputes. Separate each item with a <strong>comma (,)</strong> to see a live preview below.
+        </p>
+        <div class="form-grid-2">
+            <div class="form-group">
+                <label class="form-label-dark"><i class="fa-solid fa-check text-success"></i> What's Included</label>
+                <textarea name="whats_included" id="whatsIncludedInput" class="form-control" rows="3" placeholder="E.g., Initial site inspection, Fault diagnosis, Labor, Post-job cleanup"></textarea>
+                <div id="includedPreviewPills" class="scope-preview-pills mt-8"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label-dark"><i class="fa-solid fa-xmark text-danger"></i> What's Excluded</label>
+                <textarea name="whats_excluded" id="whatsExcludedInput" class="form-control" rows="3" placeholder="E.g., Replacement spare parts, Refrigerant gas refill, Major masonry work"></textarea>
+                <div id="excludedPreviewPills" class="scope-preview-pills mt-8"></div>
+            </div>
+        </div>
+
+        <!-- 4. Pricing Setup -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-tag icon-primary-spaced"></i> 4. Pricing Model
+        </h3>
+        <div class="form-grid-2">
+            <div class="form-group">
+                <label class="form-label-dark">Pricing Structure *</label>
+                <select name="pricing_type" class="form-control" id="pricingTypeSelect" required>
+                    <option value="FIXED">Fixed Price</option>
+                    <option value="STARTING">Starting From</option>
+                    <option value="HOURLY">Hourly Rate</option>
+                    <option value="QUOTE">Requires Custom Quote (Inspect First)</option>
+                    <option value="PACKAGES">Tiered Packages (Basic, Standard, Premium)</option>
+                </select>
+            </div>
+            <div class="form-group" id="basePriceGroup">
+                <label class="form-label-dark">Base Price (NGN)</label>
+                <input type="number" name="base_price" id="basePriceInput" step="0.01" min="0" class="form-control" placeholder="E.g., 15000">
+                <small class="text-12-muted" id="basePriceHint">Standard rate charged into escrow upon booking.</small>
+            </div>
+        </div>
+
+        <!-- Dynamic Package Builder -->
+        <div id="packageBuilderContainer" class="variant-builder hidden-initial mt-20">
+            <div class="flex-between align-center mb-10">
+                <label class="m-0 font-600-dark">Service Packages (Basic / Standard / Premium)</label>
+                <button type="button" class="action-btn btn-outline action-sm" id="add-package-btn">
+                    <i class="fa-solid fa-plus"></i> Add Package Tier
+                </button>
+            </div>
+            <p class="text-12-muted mb-10">Create distinct tiers with clear deliverables and durations.</p>
+            
+            <div id="package-rows">
+                <div class="variant-row package-row">
+                    <div>
+                        <small>Package Name</small>
+                        <input type="text" name="pkg_names[]" class="form-control" placeholder="e.g., Basic">
+                    </div>
+                    <div>
+                        <small>Price (NGN)</small>
+                        <input type="number" name="pkg_prices[]" class="form-control" step="0.01" placeholder="15000">
+                    </div>
+                    <div>
+                        <small>Est. Duration</small>
+                        <input type="text" name="pkg_durations[]" class="form-control" placeholder="e.g., 2 Hours">
+                    </div>
+                    <div>
+                        <small>Features (comma separated)</small>
+                        <input type="text" name="pkg_features[]" class="form-control" placeholder="Fault tracing, Safety check">
+                    </div>
+                    <button type="button" class="btn-remove-variant" aria-label="Remove Package">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Service Media & Live Previews -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-image icon-primary-spaced"></i> 5. Cover Banner &amp; Work Portfolio
+        </h3>
+        <div class="form-grid-2">
+            <!-- Cover Image Dropzone -->
+            <div class="form-group">
+                <label class="form-label-dark">Primary Cover Image (Required) *</label>
+                <label for="serviceCoverInput" class="upload-dropzone dropzone-compact">
+                    <i class="fa-solid fa-panorama dropzone-icon"></i>
+                    <strong class="dropzone-title">Select Main Cover Banner</strong>
+                    <span class="text-12-muted">Displayed at the top of your service page</span>
+                    <input type="file" name="cover_image" id="serviceCoverInput" class="hidden-initial" accept="image/*" required>
+                </label>
+                <div id="coverPreviewBox" class="mt-15 hidden-initial">
+                    <div class="existing-photo-card">
+                        <div class="photo-thumb-wrapper">
+                            <img src="" id="coverPreviewImg" alt="Cover Preview">
+                            <span class="photo-role-badge">Cover Banner</span>
+                        </div>
+                        <div class="photo-meta-bar">
+                            <small class="text-12-muted truncate-text block" id="coverPreviewName"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Portfolio Images Dropzone -->
+            <div class="form-group">
+                <label class="form-label-dark">Past Work / Portfolio Photos (Optional)</label>
+                <label for="servicePortfolioInput" class="upload-dropzone dropzone-compact">
+                    <i class="fa-solid fa-images dropzone-icon"></i>
+                    <strong class="dropzone-title">Add Before &amp; After Work Photos</strong>
+                    <span class="text-12-muted">Select multiple photos of completed projects</span>
+                    <input type="file" name="portfolio_images" id="servicePortfolioInput" class="hidden-initial" accept="image/*" multiple>
+                </label>
+                <div id="portfolioPreviewGrid" class="existing-photo-grid mt-15 hidden-initial"></div>
+            </div>
+        </div>
+
+        <button type="submit" class="action-btn btn-primary w-100 mt-40 py-15 text-16 font-600-block requires-auth">
+            <i class="fa-solid fa-bolt icon-spaced"></i> Publish Service
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+{% endblock %}

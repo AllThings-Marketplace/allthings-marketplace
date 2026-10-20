@@ -20,20 +20,29 @@
     <form method="POST" action="{% url 'dashboard:edit_service' service.id %}" enctype="multipart/form-data">
         {% csrf_token %}
         
-        <div class="form-group mb-20">
-            <label class="form-label-dark">Service Name *</label>
-            <input type="text" name="name" class="form-control" value="{{ service.name }}" required>
-        </div>
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
+                <label class="form-label-dark">Service Name *</label>
+                <input type="text" name="name" class="form-control" value="{{ service.name }}" required>
+            </div>
 
-        <div class="form-group mb-20">
-            <label class="form-label-dark">Category *</label>
-            <select name="category_id" class="form-control" required>
-                {% for cat in parent_categories %}
-                    <option value="{{ cat.id }}" {% if cat.id == service.category_id %}selected{% endif %}>
-                        {{ cat.name }}
-                    </option>
-                {% endfor %}
-            </select>
+            <div class="form-group">
+                <label class="form-label-dark">Category *</label>
+                <select name="category_id" class="form-control" required>
+                    {% for cat in parent_categories %}
+                        <option value="{{ cat.id }}" {% if cat.id == service.category_id %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% if cat.subcategories.all %}
+                            {% for sub in cat.subcategories.all %}
+                                <option value="{{ sub.id }}" {% if sub.id == service.category_id %}selected{% endif %}>
+                                    -- {{ sub.name }}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
         </div>
 
         <div class="form-group mb-20">
@@ -41,18 +50,18 @@
             <textarea name="description" class="form-control" rows="4" required>{{ service.description }}</textarea>
         </div>
 
-        <div class="flex-between gap-15 mb-20">
-            <div class="form-group w-100">
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
                 <label class="form-label-dark">Service Mode *</label>
                 <select name="service_mode" class="form-control" required>
-                    <option value="PROVIDER_LOCATION" {% if service.service_mode == 'PROVIDER_LOCATION' %}selected{% endif %}>Customer comes to me</option>
-                    <option value="CUSTOMER_LOCATION" {% if service.service_mode == 'CUSTOMER_LOCATION' %}selected{% endif %}>I travel to customer</option>
+                    <option value="CUSTOMER_LOC" {% if service.service_mode == 'CUSTOMER_LOC' %}selected{% endif %}>I travel to customer</option>
+                    <option value="PROVIDER_LOC" {% if service.service_mode == 'PROVIDER_LOC' %}selected{% endif %}>Customer comes to me</option>
                     <option value="BOTH" {% if service.service_mode == 'BOTH' %}selected{% endif %}>Both options available</option>
                     <option value="REMOTE" {% if service.service_mode == 'REMOTE' %}selected{% endif %}>Remote / Online Service</option>
                 </select>
             </div>
             
-            <div class="form-group w-100">
+            <div class="form-group">
                 <label class="form-label-dark">Service Radius (km)</label>
                 <input type="number" name="service_radius_km" class="form-control" value="{{ service.service_radius_km|default_if_none:'' }}" placeholder="e.g., 20">
                 <small class="form-text-muted">Leave blank if not applicable.</small>
@@ -67,18 +76,20 @@
         {% else %}
             <div class="warning-text-block mb-20">
                 <i class="fa-solid fa-circle-info icon-spaced"></i> 
-                This service uses the <strong>{{ service.get_pricing_type_display }}</strong> pricing model. Base price cannot be edited directly.
+                This service uses the <strong>{{ service.get_pricing_type_display }}</strong> pricing model. Base price is determined by custom quotes or package tiers.
             </div>
         {% endif %}
 
-        <div class="form-group mb-20">
-            <label class="form-label-dark">What's Included (Comma separated)</label>
-            <textarea name="whats_included" class="form-control" rows="2" placeholder="e.g., Inspection, Labour, Cleanup">{{ service.whats_included|join:", " }}</textarea>
-        </div>
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
+                <label class="form-label-dark">What's Included (Comma separated)</label>
+                <textarea name="whats_included" class="form-control" rows="2" placeholder="e.g., Inspection, Labour, Cleanup">{{ service.whats_included|join:", " }}</textarea>
+            </div>
 
-        <div class="form-group mb-20">
-            <label class="form-label-dark">What's Excluded (Comma separated)</label>
-            <textarea name="whats_excluded" class="form-control" rows="2" placeholder="e.g., Cost of spare parts, Major masonry">{{ service.whats_excluded|join:", " }}</textarea>
+            <div class="form-group">
+                <label class="form-label-dark">What's Excluded (Comma separated)</label>
+                <textarea name="whats_excluded" class="form-control" rows="2" placeholder="e.g., Cost of spare parts, Major masonry">{{ service.whats_excluded|join:", " }}</textarea>
+            </div>
         </div>
 
         <div class="form-group mb-30 border-top-light pt-20">

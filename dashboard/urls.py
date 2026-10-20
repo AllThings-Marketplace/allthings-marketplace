@@ -6,6 +6,7 @@ app_name = 'dashboard'
 urlpatterns = [
     # --- MAIN DASHBOARD ---
     path('', views.provider_dashboard, name='provider_dashboard'),
+    path('settings/', views.provider_settings, name='provider_settings'),
     
     # --- FINANCIALS ---
     path('request-payout/', views.request_payout, name='request_payout'),

@@ -1,0 +1,502 @@
+/* ==========================================================================
+   SUPPORT CENTER, TICKET THREADS & ESCROW ARBITRATION (support.css)
+   ========================================================================== */
+
+/* --- 1. Layouts & Containers --- */
+.support-wrapper {
+    max-width: 1100px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ticket-wrapper {
+    max-width: 850px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.support-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.support-page-title {
+    margin: 0 0 5px 0;
+    font-size: 26px;
+    color: #0f172a;
+}
+
+.support-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+}
+
+/* --- 2. Cards --- */
+.support-card,
+.ticket-card,
+.dispute-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    min-width: 0; /* Prevents long <select> options from overflowing grid on mobile */
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.ticket-card {
+    padding: 22px;
+    margin-bottom: 20px;
+}
+
+.dispute-card {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 26px;
+}
+
+.support-card-title {
+    margin: 0 0 18px 0;
+    font-size: 18px;
+    color: #1f2937;
+}
+
+.support-section-heading {
+    margin: 0 0 18px 0;
+    font-size: 16px;
+    color: #1f2937;
+}
+
+.support-subheading {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    color: #1f2937;
+}
+
+/* --- 3. Form Controls --- */
+.support-form-group {
+    margin-bottom: 16px;
+    width: 100%;
+    min-width: 0;
+}
+
+.support-form-group-lg {
+    margin-bottom: 22px;
+    width: 100%;
+    min-width: 0;
+}
+
+.support-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #4b5563;
+    margin-bottom: 8px;
+    letter-spacing: 0.4px;
+    line-height: 1.4;
+}
+
+.support-control {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #1f2937;
+    background-color: #f9fafb;
+    outline: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+textarea.support-control {
+    white-space: pre-wrap;
+    overflow-y: auto;
+    resize: vertical;
+    min-height: 100px;
+}
+
+.support-control:focus {
+    border-color: #2563eb;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.support-file-input {
+    padding: 8px;
+}
+
+.support-file-raw {
+    font-size: 13px;
+    max-width: 100%;
+}
+
+/* --- 4. Layer 1: Self-Service Payment Recovery Triage --- */
+.triage-banner {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 25px;
+    box-sizing: border-box;
+}
+
+.triage-title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: #92400e;
+}
+
+.triage-desc {
+    margin: 0 0 15px 0;
+    font-size: 13.5px;
+    color: #78350f;
+}
+
+.triage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.triage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: #ffffff;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #fcd34d;
+}
+
+.triage-item-info {
+    min-width: 0;
+}
+
+.triage-form {
+    margin: 0;
+}
+
+.btn-verify-sm {
+    padding: 8px 14px;
+    font-size: 13px;
+}
+
+/* --- 5. Ticket History List --- */
+.ticket-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ticket-list-item {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    word-break: break-word;
+}
+
+.ticket-list-item:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
+}
+
+.ticket-list-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.ticket-ref-tag {
+    font-weight: 700;
+    font-size: 13px;
+    color: #2563eb;
+}
+
+.badge-xs {
+    font-size: 11px;
+}
+
+.ticket-list-subject {
+    font-weight: 600;
+    font-size: 15px;
+    color: #111827;
+    margin-bottom: 4px;
+}
+
+.support-empty-state {
+    padding: 30px 15px;
+    text-align: center;
+}
+
+.support-empty-icon {
+    font-size: 32px;
+    color: #9ca3af;
+    margin-bottom: 10px;
+}
+
+/* --- 6. Ticket Detail & Conversation Thread --- */
+.ticket-back-nav {
+    margin-bottom: 20px;
+}
+
+.ticket-back-link {
+    text-decoration: none;
+}
+
+.ticket-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.ticket-header-title-box {
+    min-width: 0;
+    flex: 1;
+}
+
+.ticket-subject-heading {
+    margin: 4px 0 0 0;
+    font-size: 20px;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.ticket-meta-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 18px;
+    font-size: 13px;
+    color: #4b5563;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 12px;
+}
+
+.resolution-note-box {
+    margin-top: 15px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 13.5px;
+    color: #166534;
+    word-break: break-word;
+}
+
+.ticket-thread-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ticket-msg {
+    padding: 14px 16px;
+    border-radius: 10px;
+    word-break: break-word;
+}
+
+.ticket-msg-staff {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
+.ticket-msg-self {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.ticket-msg-other {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+}
+
+.ticket-msg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 12.5px;
+}
+
+.staff-shield-icon {
+    color: #2563eb;
+}
+
+.ticket-msg-body {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #1f2937;
+    white-space: pre-line;
+}
+
+.ticket-msg-attachment {
+    margin-top: 10px;
+}
+
+.attachment-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.reply-textarea {
+    margin-bottom: 12px;
+}
+
+.reply-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+/* --- 7. Admin Arbitration Console & Dispute Forms --- */
+.arbitration-card {
+    background: #f8fafc;
+    border: 2px solid #cbd5e1;
+}
+
+.arbitration-heading {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #0f172a;
+}
+
+.arbitration-btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.btn-release-escrow {
+    background-color: #16a34a !important;
+    border-color: #16a34a !important;
+    color: #ffffff !important;
+}
+
+.btn-refund-customer {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #ffffff !important;
+}
+
+.dispute-badge {
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.dispute-heading {
+    margin: 0 0 8px 0;
+    font-size: 22px;
+    color: #0f172a;
+}
+
+.dispute-intro {
+    margin: 0 0 20px 0;
+}
+
+.dispute-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.btn-freeze-submit {
+    background-color: #dc2626 !important;
+    border-color: #dc2626 !important;
+    flex: 1;
+}
+
+.btn-cancel-center {
+    text-align: center;
+}
+
+/* --- 8. Order Details Escrow & Recovery Helpers --- */
+.otp-dispute-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn-outline-danger {
+    color: #dc2626 !important;
+    border-color: #fca5a5 !important;
+}
+
+.escrow-frozen-banner {
+    margin-top: 15px;
+    padding: 12px 15px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.escrow-frozen-text {
+    font-size: 13px;
+    color: #991b1b;
+}
+
+.payment-recovery-box {
+    text-align: center;
+    margin-top: 12px;
+}
+
+.payment-recovery-link {
+    text-decoration: underline;
+}
+
+/* --- 9. Mobile Breakpoints --- */
+@media (max-width: 768px) {
+    .support-card,
+    .ticket-card,
+    .dispute-card {
+        padding: 18px 16px;
+    }
+
+    .support-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+} 

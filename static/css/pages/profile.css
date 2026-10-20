@@ -222,3 +222,109 @@
     color: #6b7280; 
     font-size: 14px;
 }
+
+/* --- Two-Column Profile Layout & Address Book --- */
+.profile-grid-2 {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 24px;
+    align-items: start;
+    margin-top: 24px;
+}
+
+.profile-side-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.saved-addresses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.saved-address-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #f9fafb;
+}
+
+.saved-address-item.default-addr {
+    border-color: #93c5fd;
+    background: #f8fafc;
+}
+
+.addr-default-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.provider-meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.provider-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13.5px;
+    color: #4b5563;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+@media (max-width: 860px) {
+    .profile-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.provider-cta-banner {
+    border-left: 4px solid #2563eb;
+    background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+}
+
+.kyc-lock-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    font-size: 12.5px;
+    color: #1e3a8a;
+}
+
+.new-address-panel {
+    padding: 16px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.addr-actions-bar {
+    border-top: 1px dashed #e2e8f0;
+}
+
+.addr-action-link {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.addr-action-link:hover {
+    text-decoration: underline;
+}

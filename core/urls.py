@@ -16,7 +16,10 @@ urlpatterns = [
     
     # The Marketplace catalog acts as the homepage (root)
     path('', include('marketplace.urls')),
-    path('notifications/', include('notifications.urls'))
+    path('notifications/', include('notifications.urls')),
+
+    # Social Authentication
+    path('accounts/', include('allauth.urls'))
 ]
 
 if settings.DEBUG:

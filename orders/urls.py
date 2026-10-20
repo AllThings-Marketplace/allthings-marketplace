@@ -19,6 +19,7 @@ urlpatterns = [
 
     # 3. Checkout & Payment
     path('checkout/', views.checkout_view, name='checkout'),
+    path('checkout/shipping-quotes/', views.get_shipping_quotes_ajax, name='shipping_quotes_ajax'),
     path('payment-verify/', views.verify_payment, name='verify_payment'),
     path('webhook/paystack/', views.paystack_webhook, name='paystack_webhook'),
     path('order/<int:order_id>/pay/', views.retry_payment, name='retry_payment'),
@@ -33,4 +34,11 @@ urlpatterns = [
     path('service/<int:order_id>/message/', views.send_order_message, name='send_order_message'),
     path('service/<int:order_id>/chat/', views.order_chat, name='order_chat'),
     path('service/<int:order_id>/report-problem/', views.report_dispute, name='report_dispute'),
+
+    # 5. Customer Support & Escrow Arbitration
+    path('support/', views.support_center, name='support_center'),
+    path('support/reverify-payment/<int:attempt_id>/', views.reverify_payment_attempt, name='reverify_payment_attempt'),
+    path('support/dispute-item/<int:item_id>/', views.report_item_dispute, name='report_item_dispute'),
+    path('support/ticket/<str:reference>/', views.ticket_detail, name='ticket_detail'),
+    path('support/ticket/<str:reference>/resolve/', views.resolve_ticket, name='resolve_ticket'),
 ]

@@ -464,3 +464,106 @@
         justify-content: flex-end;
     }
 }
+
+/* ==========================================================================
+   ORDER DETAILS STEPPER, DESTINATION BANNER & RECEIPT BREAKDOWN
+   ========================================================================== */
+
+.order-destination-banner {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+
+.dest-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+    flex: 1;
+}
+
+.dest-col-right {
+    text-align: right;
+}
+
+.dest-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.4px;
+}
+
+.order-stepper {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #f1f5f9;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-align: center;
+}
+
+.step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.step-item.completed {
+    color: #0f172a;
+}
+
+.step-item.completed .step-dot {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.order-receipt-breakdown {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.receipt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: #4b5563;
+}
+
+@media (max-width: 640px) {
+    .dest-col-right {
+        text-align: left;
+    }
+    .order-stepper {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+}

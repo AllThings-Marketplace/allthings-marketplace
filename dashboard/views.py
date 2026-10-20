@@ -1,7 +1,9 @@
 import uuid
+import requests
+from django.conf import settings
 from decimal import Decimal, InvalidOperation
 from django.utils import timezone
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
@@ -13,7 +15,7 @@ from django.contrib import messages
 
 # Models from your other apps
 from accounts.models import ProviderProfile, VendorWallet, VendorTransaction
-from orders.models import Order, OrderItem, ServiceOrder, ServiceQuote
+from orders.models import Order, OrderItem, ServiceOrder, ServiceQuote, SupportTicket
 from orders.paystack import PaystackAPI
 from marketplace.models import (
     Product, Service, ProductImage, ServiceImage, 
@@ -38,30 +40,71 @@ def provider_dashboard(request):
     if not profile:
         return HttpResponseForbidden("Only registered service providers can view this page.")
     
-    products = profile.products.all() if profile.provider_type in ['VENDOR', 'BOTH'] else []
+    is_vendor = profile.provider_type in ['VENDOR', 'BOTH']
+    is_service = profile.provider_type in ['SERVICE', 'BOTH']
+
+    products = []
+    pending_store_orders_count = 0
+    low_stock_count = 0
+
+    if is_vendor:
+        products = profile.products.select_related('category').prefetch_related('images').order_by('-id')
+        pending_store_orders_count = OrderItem.objects.filter(
+            product__provider=profile,
+            status__in=['PAID', 'ACCEPTED']
+        ).exclude(order__status='unpaid').count()
+        low_stock_count = profile.products.filter(stock_count__lt=5).count()
     
     my_services = []
     pending_requests = []
     active_jobs = []
-    past_jobs = [] # NEW: Added to hold completed history
+    past_jobs = []
     
-    if profile.provider_type in ['SERVICE', 'BOTH']:
-        my_services = Service.objects.filter(provider=profile)
-        pending_requests = ServiceOrder.objects.filter(provider=profile, status='REQUESTED')
+    if is_service:
+        my_services = Service.objects.filter(provider=profile).select_related('category')
+        pending_requests = ServiceOrder.objects.filter(
+            provider=profile,
+            status='REQUESTED'
+        ).select_related('service', 'customer', 'package')
         
-        # UPDATED: Added QUOTE_SENT so quotes stay visible
         active_jobs = ServiceOrder.objects.filter(
             provider=profile, 
             status__in=['QUOTE_SENT', 'ACCEPTED', 'PAID', 'IN_PROGRESS'] 
-        ).order_by('-created_at')
+        ).select_related('service', 'customer').order_by('-created_at')
         
-        # NEW: Query for recently finished/closed jobs
         past_jobs = ServiceOrder.objects.filter(
             provider=profile,
             status__in=['COMPLETED', 'CONFIRMED', 'DISPUTED', 'DECLINED', 'CANCELLED']
-        ).order_by('-updated_at')[:5]
+        ).select_related('service', 'customer').order_by('-updated_at')[:5]
+
+    # Active Escrow Disputes / Support Tickets involving this provider
+    active_disputes = SupportTicket.objects.filter(
+        Q(order_item__product__provider=profile) | Q(service_order__provider=profile),
+        status__in=['OPEN', 'IN_PROGRESS']
+    ).select_related('order', 'order_item__product', 'service_order__service').distinct()[:5]
     
-    wallet = profile.wallet if hasattr(profile, 'wallet') else {'available_balance': '0.00', 'pending_balance': '0.00'}
+    # Wallet, Ledger History & Real-Time Withdrawal Eligibility
+    wallet, _ = VendorWallet.objects.get_or_create(provider=profile)
+    recent_transactions = VendorTransaction.objects.filter(wallet=wallet).order_by('-created_at')[:8]
+
+    days_left = 0
+    last_payout = VendorTransaction.objects.filter(
+        wallet=wallet,
+        transaction_type='PAYOUT'
+    ).order_by('-created_at').first()
+
+    if last_payout:
+        days_since = (timezone.now() - last_payout.created_at).days
+        if days_since < 7:
+            days_left = 7 - days_since
+
+    has_bank_details = all([profile.account_name, profile.account_number, profile.bank_code])
+    can_withdraw = (
+        profile.verification_status == 'ACTIVE'
+        and days_left == 0
+        and wallet.available_balance >= Decimal('100.00')
+        and has_bank_details
+    )
     
     context = {
         'profile': profile,
@@ -70,12 +113,16 @@ def provider_dashboard(request):
         'my_services': my_services,
         'pending_requests': pending_requests,
         'active_jobs': active_jobs,
-        'past_jobs': past_jobs, # NEW: Passed to template
-        'recent_transactions': [], 
-        'can_withdraw': False,
-        'days_left': 7,
+        'past_jobs': past_jobs,
+        'active_disputes': active_disputes,
+        'pending_store_orders_count': pending_store_orders_count,
+        'low_stock_count': low_stock_count,
+        'recent_transactions': recent_transactions, 
+        'can_withdraw': can_withdraw,
+        'days_left': days_left,
+        'has_bank_details': has_bank_details,
     }
-    return render(request, 'provider_dashboard.html', context)
+    return render(request, 'dashboard/provider_dashboard.html', context)
 
 
 # --- 2. FINANCIALS ---
@@ -126,7 +173,6 @@ def request_payout(request):
             paystack = PaystackAPI()
             unique_ref = f"WD-{uuid.uuid4().hex[:8].upper()}"
             
-            # Step 1: Register the recipient with Paystack
             recipient_response = paystack.create_transfer_recipient(
                 name=profile.account_name,
                 account_number=profile.account_number,
@@ -139,7 +185,6 @@ def request_payout(request):
                 
             recipient_code = recipient_response['data']['recipient_code']
             
-            # Step 2: Instruct Paystack to send the money
             transfer_response = paystack.initiate_transfer(
                 amount_in_naira=amount,
                 recipient_code=recipient_code,
@@ -148,7 +193,6 @@ def request_payout(request):
             )
             
             if transfer_response.get('status'):
-                # Step 3: Only deduct the database balance if Paystack accepted the transfer
                 with transaction.atomic():
                     wallet.available_balance -= amount
                     wallet.total_withdrawn += amount
@@ -161,10 +205,10 @@ def request_payout(request):
                         commission=Decimal('0.00'),
                         net_amount=amount,
                         reference=unique_ref,
-                        status='PENDING' # Will be updated to COMPLETED by your webhook later
+                        status='PENDING'
                     )
                 
-                messages.success(request, f"Withdrawal initiated successfully! The funds will reflect in your bank account shortly.")
+                messages.success(request, "Withdrawal initiated successfully! The funds will reflect in your bank account shortly.")
             else:
                 messages.error(request, f"Transfer Failed: {transfer_response.get('message')}")
 
@@ -206,9 +250,18 @@ def add_product(request):
                 uploaded_files = request.FILES.getlist('images')
                 if not uploaded_files:
                     raise ValidationError("You must upload at least one product image.")
-                    
-                # for image_file in uploaded_files:
-                #     validate_product_image(image_file) 
+
+                # Logistics & Package Sizing Extraction
+                shipping_class = request.POST.get('shipping_class', Product.ShippingClass.SMALL)
+                if shipping_class not in dict(Product.ShippingClass.choices):
+                    shipping_class = Product.ShippingClass.SMALL
+
+                try:
+                    weight_kg = Decimal(request.POST.get('weight_kg', '1.00'))
+                    if weight_kg <= 0:
+                        weight_kg = Decimal('1.00')
+                except (InvalidOperation, TypeError, ValueError):
+                    weight_kg = Decimal('1.00')
 
                 product = Product.objects.create(
                     provider=profile,
@@ -216,6 +269,8 @@ def add_product(request):
                     name=request.POST.get('name'),
                     price=request.POST.get('price'),
                     stock_count=request.POST.get('stock_count', 0),
+                    shipping_class=shipping_class,
+                    weight_kg=weight_kg,
                     description=request.POST.get('description', ''),
                     attributes=dynamic_attributes, 
                     status=Product.ProductStatus.PENDING, 
@@ -274,7 +329,8 @@ def add_product(request):
             messages.error(request, f"System Error: {str(e)}")
 
     parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
-    return render(request, 'add_product.html', {'parent_categories': parent_categories})
+    return render(request, 'dashboard/add_product.html', {'parent_categories': parent_categories})
+
 
 @login_required
 def upload_product_images(request, product_id):
@@ -300,6 +356,7 @@ def upload_product_images(request, product_id):
         return redirect('dashboard:provider_dashboard')
         
     return render(request, 'marketplace/upload_images.html', {'product': product})
+
 
 @login_required
 def add_service(request):
@@ -381,51 +438,44 @@ def add_service(request):
             messages.error(request, f"System Error: {str(e)}")
 
     parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
-    return render(request, 'add_service.html', {'parent_categories': parent_categories})
+    return render(request, 'dashboard/add_service.html', {'parent_categories': parent_categories})
+
 
 @login_required
 def edit_service(request, service_id):
     profile = getattr(request.user, 'provider_profile', None)
-    
-    # Security: Ensure the provider owns this specific service
     service = get_object_or_404(Service, id=service_id, provider=profile)
 
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                # Update Category
                 category_id = request.POST.get('category_id')
                 if category_id:
                     service.category_id = category_id
                 
-                # Update Core Fields
                 service.name = request.POST.get('name', service.name)
                 service.description = request.POST.get('description', service.description)
-                service.service_mode = request.POST.get('service_mode', service.service_mode)
                 
-                radius_raw = request.POST.get('service_radius_km')
-                if radius_raw and radius_raw.strip().isdigit():
-                    service.service_radius_km = int(radius_raw.strip())
+                submitted_mode = request.POST.get('service_mode', service.service_mode)
+                if submitted_mode in dict(Service.ServiceMode.choices):
+                    service.service_mode = submitted_mode
                 
-                # Update Inclusions/Exclusions
-                included_raw = request.POST.get('whats_included')
-                if included_raw:
-                    service.whats_included = [i.strip() for i in included_raw.split(',') if i.strip()]
+                radius_raw = request.POST.get('service_radius_km', '').strip()
+                service.service_radius_km = int(radius_raw) if radius_raw.isdigit() else None
+                
+                included_raw = request.POST.get('whats_included', '')
+                service.whats_included = [i.strip() for i in included_raw.split(',') if i.strip()]
                     
-                excluded_raw = request.POST.get('whats_excluded')
-                if excluded_raw:
-                    service.whats_excluded = [i.strip() for i in excluded_raw.split(',') if i.strip()]
+                excluded_raw = request.POST.get('whats_excluded', '')
+                service.whats_excluded = [i.strip() for i in excluded_raw.split(',') if i.strip()]
 
-                # Handle Pricing Updates (if fixed/starting price)
                 base_price_raw = request.POST.get('base_price')
                 if base_price_raw and service.pricing_type not in ['QUOTE', 'PACKAGES']:
                     service.base_price = Decimal(base_price_raw.strip())
 
-                # Handle optional Cover Image update
                 new_cover = request.FILES.get('cover_image')
                 if new_cover:
                     service.cover_image = new_cover
-                    # Trigger your AI background task for the new image
                     transaction.on_commit(lambda: process_service_cover_task.delay(service.id))
 
                 service.save()
@@ -435,45 +485,53 @@ def edit_service(request, service_id):
         except Exception as e:
             messages.error(request, f"Error updating service: {str(e)}")
 
-    # For the GET request, fetch categories to populate the dropdown
     parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
     
     context = {
         'service': service,
         'parent_categories': parent_categories
     }
-    return render(request, 'edit_service.html', context)
+    return render(request, 'dashboard/edit_service.html', context)
+
 
 @login_required
 def edit_product(request, product_id):
-    # Security: Fetch the product but ONLY if it belongs to the logged-in provider
     product = get_object_or_404(Product, id=product_id, provider=request.user.provider_profile)
     
     if request.method == 'POST':
-        # Update the product attributes
-        product.name = request.POST.get('name')
-        product.category_id = request.POST.get('category_id')
-        product.price = request.POST.get('price')
+        product.name = request.POST.get('name', product.name).strip()
+        category_id = request.POST.get('category_id')
+        if category_id:
+            product.category_id = category_id
+        product.price = request.POST.get('price', product.price)
         
-        # Safely handle the stock count to prevent zero-traps or empty strings
-        stock_input = request.POST.get('stock_count', '')
+        stock_input = request.POST.get('stock_count', '').strip()
         product.stock_count = int(stock_input) if stock_input.isdigit() else 0
+
+        shipping_class = request.POST.get('shipping_class', product.shipping_class)
+        if shipping_class in dict(Product.ShippingClass.choices):
+            product.shipping_class = shipping_class
+
+        try:
+            weight_val = Decimal(request.POST.get('weight_kg', product.weight_kg))
+            if weight_val > 0:
+                product.weight_kg = weight_val
+        except (InvalidOperation, TypeError, ValueError):
+            pass
         
-        product.description = request.POST.get('description')
+        product.description = request.POST.get('description', product.description)
         
-        # Save and redirect
         product.save()
         messages.success(request, f"'{product.name}' has been updated successfully.")
         return redirect('dashboard:provider_dashboard')
 
-    # For GET requests, fetch the categories to populate the dropdown
-    parent_categories = Category.objects.filter(parent__isnull=True)
+    parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
     
     context = {
         'product': product,
         'parent_categories': parent_categories,
     }
-    return render(request, 'edit_product.html', context)
+    return render(request, 'dashboard/edit_product.html', context)
 
 
 # --- 4. VENDOR & SERVICE CONTRACT ACTIONS ---
@@ -488,7 +546,7 @@ def vendor_orders(request):
 
     vendor_items = OrderItem.objects.filter(
         product__provider=profile
-    ).exclude(order__status='unpaid')
+    ).exclude(order__status='unpaid').select_related('order', 'product', 'variant')
     
     total_revenue = vendor_items.filter(status='COMPLETED').aggregate(
         total=Sum(F('price') * F('quantity'))
@@ -505,7 +563,8 @@ def vendor_orders(request):
         'pending_fulfillment': pending_fulfillment,
         'low_stock_alerts': low_stock_alerts,
     }
-    return render(request, 'vendor_orders.html', context)
+    return render(request, 'dashboard/vendor_orders.html', context)
+
 
 @login_required
 def update_item_status(request, item_id, new_status):
@@ -532,6 +591,7 @@ def update_item_status(request, item_id, new_status):
             messages.error(request, "You cannot perform that action right now.")
     return redirect('dashboard:vendor_orders')
 
+
 @login_required
 def accept_service_request(request, order_id):
     if request.method == 'POST':
@@ -543,6 +603,7 @@ def accept_service_request(request, order_id):
         
         messages.success(request, f"You accepted the request for {service_order.service.name}. The customer has been notified to make payment.")
     return redirect('dashboard:provider_dashboard')
+
 
 @login_required
 def decline_service_request(request, order_id):
@@ -556,6 +617,7 @@ def decline_service_request(request, order_id):
         messages.info(request, f"You declined the request for {service_order.service.name}.")
     return redirect('dashboard:provider_dashboard')
 
+
 @login_required
 def provider_start_service(request, order_id):
     if request.method == 'POST':
@@ -568,15 +630,13 @@ def provider_start_service(request, order_id):
         messages.success(request, f"You have started work on '{service_order.service.name}'.")
     return redirect('dashboard:provider_dashboard')
 
+
 @login_required
 def provider_complete_service(request, order_id):
     if request.method == 'POST':
         profile = getattr(request.user, 'provider_profile', None)
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='IN_PROGRESS')
         
-        # --- THE FIX ---
-        # We stamp the exact time the provider clicks "Mark Job as Done"
-        # This starts the 72-hour countdown clock for the auto-escrow release task.
         service_order.status = 'COMPLETED'
         service_order.completed_at = timezone.now()
         service_order.save(update_fields=['status', 'completed_at'])
@@ -584,36 +644,174 @@ def provider_complete_service(request, order_id):
         messages.success(request, f"You marked '{service_order.service.name}' as completed. Waiting for customer confirmation.")
     return redirect('dashboard:provider_dashboard')
 
+
 @login_required
 def send_quote(request, order_id):
     if request.method == 'POST':
         profile = getattr(request.user, 'provider_profile', None)
-        
-        # Security Check: Only find REQUESTED orders that belong to this exact provider
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='REQUESTED')
         
-        # Grab the values from the form (default to 0 if left blank)
         labor_cost = request.POST.get('labor_cost', 0)
         materials_cost = request.POST.get('materials_cost', 0)
         provider_notes = request.POST.get('provider_notes', '')
 
         try:
-            # Create the quote in the database
             quote = ServiceQuote.objects.create(
                 order=service_order,
-                labor_cost=labor_cost,
-                materials_cost=materials_cost,
+                labor_cost=Decimal(str(labor_cost or 0)),
+                materials_cost=Decimal(str(materials_cost or 0)),
                 provider_notes=provider_notes
             )
             
-            # Update the order status and set the agreed_price so Paystack knows what to charge later
             service_order.status = 'QUOTE_SENT'
             service_order.agreed_price = quote.total_amount
             service_order.save(update_fields=['status', 'agreed_price'])
 
-            messages.success(request, f"Quote for NGN {quote.total_amount} sent to the customer!")
+            messages.success(request, f"Quote for NGN {quote.total_amount:,.2f} sent to the customer!")
             
         except Exception as e:
             messages.error(request, f"Error generating quote: {str(e)}")
 
     return redirect('dashboard:provider_dashboard')
+
+@login_required
+def provider_settings(request):
+    """
+    Dedicated Provider Settings Hub:
+    1. Public Storefront & Branding (Bio, Category, Phone, Store Banner)
+    2. Origin Dispatch Base & GPS Coordinates (Powers LogisticsEngine shipping quotes)
+    3. Password-Protected + Paystack-Verified Payout Bank Account
+    """
+    if not hasattr(request.user, 'provider_profile'):
+        return redirect('accounts:profile')
+
+    profile = request.user.provider_profile
+    if profile.verification_status != 'ACTIVE':
+        return redirect('accounts:profile')
+
+    if request.method == 'POST':
+        section = request.POST.get('section', 'storefront')
+
+        # 1. Public Storefront & Branding
+        if section == 'storefront':
+            profile.business_category = request.POST.get('business_category', '').strip()
+            profile.phone = request.POST.get('phone', '').strip()
+            profile.business_description = request.POST.get('business_description', '').strip()
+
+            if 'exterior_image' in request.FILES:
+                profile.exterior_image = request.FILES['exterior_image']
+
+            profile.save()
+            messages.success(request, "Public storefront settings updated!")
+            return redirect('dashboard:provider_settings')
+
+        # 2. Dispatch Base & GPS Coordinates
+        elif section == 'location':
+            region = request.POST.get('region', '').strip()
+            store_address = request.POST.get('store_address', '').strip()
+            lat = request.POST.get('latitude', '').strip()
+            lon = request.POST.get('longitude', '').strip()
+
+            if not (region and store_address):
+                messages.error(request, "Both your Dispatch State/Region and Physical Address are required for courier rate calculation.")
+                return redirect('dashboard:provider_settings')
+
+            profile.region = region
+            profile.store_address = store_address
+            if lat and lon:
+                try:
+                    profile.latitude = float(lat)
+                    profile.longitude = float(lon)
+                except ValueError:
+                    pass
+            profile.save()
+            messages.success(request, f"Dispatch hub updated to {region}. All checkout shipping quotes will now calculate from this location.")
+            return redirect('dashboard:provider_settings')
+
+        # 3. Protected Payout Bank Update (Requires Current Password + Paystack Name Match)
+        elif section == 'payout':
+            current_password = request.POST.get('current_password', '')
+            bank_code = request.POST.get('bank_code', '').strip()
+            bank_name = request.POST.get('bank_name', '').strip()
+            account_number = request.POST.get('account_number', '').strip()
+
+            if not request.user.check_password(current_password):
+                messages.error(request, "Security Check Failed: Incorrect account password. Payout bank was not changed.")
+                return redirect('dashboard:provider_settings')
+
+            if not (bank_code and account_number):
+                messages.error(request, "Please select a bank and enter a valid 10-digit account number.")
+                return redirect('dashboard:provider_settings')
+
+            headers = {
+                "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+                "Content-Type": "application/json"
+            }
+            verify_url = f"https://api.paystack.co/bank/resolve?account_number={account_number}&bank_code={bank_code}"
+
+            try:
+                response = requests.get(verify_url, headers=headers, timeout=10)
+                res_data = response.json()
+
+                if res_data.get('status'):
+                    resolved_name = res_data['data']['account_name']
+                    account_name_clean = resolved_name.strip().lower()
+                    personal_first = request.user.first_name.strip().lower()
+                    personal_last = request.user.last_name.strip().lower()
+                    business_clean = profile.business_name.strip().lower()
+
+                    has_personal_name = (
+                        personal_first and personal_last
+                        and personal_first in account_name_clean
+                        and personal_last in account_name_clean
+                    )
+                    has_business_name = (business_clean and business_clean in account_name_clean)
+
+                    if not (has_personal_name or has_business_name):
+                        messages.error(
+                            request,
+                            f"KYC Mismatch: Your bank returned '{resolved_name}', which does not match your verified name ({request.user.get_full_name()}) or business name ({profile.business_name})."
+                        )
+                        return redirect('dashboard:provider_settings')
+
+                    profile.bank_name = bank_name or profile.bank_name
+                    profile.account_number = account_number
+                    profile.account_name = resolved_name
+                    profile.save(update_fields=['bank_name', 'account_number', 'account_name'])
+                    VendorWallet.objects.get_or_create(provider=profile)
+
+                    messages.success(request, f"Payout account verified and updated to {resolved_name} ({profile.bank_name}).")
+                else:
+                    messages.error(request, "Paystack could not resolve that account number. Please double-check your 10-digit NUBAN.")
+            except Exception:
+                messages.error(request, "Unable to reach the banking verification service right now. Please try again shortly.")
+
+            return redirect('dashboard:provider_settings')
+
+    # Fetch Nigerian Banks from Paystack (with offline fallback)
+    banks = []
+    try:
+        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+        banks_response = requests.get("https://api.paystack.co/bank?currency=NGN", headers=headers, timeout=6)
+        if banks_response.status_code == 200:
+            banks = banks_response.json().get('data', [])
+    except Exception:
+        pass
+
+    if not banks:
+        banks = [
+            {'name': 'Access Bank', 'code': '044'},
+            {'name': 'First Bank of Nigeria', 'code': '011'},
+            {'name': 'Guaranty Trust Bank (GTB)', 'code': '058'},
+            {'name': 'Kuda Bank', 'code': '50211'},
+            {'name': 'Moniepoint MFB', 'code': '50515'},
+            {'name': 'OPay Digital Services', 'code': '999992'},
+            {'name': 'Stanbic IBTC Bank', 'code': '221'},
+            {'name': 'United Bank for Africa (UBA)', 'code': '033'},
+            {'name': 'Zenith Bank', 'code': '057'},
+        ]
+
+    return render(request, 'dashboard/provider_settings.html', {
+        'profile': profile,
+        'banks': banks,
+    })

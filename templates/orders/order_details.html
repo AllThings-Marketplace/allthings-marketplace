@@ -1,8 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/modal.css' %}">
 {% endblock %}
 
@@ -11,7 +13,6 @@
     <div class="details-header flex-between">
         <h2 class="section-heading checkout-page-title">Order #{{ order.reference }}</h2>
         <div>
-            <!-- Show overall order status -->
             <span class="status-badge 
                 {% if order.status == 'completed' %}badge-completed
                 {% elif order.status == 'unpaid' %}badge-danger
@@ -40,16 +41,18 @@
                                         </span>
                                     {% endif %}
                                 </h4>
-                                <p class="text-12-muted mt-5">Qty: {{ item.quantity }} | NGN {{ item.get_total }}</p>
+                                <p class="text-12-muted mt-5">Qty: {{ item.quantity }} | NGN {{ item.get_total|floatformat:0|intcomma }}</p>
                             </div>
-                            <span class="status-badge {% if item.status == 'COMPLETED' %}badge-completed{% elif item.status == 'CANCELLED' %}badge-danger{% else %}badge-pending{% endif %}">
+                            <span class="status-badge 
+                                {% if item.status == 'COMPLETED' %}badge-completed
+                                {% elif item.status in 'CANCELLED,DISPUTED,REFUNDED' %}badge-danger
+                                {% else %}badge-pending{% endif %}">
                                 {{ item.get_status_display }}
                             </span>
                         </div>
 
-                        <!-- Item-Level OTP Confirmation Form -->
-                        <!-- ONLY show if the main order is paid, and the item isn't completed yet -->
-                        {% if order.status != 'unpaid' and item.status not in 'COMPLETED,CANCELLED,PENDING_PAYMENT' %}
+                        <!-- Item-Level OTP Confirmation & Escrow Dispute Controls -->
+                        {% if order.status != 'unpaid' and item.status not in 'COMPLETED,CANCELLED,PENDING,DISPUTED,REFUNDED' %}
                             <div class="delivery-pin-box mb-15 mt-15">
                                 <span class="text-12-muted block">Your Delivery PIN</span>
                                 <strong class="font-700-block text-lg letter-spacing-2 text-primary-blue">{{ item.delivery_code }}</strong>
@@ -60,9 +63,26 @@
                                 <input type="text" name="delivery_code" class="form-control otp-input" placeholder="6-Digit OTP" maxlength="6" required>
                                 <button type="submit" class="action-btn btn-success action-sm">Confirm Receipt</button>
                             </form>
-                            <p class="text-12-muted mt-5">
-                                <i class="fa-solid fa-circle-info"></i> Provide this code to the rider, or enter it here once you safely receive the item.
-                            </p>
+                            
+                            <div class="otp-dispute-row">
+                                <p class="text-12-muted m-0">
+                                    <i class="fa-solid fa-circle-info"></i> Provide this code to the rider, or enter it here once you safely receive the item.
+                                </p>
+                                <a href="{% url 'orders:report_item_dispute' item.id %}" class="action-btn btn-outline action-sm btn-outline-danger">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> Report Issue / Freeze Escrow
+                                </a>
+                            </div>
+
+                        {% elif item.status == 'DISPUTED' %}
+                            <div class="escrow-frozen-banner">
+                                <span class="escrow-frozen-text">
+                                    <i class="fa-solid fa-lock"></i> <strong>Escrow Frozen:</strong> The 72-hour vendor payout timer is paused while support arbitrates your dispute.
+                                </span>
+                                <a href="{% url 'orders:support_center' %}" class="action-btn btn-outline action-sm">
+                                    View Dispute Ticket
+                                </a>
+                            </div>
+
                         {% elif item.status == 'COMPLETED' %}
                             <div class="mt-15">
                                 <a href="{% url 'feedback:product_feedback' item.id %}" class="action-btn btn-primary action-sm">
@@ -122,7 +142,7 @@
         <!-- Order Totals -->
         <div class="checkout-summary-total mt-30">
             <span>Total Amount</span>
-            <span class="checkout-total-price">NGN {{ order.total_amount }}</span>
+            <span class="checkout-total-price">NGN {{ order.total_amount|floatformat:0|intcomma }}</span>
         </div>
         
         {% if order.status == 'unpaid' %}
@@ -133,6 +153,11 @@
                         Pay Now
                     </button>
                 </form>
+                <div class="payment-recovery-box">
+                    <a href="{% url 'orders:support_center' %}" class="text-12-muted payment-recovery-link">
+                        Already debited for this order? Click here for Instant Payment Recovery
+                    </a>
+                </div>
             </div>
         {% endif %}
 

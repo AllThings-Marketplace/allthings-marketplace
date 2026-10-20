@@ -1,0 +1,429 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/home.css' %}?v=3.2">
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.2">
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+    <!-- Dynamic Slider Section -->
+    {% if banners %}
+    <div class="promo-slider" id="homeSlider">
+        <div class="slider-track" id="sliderTrack">
+            {% for banner in banners %}
+                <a href="{% if banner.link %}{{ banner.link }}{% else %}#{% endif %}" class="slide">
+                    {% if banner.image %}
+                        <picture>
+                            {% if banner.mobile_image %}
+                                <source media="(max-width: 768px)" srcset="{{ banner.mobile_image.url }}">
+                            {% endif %}
+                            <img src="{{ banner.image.url }}" class="slide-bg-img" alt="{{ banner.title }}">
+                        </picture>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
+
+        <button class="slider-btn prev-btn" id="prevBtn" aria-label="Previous Slide"><i class="fa-solid fa-chevron-left"></i></button>
+        <button class="slider-btn next-btn" id="nextBtn" aria-label="Next Slide"><i class="fa-solid fa-chevron-right"></i></button>
+
+        <div class="slider-dots" id="sliderDots">
+            {% for banner in banners %}
+                <span class="dot {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}"></span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mobile Filter Bar Toggle (Visible on screens <= 768px) -->
+    <div class="mobile-filter-bar">
+        <button type="button" class="action-btn btn-outline w-100" id="mobileFilterToggleBtn">
+            <i class="fa-solid fa-sliders"></i> Filters &amp; Categories
+            {% if has_active_filters %}
+                <span class="status-badge badge-accepted inline-badge">Active</span>
+            {% endif %}
+        </button>
+    </div>
+
+    <div class="marketplace-layout">
+        <!-- Left Sidebar: Smart Faceted Filters FIRST + Categories SECOND -->
+        <aside class="category-sidebar" id="marketplaceSidebar">
+            <div class="sidebar-mobile-header">
+                <h3 class="sidebar-title m-0">Filter &amp; Browse</h3>
+                <button type="button" class="close-drawer-btn" id="closeSidebarBtn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- 1. FACETED FILTER ENGINE (Now at the top for instant access) -->
+            <form method="GET" action="{% url 'marketplace:home' %}" class="filter-form">
+                {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+                {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
+
+                <div class="filter-header-row">
+                    <h3 class="sidebar-title m-0"><i class="fa-solid fa-sliders text-primary mr-5"></i> Smart Filters</h3>
+                    {% if has_active_filters %}
+                        <a href="{% url 'marketplace:home' %}" class="filter-reset-link">Reset All</a>
+                    {% endif %}
+                </div>
+
+                <!-- Sort By -->
+                <div class="filter-group">
+                    <label class="filter-label">Sort By</label>
+                    <select name="sort" class="filter-select" onchange="this.form.submit()">
+                        <option value="" {% if not sort_by %}selected{% endif %}>Relevance</option>
+                        <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest Arrivals</option>
+                        <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
+                        <option value="price_desc" {% if sort_by == 'price_desc' %}selected{% endif %}>Price: High to Low</option>
+                        <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Highest Rated</option>
+                    </select>
+                </div>
+
+                <!-- Listing Type -->
+                <div class="filter-group">
+                    <label class="filter-label">Show Me</label>
+                    <div class="filter-radio-list">
+                        <label class="filter-radio-item">
+                            <input type="radio" name="item_type" value="all" {% if item_type == 'all' or not item_type %}checked{% endif %} onchange="this.form.submit()">
+                            <span>Everything</span>
+                        </label>
+                        <label class="filter-radio-item">
+                            <input type="radio" name="item_type" value="products" {% if item_type == 'products' %}checked{% endif %} onchange="this.form.submit()">
+                            <span>Physical Products</span>
+                        </label>
+                        <label class="filter-radio-item">
+                            <input type="radio" name="item_type" value="services" {% if item_type == 'services' %}checked{% endif %} onchange="this.form.submit()">
+                            <span>Professional Services</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Budget / Price Range (NGN) -->
+                <div class="filter-group">
+                    <label class="filter-label">Budget (NGN)</label>
+                    <div class="price-range-inputs">
+                        <input type="number" name="min_price" value="{{ active_min_price }}" placeholder="Min" class="price-input" min="0">
+                        <span class="text-12-muted">-</span>
+                        <input type="number" name="max_price" value="{{ active_max_price }}" placeholder="Max" class="price-input" min="0">
+                    </div>
+                </div>
+
+                <!-- Customer Rating -->
+                <div class="filter-group">
+                    <label class="filter-label">Minimum Rating</label>
+                    <div class="filter-radio-list">
+                        <label class="filter-radio-item">
+                            <input type="radio" name="min_rating" value="" {% if not min_rating %}checked{% endif %} onchange="this.form.submit()">
+                            <span>Any Rating</span>
+                        </label>
+                        <label class="filter-radio-item">
+                            <input type="radio" name="min_rating" value="4" {% if min_rating == '4' %}checked{% endif %} onchange="this.form.submit()">
+                            <span><i class="fa-solid fa-star text-yellow"></i> 4.0 &amp; above</span>
+                        </label>
+                        <label class="filter-radio-item">
+                            <input type="radio" name="min_rating" value="3" {% if min_rating == '3' %}checked{% endif %} onchange="this.form.submit()">
+                            <span><i class="fa-solid fa-star text-yellow"></i> 3.0 &amp; above</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Stock Availability -->
+                <div class="filter-group">
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" name="in_stock" value="1" {% if in_stock %}checked{% endif %} onchange="this.form.submit()">
+                        <span>In-Stock Products Only</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="action-btn btn-primary w-100 filter-apply-btn">
+                    <i class="fa-solid fa-check"></i> Apply Filters
+                </button>
+            </form>
+
+            <hr class="sidebar-divider">
+
+            <!-- 2. CATEGORIES TREE -->
+            <h3 class="sidebar-title"><i class="fa-solid fa-layer-group text-primary mr-5"></i> Categories</h3>
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="{% url 'marketplace:home' %}" class="sidebar-parent-link {% if not current_category %}active{% endif %}">
+                        All Categories
+                    </a>
+                </li>
+                {% for cat in categories %}
+                    {% if not cat.parent %}
+                        <li>
+                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}{% if query %}&q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
+                                {{ cat.name }}
+                            </a>
+                            {% if cat.subcategories.all %}
+                                <ul class="sidebar-submenu">
+                                    {% for sub in cat.subcategories.all %}
+                                        <li>
+                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}{% if query %}&q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
+                                                {{ sub.name }}
+                                            </a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </aside>
+
+        <!-- Right Feed -->
+        <main class="marketplace-feed">
+            {% if not user.is_authenticated %}
+                <div class="promo-banner">
+                    <h3>New to AllThings?</h3>
+                    <p>Create an account for escrow-protected orders, verified technicians, and instant delivery tracking.</p>
+                    <a href="{% url 'accounts:register' %}" class="promo-btn">Join for Free</a>
+                </div>
+            {% endif %}
+
+            {% if has_active_filters %}
+                <!-- ==========================================
+                     SMART SEARCH & FACETED FILTER RESULTS
+                     ========================================== -->
+                <div class="active-filters-bar">
+                    <div class="active-filters-summary">
+                        {% if query %}
+                            <span class="text-14-muted">Showing results for "<strong>{{ query }}</strong>"</span>
+                        {% else %}
+                            <span class="text-14-muted"><strong>Filtered Catalog</strong></span>
+                        {% endif %}
+
+                        {% if item_type == 'products' %}
+                            <span class="smart-filter-pill"><i class="fa-solid fa-box"></i> Products Only</span>
+                        {% elif item_type == 'services' %}
+                            <span class="smart-filter-pill"><i class="fa-solid fa-screwdriver-wrench"></i> Services Only</span>
+                        {% endif %}
+                        {% if active_min_price %}
+                            <span class="smart-filter-pill"><i class="fa-solid fa-tag"></i> Min: NGN {{ active_min_price|intcomma }}</span>
+                        {% endif %}
+                        {% if active_max_price %}
+                            <span class="smart-filter-pill"><i class="fa-solid fa-tag"></i> Max: NGN {{ active_max_price|intcomma }}</span>
+                        {% endif %}
+                        {% if active_location %}
+                            <span class="smart-filter-pill"><i class="fa-solid fa-location-dot"></i> Near {{ active_location|title }}</span>
+                        {% endif %}
+                        {% if min_rating %}
+                            <span class="smart-filter-pill"><i class="fa-solid fa-star text-yellow"></i> {{ min_rating }}.0+ Stars</span>
+                        {% endif %}
+                        {% if in_stock %}
+                            <span class="smart-filter-pill"><i class="fa-solid fa-check"></i> In Stock</span>
+                        {% endif %}
+                    </div>
+                    <a href="{% url 'marketplace:home' %}" class="clear-filters-btn">Clear All</a>
+                </div>
+
+                {% if services %}
+                    <div class="feed-section-header">
+                        <h3 class="section-title-premium">Available Services ({{ services|length }})</h3>
+                    </div>
+                    <ul class="item-list">
+                        {% for service in services %}
+                            <li>
+                                <div class="item-info">
+                                    {% if service.cover_image %}
+                                        <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="list-img">
+                                    {% else %}
+                                        <div class="list-img-fallback"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                                    {% endif %}
+                                    <span>
+                                        <strong>{{ service.name }}</strong>
+                                        <span class="text-12-muted block mt-5">
+                                            <i class="fa-solid fa-user-tie"></i> {{ service.provider.business_name }}
+                                            {% if service.provider.region %} &bull; {{ service.provider.region }}{% endif %}
+                                        </span>
+                                        <span class="text-12-muted font-600-dark block mt-5">
+                                            {% if service.pricing_type == 'FIXED' and service.base_price %}
+                                                Fixed: NGN {{ service.base_price|floatformat:0|intcomma }}
+                                            {% elif service.pricing_type == 'STARTING' and service.base_price %}
+                                                Starting at NGN {{ service.base_price|floatformat:0|intcomma }}
+                                            {% elif service.pricing_type == 'HOURLY' and service.base_price %}
+                                                NGN {{ service.base_price|floatformat:0|intcomma }} / hr
+                                            {% elif service.pricing_type == 'PACKAGES' %}
+                                                Tiered Service Packages
+                                            {% else %}
+                                                Custom Quote Available
+                                            {% endif %}
+                                        </span>
+                                    </span>
+                                </div>
+                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-book">Book Service</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                {% if products %}
+                    <div class="feed-section-header {% if services %}mt-40{% endif %}">
+                        <h3 class="section-title-premium">Products ({{ products|length }})</h3>
+                    </div>
+                    <ul class="item-list">
+                        {% for product in products %}
+                            {% include 'partials/product_card.html' %}
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                {% if not services and not products %}
+                    <div class="empty-state-wrapper empty-state-lg">
+                        <i class="fa-solid fa-wand-magic-sparkles empty-state-icon text-yellow"></i>
+                        <h3 class="empty-state-title">No exact matches found</h3>
+                        <p class="empty-state-text">Try expanding your budget range, adjusting your search terms, or clearing some filters.</p>
+                        <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline mt-15">Reset All Filters</a>
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <!-- ==========================================
+                     THE SMART HOMEPAGE (V1)
+                     ========================================== -->
+                {% if smart_feed.is_personalized %}
+                    
+                    <div class="feed-greeting-box">
+                        <h2 class="text-24 font-700-block mt-0 mb-5">
+                            <span class="dynamic-greeting">Welcome back</span>, {{ user.first_name|default:user.username }} 👋
+                        </h2>
+                        <p class="text-14-muted m-0">Here is what we picked for you based on your recent activity.</p>
+                    </div>
+
+                    {% if smart_feed.continue_viewing %}
+                        <div class="feed-section-header">
+                            <h3 class="section-title-premium">Continue where you left off</h3>
+                        </div>
+                        <ul class="item-list">
+                            {% for product in smart_feed.continue_viewing %}
+                                {% include 'partials/product_card.html' %}
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {% if smart_feed.recommended %}
+                        <div class="feed-section-header mt-40">
+                            <h3 class="section-title-premium">Picked for you</h3>
+                            <span class="status-badge badge-warning inline-badge"><i class="fa-solid fa-bolt"></i> Personalized</span>
+                        </div>
+                        <ul class="item-list">
+                            {% for product in smart_feed.recommended %}
+                                {% include 'partials/product_card.html' %}
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {% if services %}
+                        <div class="feed-section-header mt-40">
+                            <h3 class="section-title-premium">Recommended Services</h3>
+                        </div>
+                        <ul class="item-list">
+                            {% for service in services|slice:":4" %}
+                                <li>
+                                    <div class="item-info">
+                                        {% if service.cover_image %}
+                                            <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="list-img">
+                                        {% else %}
+                                            <div class="list-img-fallback"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                                        {% endif %}
+                                        <span>
+                                            <strong>{{ service.name }}</strong>
+                                            <span class="text-12-muted block mt-5">
+                                                <i class="fa-solid fa-user-tie"></i> {{ service.provider.business_name }}
+                                                {% if service.provider.region %} &bull; {{ service.provider.region }}{% endif %}
+                                            </span>
+                                            <span class="text-12-muted font-600-dark block mt-5">
+                                                {% if service.pricing_type == 'FIXED' and service.base_price %}
+                                                    Fixed: NGN {{ service.base_price|floatformat:0|intcomma }}
+                                                {% elif service.pricing_type == 'STARTING' and service.base_price %}
+                                                    Starting at NGN {{ service.base_price|floatformat:0|intcomma }}
+                                                {% elif service.pricing_type == 'HOURLY' and service.base_price %}
+                                                    NGN {{ service.base_price|floatformat:0|intcomma }} / hr
+                                                {% elif service.pricing_type == 'PACKAGES' %}
+                                                    Tiered Service Packages
+                                                {% else %}
+                                                    Custom Quote Available
+                                                {% endif %}
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-book">View Service</a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                {% else %}
+                    
+                    <div class="feed-greeting-box">
+                        <h2 class="text-24 font-700-block mt-0 mb-5">
+                            <span class="dynamic-greeting">Good morning</span> 👋
+                        </h2>
+                        <p class="text-14-muted m-0">Discover verified electrical products and certified professionals near you.</p>
+                    </div>
+
+                    <div class="feed-section-header">
+                        <h3 class="section-title-premium">Trending near you</h3>
+                        <span class="status-badge badge-danger inline-badge"><i class="fa-solid fa-fire"></i> Hot Today</span>
+                    </div>
+                    <ul class="item-list">
+                        {% for product in smart_feed.trending %}
+                            {% include 'partials/product_card.html' %}
+                        {% endfor %}
+                    </ul>
+
+                    {% if services %}
+                        <div class="feed-section-header mt-40">
+                            <h3 class="section-title-premium">Services people around you are booking</h3>
+                        </div>
+                        <ul class="item-list">
+                            {% for service in services|slice:":4" %}
+                                <li>
+                                    <div class="item-info">
+                                        {% if service.cover_image %}
+                                            <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="list-img">
+                                        {% else %}
+                                            <div class="list-img-fallback"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                                        {% endif %}
+                                        <span>
+                                            <strong>{{ service.name }}</strong>
+                                            <span class="text-12-muted block mt-5">
+                                                <i class="fa-solid fa-user-tie"></i> {{ service.provider.business_name }}
+                                                {% if service.provider.region %} &bull; {{ service.provider.region }}{% endif %}
+                                            </span>
+                                            <span class="text-12-muted font-600-dark block mt-5">
+                                                {% if service.pricing_type == 'FIXED' and service.base_price %}
+                                                    Fixed: NGN {{ service.base_price|floatformat:0|intcomma }}
+                                                {% elif service.pricing_type == 'STARTING' and service.base_price %}
+                                                    Starting at NGN {{ service.base_price|floatformat:0|intcomma }}
+                                                {% elif service.pricing_type == 'HOURLY' and service.base_price %}
+                                                    NGN {{ service.base_price|floatformat:0|intcomma }} / hr
+                                                {% elif service.pricing_type == 'PACKAGES' %}
+                                                    Tiered Service Packages
+                                                {% else %}
+                                                    Custom Quote Available
+                                                {% endif %}
+                                            </span>
+                                        </span>
+                                    </div>
+                                    <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-book">View Service</a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                {% endif %}
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/home.js' %}?v=3"></script>
+    <script src="{% static 'js/pages/cart.js' %}"></script>
+    <script src="{% static 'js/pages/saved_items.js' %}"></script>
+{% endblock %}

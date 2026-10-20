@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- 1. Premium Tab Logic ---
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
 
@@ -18,33 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
-});
 
-document.addEventListener('DOMContentLoaded', () => {
-    // --- Existing Tab Logic ---
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const targetId = button.getAttribute('data-tab');
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            button.classList.add('active');
-            const targetPanel = document.getElementById(`${targetId}-tab`);
-            if (targetPanel) {
-                targetPanel.classList.add('active');
-            }
-        });
-    });
-
-    // --- Follow Button Logic ---
+    // --- 2. Follow Button Logic ---
     const followBtn = document.getElementById('followBtn');
     if (followBtn) {
         followBtn.addEventListener('click', async function() {
             const providerId = this.getAttribute('data-provider-id');
             
-            // 1. Optimistic UI update (Instant visual feedback)
+            // Optimistic UI update (Instant visual feedback)
             const isFollowing = this.classList.contains('following');
             
             if (isFollowing) {
@@ -57,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.innerHTML = '<i class="fa-solid fa-user-check icon-spaced"></i> Following';
             }
             
-            // 2. Background Database Update
+            // Background Database Update
             try {
                 const response = await fetch(`/api/toggle-follow/${providerId}/`, {
                     method: 'POST',
@@ -69,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (!response.ok) {
                     console.error("Failed to update follow status.");
-                    // In a production environment, you might want to revert the button UI here if the network fails
                 }
             } catch (error) {
                 console.error("Network error:", error);

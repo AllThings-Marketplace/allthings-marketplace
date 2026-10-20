@@ -3,7 +3,7 @@
    ========================================================================== */
 .marketplace-layout {
     display: grid;
-    grid-template-columns: 250px 1fr;
+    grid-template-columns: 260px 1fr;
     gap: 30px;
     align-items: start;
 }
@@ -14,7 +14,27 @@
     border-radius: 12px;
     padding: 20px;
     position: sticky;
-    top: 100px;
+    top: 90px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+}
+
+.category-sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.category-sidebar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+.sidebar-mobile-header {
+    display: none;
+}
+
+.mobile-filter-bar {
+    display: none;
+    margin-bottom: 15px;
 }
 
 .sidebar-title {
@@ -90,7 +110,7 @@
     justify-content: space-between; 
     gap: 15px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    overflow: hidden; /* Ensures nothing escapes the card boundaries */
+    overflow: hidden;
 }
 
 .item-list li:hover {
@@ -99,7 +119,6 @@
     border-color: #d1d5db;
 }
 
-/* THE FIX: Force vertical stacking for images and text inside cards */
 .item-info { 
     display: flex; 
     flex-direction: column;
@@ -110,7 +129,6 @@
     width: 100%;
 }
 
-/* Ensure text wraps cleanly instead of pushing the layout wide */
 .item-info > span {
     width: 100%;
     word-break: break-word;
@@ -137,20 +155,234 @@
     flex-shrink: 0;
 }
 
+.service-card-highlight {
+    border-top: 4px solid #2563eb;
+}
+
+/* ==========================================
+   SMART FEED PREMIUM TYPOGRAPHY & HEADERS
+   ========================================== */
+.feed-greeting-box {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.feed-section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.section-title-premium {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+.inline-badge {
+    margin-top: 0;
+    padding: 4px 10px;
+    font-size: 11px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* ==========================================
+   SMART FACETED FILTER SIDEBAR & PILLS
+   ========================================== */
+.sidebar-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 20px 0;
+}
+
+.filter-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.filter-reset-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #ef4444;
+    text-decoration: none;
+}
+
+.filter-reset-link:hover {
+    text-decoration: underline;
+}
+
+.filter-group {
+    margin-bottom: 18px;
+}
+
+.filter-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #4b5563;
+    margin-bottom: 8px;
+    letter-spacing: 0.4px;
+}
+
+.filter-select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #1f2937;
+    background-color: #f9fafb;
+    outline: none;
+    cursor: pointer;
+}
+
+.filter-select:focus {
+    border-color: #2563eb;
+    background-color: #ffffff;
+}
+
+.price-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.price-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.price-input:focus {
+    border-color: #2563eb;
+}
+
+.filter-radio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-radio-item, .filter-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: #374151;
+    cursor: pointer;
+}
+
+.filter-radio-item input, .filter-checkbox-item input {
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+
+.filter-apply-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.active-filters-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 18px;
+    margin-bottom: 25px;
+}
+
+.active-filters-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.smart-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.clear-filters-btn {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    text-decoration: none;
+}
+
+.clear-filters-btn:hover {
+    color: #ef4444;
+}
+
 /* ==========================================================================
-   MOBILE RESPONSIVENESS (CLEAN 2-COLUMN GRID & SPACING)
+   MOBILE RESPONSIVENESS (CLEAN 2-COLUMN GRID & FILTER DRAWER)
    ========================================================================== */
 @media (max-width: 768px) {
     .marketplace-layout {
         grid-template-columns: 1fr;
         gap: 10px;
     }
+
+    .mobile-filter-bar {
+        display: block;
+    }
     
     .category-sidebar {
         display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        z-index: 1200;
+        border-radius: 0;
+        box-sizing: border-box;
+        padding: 20px;
     }
 
-    /* Fixed 2-Column Grid Layout for Products and Services on Mobile */
+    .category-sidebar.active {
+        display: block;
+    }
+
+    .sidebar-mobile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
     .item-list {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -194,9 +426,4 @@
         text-align: center;
         border-radius: 6px;
     }
-}
-
-/* Extracted Pending Reviews Styles */
-.service-card-highlight {
-    border-top: 4px solid #2563eb;
 }

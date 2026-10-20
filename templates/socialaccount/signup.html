@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="login-wrapper animate-fade-in">
+    <div class="summary-card">
+        <h2 class="text-center mt-0 font-600-dark text-24">Complete Sign Up</h2>
+        
+        <p class="text-center text-14-muted mb-20" style="margin-bottom: 20px;">
+            You are almost there! Please choose a username for your AllThings Marketplace account to complete your Google registration.
+        </p>
+        
+        <form method="POST" class="django-form mt-20">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="action-btn btn-primary w-100 mt-15 py-15 text-16">
+                Complete Sign Up
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

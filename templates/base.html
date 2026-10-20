@@ -30,22 +30,30 @@
             <ul class="mobile-menu-list">
                 {% if user.is_authenticated %}
                     <li><a href="{% url 'accounts:profile' %}"><i class="fa-regular fa-user"></i> My Account</a></li>
+                    <li>
+                        <a href="{% url 'orders:cart' %}">
+                            <i class="fa-solid fa-cart-shopping"></i> My Cart
+                            <span class="drawer-cart-badge nav-cart-badge {% if not cart_count or cart_count == 0 %}hidden-initial{% endif %}" {% if not cart_count or cart_count == 0 %}style="display: none;"{% endif %}>
+                                {{ cart_count|default:0 }}
+                            </span>
+                        </a>
+                    </li>
                     <li><a href="{% url 'orders:order_history' %}"><i class="fa-solid fa-box"></i> My Orders</a></li>
                     <li><a href="{% url 'feedback:pending_reviews' %}"><i class="fa-regular fa-star"></i> Pending Reviews</a></li>
                     <li><a href="{% url 'marketplace:saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a></li>
-                    <li><a href="#"><i class="fa-solid fa-location-dot"></i> Track Orders</a></li>
+                    <li><a href="{% url 'orders:support_center' %}"><i class="fa-solid fa-headset"></i> Help &amp; Support</a></li>
                     
                     {% if request.user.provider_profile %}
                         <li><a href="{% url 'dashboard:provider_dashboard' %}"><i class="fa-solid fa-store"></i> Provider Portal</a></li>
                     {% else %}
-                        <li><a href="#"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
+                        <li><a href="{% url 'accounts:profile' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
                     {% endif %}
                     
                     <li><a href="{% url 'accounts:logout' %}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 {% else %}
                     <li><a href="{% url 'accounts:login' %}"><i class="fa-solid fa-right-to-bracket"></i> Login</a></li>
                     <li><a href="{% url 'accounts:register' %}"><i class="fa-solid fa-user-plus"></i> Create Account</a></li>
-                    <li><a href="#"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
+                    <li><a href="{% url 'accounts:register' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
                 {% endif %}
             </ul>
 
@@ -59,7 +67,7 @@
                                     <i class="fa-solid fa-circle-chevron-right text-muted"></i> {{ cat.name }}
                                 </a>
                                 {% if cat.subcategories.all %}
-                                    {% include 'category_menu_node.html' with current_categories=cat.subcategories.all %}
+                                    {% include 'partials/category_menu_node.html' with current_categories=cat.subcategories.all %}
                                 {% endif %}
                             </li>
                         {% endif %}
@@ -109,23 +117,26 @@
 
         <div class="nav-links">
             {% if not request.user.provider_profile %}
-                <a href="#" class="icon-link hidden-mobile"><i class="fa-solid fa-tag"></i> Sell on AllThings</a>
+                <a href="{% if user.is_authenticated %}{% url 'accounts:profile' %}{% else %}{% url 'accounts:register' %}{% endif %}" class="icon-link hidden-mobile">
+                    <i class="fa-solid fa-tag"></i> Sell on AllThings
+                </a>
             {% endif %}
             
+            <!-- Always-Present Cart Badge in DOM for Instant 0 -> 1 AJAX Updates -->
             <a href="{% url 'orders:cart' %}" class="icon-link requires-auth nav-cart-wrapper">
                 <i class="fa-solid fa-cart-shopping"></i> Cart
-                {% if cart_count > 0 %}
-                    <span class="cart-badge">{{ cart_count }}</span>
-                {% endif %}
+                <span id="navCartBadge" class="cart-badge nav-cart-badge {% if not cart_count or cart_count == 0 %}hidden-initial{% endif %}" {% if not cart_count or cart_count == 0 %}style="display: none;"{% endif %}>
+                    {{ cart_count|default:0 }}
+                </span>
             </a>
 
-            <!-- Global Notification Bell -->
+            <!-- Global Notification Bell (Distinct ID so Cart JS never overwrites it) -->
             {% if user.is_authenticated %}
             <div class="nav-dropdown-container">
                 <button class="icon-link nav-dropdown-trigger bell-trigger">
                     <i class="fa-regular fa-bell"></i> Alerts
                     {% if global_unread_count > 0 %}
-                        <span class="cart-badge badge-red">{{ global_unread_count }}</span>
+                        <span id="navAlertBadge" class="cart-badge badge-red">{{ global_unread_count }}</span>
                     {% endif %}
                 </button>
                 
@@ -137,7 +148,7 @@
                     
                     <div class="notification-list">
                         {% for notif in global_recent_notifications %}
-                            <a href="#" class="notification-item {% if not notif.is_read %}unread{% endif %}">
+                            <a href="{{ notif.link|default:'#' }}" class="notification-item {% if not notif.is_read %}unread{% endif %}">
                                 <div class="notif-icon">
                                     {% if notif.notification_type == 'ORDER' %}
                                         <i class="fa-solid fa-box text-primary"></i>
@@ -188,6 +199,7 @@
                         </a>
                         <a href="{% url 'feedback:pending_reviews' %}"><i class="fa-regular fa-star"></i> Pending Reviews</a>
                         <a href="{% url 'marketplace:saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a>
+                        <a href="{% url 'orders:support_center' %}"><i class="fa-solid fa-headset"></i> Help &amp; Support</a>
                         {% if request.user.provider_profile %}
                             <a href="{% url 'dashboard:provider_dashboard' %}"><i class="fa-solid fa-store"></i> Provider Portal</a>
                         {% endif %}
@@ -253,7 +265,12 @@
                 <ul class="footer-links">
                     <li><a href="{% url 'marketplace:home' %}">Shop Catalog</a></li>
                     <li><a href="{% url 'orders:cart' %}">Your Cart</a></li>
-                    <li><a href="{% url 'dashboard:provider_dashboard' %}">Become a Provider</a></li>
+                    <li><a href="{% url 'orders:support_center' %}">Help &amp; Resolution Center</a></li>
+                    {% if request.user.provider_profile %}
+                        <li><a href="{% url 'dashboard:provider_dashboard' %}">Provider Portal</a></li>
+                    {% else %}
+                        <li><a href="{% url 'accounts:profile' %}">Become a Provider</a></li>
+                    {% endif %}
                 </ul>
             </div>
 

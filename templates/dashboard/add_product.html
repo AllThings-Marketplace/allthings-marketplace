@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.3">
+{% endblock %}
+
+{% block content %}
+<div class="details-page-wrapper animate-fade-in">
+    <div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
+        <div>
+            <h2 class="section-heading checkout-page-title mb-5">Add New Product</h2>
+            <p class="text-14-muted m-0">List a physical electrical product with accurate sizing for instant courier dispatch quotes.</p>
+        </div>
+        <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <form method="POST" action="{% url 'dashboard:add_product' %}" enctype="multipart/form-data" class="summary-card" id="addProductForm">
+        {% csrf_token %}
+        
+        <!-- 1. Product Details -->
+        <h3 class="checkout-section-title mt-0">
+            <i class="fa-solid fa-box icon-primary-spaced"></i> 1. Product Details
+        </h3>
+        
+        <div class="form-grid-2">
+            <div class="form-group">
+                <label class="form-label-dark">Product Name *</label>
+                <input type="text" name="name" class="form-control" placeholder="E.g., 50m 2.5mm Copper Wire Coil" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label-dark">Product Category *</label>
+                <select name="category_id" class="form-control" id="category-selector" required>
+                    <option value="">Select a category...</option>
+                    {% for cat in parent_categories %}
+                        <option value="{{ cat.id }}" class="parent-category-option">{{ cat.name }}</option>
+                        {% if cat.subcategories.all %}
+                            {% include 'partials/category_option_node.html' with current_categories=cat.subcategories.all prefix="--" %}
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div id="dynamic-attributes-container" class="form-grid-2 mt-20 mb-20"></div>
+
+        <!-- 2. Pricing, Inventory & Delivery Sizing -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-tags icon-primary-spaced"></i> 2. Pricing, Inventory &amp; Delivery Sizing
+        </h3>
+
+        <div class="form-grid-2">
+            <div class="form-group">
+                <label class="form-label-dark">Base Price (NGN) *</label>
+                <input type="number" name="price" step="0.01" class="form-control" min="1" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label-dark">Base Stock Quantity *</label>
+                <input type="number" name="stock_count" class="form-control" min="1" placeholder="15" required>
+            </div>
+        </div>
+
+        <div class="form-grid-2 mt-15">
+            <div class="form-group">
+                <label class="form-label-dark" for="shipping_class">Package Size / Delivery Tier *</label>
+                <select name="shipping_class" id="shipping_class" class="form-control" required>
+                    <option value="SMALL" selected>Small Parcel / Bike-Friendly (&lt; 5kg — Bulbs, Switches, Tools)</option>
+                    <option value="MEDIUM">Medium Box (5–20kg — Fans, Cable Coils, Stabilizers)</option>
+                    <option value="HEAVY">Heavy / Bulky Cargo (&gt; 20kg — Inverters, Solar Panels, Batteries)</option>
+                </select>
+                <small class="text-12-muted">Determines whether dispatch bikes or cargo vans are assigned at checkout.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark" for="weight_kg">Estimated Weight per Unit (kg) *</label>
+                <input type="number"
+                       name="weight_kg"
+                       id="weight_kg"
+                       class="form-control"
+                       step="0.1"
+                       min="0.1"
+                       max="9999"
+                       value="1.0"
+                       required>
+                <small class="text-12-muted">Packaged weight in kilograms used to calculate courier shipping fees.</small>
+            </div>
+        </div>
+
+        <!-- Variant Builder -->
+        <div class="form-group mt-25">
+            <div class="flex-between align-center mb-10">
+                <label class="form-label-dark m-0">Product Options (Variants)</label>
+                <button type="button" class="action-btn btn-outline action-sm" id="add-variant-btn">
+                    <i class="fa-solid fa-plus"></i> Add Option
+                </button>
+            </div>
+            <p class="text-12-muted mb-10">Does this product come in different sizes, wattages, colors, or capacities? Add them here.</p>
+            
+            <div id="variant-builder-container" class="variant-builder hidden-initial"></div>
+        </div>
+
+        <!-- 3. Media Dropzone & Description -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-images icon-primary-spaced"></i> 3. Product Photos &amp; Description
+        </h3>
+
+        <div class="form-group">
+            <div class="flex-between align-center mb-8 flex-wrap gap-10">
+                <label class="form-label-dark m-0">Product Images * (Select up to 8 photos)</label>
+                <span id="productPhotoCountBadge" class="status-badge badge-pending badge-sm hidden-initial">0 / 8 Selected</span>
+            </div>
+
+            <label for="addProductImagesInput" class="upload-dropzone" id="addProductDropzone">
+                <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+                <strong class="dropzone-title">Click to select product photos or drag &amp; drop here</strong>
+                <span class="text-12-muted">First photo becomes the Main Cover &bull; Background removal runs automatically</span>
+                <input type="file"
+                       name="images"
+                       id="addProductImagesInput"
+                       class="hidden-initial"
+                       accept="image/jpeg,image/png,image/webp"
+                       multiple
+                       required>
+            </label>
+
+            <div id="addProductUploadWarning" class="warning-text-block mt-15 hidden-initial"></div>
+
+            <div id="addProductPreviewGrid" class="existing-photo-grid mt-20 hidden-initial"></div>
+        </div>
+
+        <div class="form-group mt-25">
+            <label class="form-label-dark">Detailed Description *</label>
+            <textarea name="description" class="form-control" rows="4" placeholder="Describe the technical specifications, brand, warranty, and application of this product..." required></textarea>
+        </div>
+
+        <button type="submit" class="action-btn btn-primary w-100 mt-30 py-15 text-16 font-600-block requires-auth" id="addProductSubmitBtn">
+            <i class="fa-solid fa-cloud-arrow-up icon-spaced"></i> Submit Product for Review
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+{% endblock %}

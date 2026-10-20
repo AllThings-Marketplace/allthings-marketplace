@@ -1,10 +1,11 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
+
     // === 1. Bank Details Capture ===
     const bankSelect = document.getElementById('bankSelect');
     const bankNameInput = document.getElementById('bankNameInput');
 
     if (bankSelect && bankNameInput) {
-        bankSelect.addEventListener('change', function() {
+        bankSelect.addEventListener('change', function () {
             const selectedOption = this.options[this.selectedIndex];
             bankNameInput.value = selectedOption.getAttribute('data-name');
         });
@@ -16,14 +17,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const lonInput = document.getElementById('lonInput');
 
     if (locationBtn && latInput && lonInput) {
-        locationBtn.addEventListener('click', function() {
+        locationBtn.addEventListener('click', function () {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    function(position) {
+                    function (position) {
                         latInput.value = position.coords.latitude;
                         lonInput.value = position.coords.longitude;
                     },
-                    function(error) {
+                    function () {
                         alert("Error getting location. Please ensure location permissions are enabled for this site.");
                     },
                     { enableHighAccuracy: true }
@@ -34,34 +35,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // === 3. Variant Builder Logic ===
+    // === 3. Variant Builder Logic (Add Product) ===
     const addVariantBtn = document.getElementById('add-variant-btn');
     const variantContainer = document.getElementById('variant-builder-container');
-    
+
     if (addVariantBtn && variantContainer) {
-        addVariantBtn.addEventListener('click', function() {
+        addVariantBtn.addEventListener('click', function () {
+            variantContainer.classList.remove('hidden-initial');
             variantContainer.style.display = 'block';
-            
+
             const row = document.createElement('div');
             row.className = 'variant-row';
             row.innerHTML = `
-                <div class="form-group" style="margin:0;">
+                <div class="form-group m-0">
                     <label class="text-12-muted">Option (e.g., Color)</label>
                     <input type="text" name="variant_names[]" class="form-control" placeholder="Size, Color, etc." required>
                 </div>
-                <div class="form-group" style="margin:0;">
+                <div class="form-group m-0">
                     <label class="text-12-muted">Value (e.g., Red)</label>
                     <input type="text" name="variant_values[]" class="form-control" placeholder="Red, XL, 256GB" required>
                 </div>
-                <div class="form-group" style="margin:0;">
+                <div class="form-group m-0">
                     <label class="text-12-muted">Price Override (NGN)</label>
                     <input type="number" name="variant_prices[]" class="form-control" step="0.01" placeholder="Optional">
                 </div>
-                <div class="form-group" style="margin:0;">
+                <div class="form-group m-0">
                     <label class="text-12-muted">Stock</label>
                     <input type="number" name="variant_stocks[]" class="form-control" min="0" value="0" required>
                 </div>
-                <button type="button" class="btn-remove-variant" onclick="this.parentElement.remove(); if(variantContainer.children.length === 0) variantContainer.style.display = 'none';">
+                <button type="button" class="btn-remove-variant" aria-label="Remove Option">
                     <i class="fa-solid fa-trash"></i>
                 </button>
             `;
@@ -69,20 +71,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Delegated Removal for Variant & Package Rows (No inline onclick needed)
+    document.addEventListener('click', function (e) {
+        const removeBtn = e.target.closest('.btn-remove-variant');
+        if (!removeBtn) return;
+
+        const row = removeBtn.closest('.variant-row');
+        if (row) {
+            row.remove();
+            if (variantContainer && variantContainer.children.length === 0) {
+                variantContainer.style.display = 'none';
+            }
+        }
+    });
+
     // === 4. Unified Category Attributes Fetching (AJAX) ===
     const categorySelector = document.getElementById('category-selector');
     const attributesContainer = document.getElementById('dynamic-attributes-container');
 
     if (categorySelector && attributesContainer) {
-        categorySelector.addEventListener('change', function() {
+        categorySelector.addEventListener('change', function () {
             const categoryId = this.value;
-            attributesContainer.innerHTML = ''; // Clear existing fields
+            attributesContainer.innerHTML = '';
 
             if (categoryId) {
                 fetch(`/api/category-attributes/${categoryId}/`)
                     .then(response => response.json())
                     .then(data => {
-                        // SAFELY PARSE: Protect against stringified JSON arrays
                         let schemaArray = data.schema;
                         if (typeof schemaArray === 'string') {
                             schemaArray = JSON.parse(schemaArray);
@@ -90,9 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         if (Array.isArray(schemaArray) && schemaArray.length > 0) {
                             attributesContainer.innerHTML = `<h3 class="checkout-section-title" style="grid-column: 1 / -1;"><i class="fa-solid fa-list icon-primary-spaced"></i> Specifications</h3>`;
-                            
+
                             schemaArray.forEach(attr => {
-                                // SECURE NAMING: Forces "Storage Capacity" to become "attr_storage_capacity"
                                 const safeName = "attr_" + attr.name.toLowerCase().replace(/\s+/g, '_');
                                 const isRequired = attr.required ? 'required' : '';
                                 const star = attr.required ? '*' : '';
@@ -113,14 +127,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Fail-safe: Trigger the fetch immediately if the page loads with a category already selected
         if (categorySelector.value) {
             categorySelector.dispatchEvent(new Event('change'));
         }
     }
-});
 
-document.addEventListener('DOMContentLoaded', function() {
+    // === 5. Service Pricing & Package Builder ===
     const pricingSelect = document.getElementById('pricingTypeSelect');
     const basePriceGroup = document.getElementById('basePriceGroup');
     const basePriceInput = document.getElementById('basePriceInput');
@@ -129,33 +141,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const packageRows = document.getElementById('package-rows');
 
     if (pricingSelect) {
-        pricingSelect.addEventListener('change', function() {
-            if (this.value === 'PACKAGES') {
-                basePriceGroup.style.display = 'none';
-                basePriceInput.removeAttribute('required');
-                packageBuilder.style.display = 'block';
-                packageBuilder.classList.remove('hidden-initial');
-            } else if (this.value === 'QUOTE') {
-                basePriceGroup.style.display = 'none';
-                basePriceInput.removeAttribute('required');
-                packageBuilder.style.display = 'none';
+        function syncPricingUI() {
+            if (pricingSelect.value === 'PACKAGES') {
+                if (basePriceGroup) basePriceGroup.style.display = 'none';
+                if (basePriceInput) basePriceInput.removeAttribute('required');
+                if (packageBuilder) {
+                    packageBuilder.style.display = 'block';
+                    packageBuilder.classList.remove('hidden-initial');
+                }
+            } else if (pricingSelect.value === 'QUOTE') {
+                if (basePriceGroup) basePriceGroup.style.display = 'none';
+                if (basePriceInput) basePriceInput.removeAttribute('required');
+                if (packageBuilder) packageBuilder.style.display = 'none';
             } else {
-                basePriceGroup.style.display = 'block';
-                basePriceInput.setAttribute('required', 'true');
-                packageBuilder.style.display = 'none';
+                if (basePriceGroup) basePriceGroup.style.display = 'block';
+                if (basePriceInput) basePriceInput.setAttribute('required', 'true');
+                if (packageBuilder) packageBuilder.style.display = 'none';
             }
-        });
+        }
+        pricingSelect.addEventListener('change', syncPricingUI);
+        syncPricingUI();
     }
 
-    if (addPackageBtn) {
-        addPackageBtn.addEventListener('click', function() {
+    if (addPackageBtn && packageRows) {
+        addPackageBtn.addEventListener('click', function () {
             const rowHtml = `
                 <div class="variant-row package-row mt-15">
                     <div><input type="text" name="pkg_names[]" class="form-control" placeholder="Package Name"></div>
                     <div><input type="number" name="pkg_prices[]" class="form-control" step="0.01" placeholder="Price"></div>
                     <div><input type="text" name="pkg_durations[]" class="form-control" placeholder="Duration"></div>
                     <div><input type="text" name="pkg_features[]" class="form-control" placeholder="Features (comma separated)"></div>
-                    <button type="button" class="btn-remove-variant" onclick="this.closest('.package-row').remove()">
+                    <button type="button" class="btn-remove-variant" aria-label="Remove Package">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
@@ -163,4 +179,232 @@ document.addEventListener('DOMContentLoaded', function() {
             packageRows.insertAdjacentHTML('beforeend', rowHtml);
         });
     }
+
+    // === 6. Service Scope-of-Work Live Comma Pill Previews ===
+    function bindScopePreview(textareaId, containerId, pillClass, iconClass) {
+        const input = document.getElementById(textareaId);
+        const container = document.getElementById(containerId);
+        if (!input || !container) return;
+
+        function renderPills() {
+            const items = input.value.split(',').map(s => s.trim()).filter(Boolean);
+            container.innerHTML = items.map(item =>
+                `<span class="scope-pill ${pillClass}"><i class="fa-solid ${iconClass}"></i> ${item}</span>`
+            ).join('');
+        }
+        input.addEventListener('input', renderPills);
+        renderPills();
+    }
+
+    bindScopePreview('whatsIncludedInput', 'includedPreviewPills', 'scope-pill-inc', 'fa-check');
+    bindScopePreview('whatsExcludedInput', 'excludedPreviewPills', 'scope-pill-exc', 'fa-xmark');
+
+    // === 7. Unified Multi-Photo Dropzone Previews & 8-Photo Guard ===
+    function initMultiPhotoPreview(config) {
+        const fileInput = document.getElementById(config.inputId);
+        const previewGrid = document.getElementById(config.gridId);
+        const warningBox = config.warningId ? document.getElementById(config.warningId) : null;
+        const countBadge = config.badgeId ? document.getElementById(config.badgeId) : null;
+        const submitBtn = config.submitId ? document.getElementById(config.submitId) : null;
+
+        if (!fileInput || !previewGrid) return;
+
+        fileInput.addEventListener('change', function () {
+            previewGrid.innerHTML = '';
+            const files = Array.from(this.files || []);
+
+            if (files.length === 0) {
+                previewGrid.classList.add('hidden-initial');
+                previewGrid.style.display = 'none';
+                if (warningBox) {
+                    warningBox.classList.add('hidden-initial');
+                    warningBox.style.display = 'none';
+                }
+                if (countBadge) {
+                    countBadge.classList.add('hidden-initial');
+                    countBadge.style.display = 'none';
+                }
+                if (submitBtn) submitBtn.disabled = false;
+                return;
+            }
+
+            if (countBadge) {
+                countBadge.classList.remove('hidden-initial');
+                countBadge.style.display = 'inline-block';
+                countBadge.textContent = `${files.length} / ${config.maxFiles} Selected`;
+            }
+
+            if (config.maxFiles && files.length > config.maxFiles) {
+                if (warningBox) {
+                    warningBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> You selected ${files.length} photos. Please select a maximum of ${config.maxFiles} photos.`;
+                    warningBox.classList.remove('hidden-initial');
+                    warningBox.style.display = 'block';
+                }
+                if (submitBtn) submitBtn.disabled = true;
+            } else {
+                if (warningBox) {
+                    warningBox.classList.add('hidden-initial');
+                    warningBox.style.display = 'none';
+                }
+                if (submitBtn) submitBtn.disabled = false;
+            }
+
+            previewGrid.classList.remove('hidden-initial');
+            previewGrid.style.display = 'grid';
+
+            const limit = config.maxFiles || files.length;
+            files.slice(0, limit).forEach((file, idx) => {
+                const reader = new FileReader();
+                const roleLabel = config.roleFormatter ? config.roleFormatter(idx) : `Photo #${idx + 1}`;
+                const card = document.createElement('div');
+                card.className = 'existing-photo-card';
+                card.innerHTML = `
+                    <div class="photo-thumb-wrapper">
+                        <img src="" alt="Preview" class="preview-thumb-img">
+                        <span class="photo-role-badge">${roleLabel}</span>
+                    </div>
+                    <div class="photo-meta-bar">
+                        <small class="text-12-muted truncate-text block">${file.name}</small>
+                    </div>
+                `;
+                previewGrid.appendChild(card);
+
+                reader.onload = function (e) {
+                    const imgEl = card.querySelector('.preview-thumb-img');
+                    if (imgEl) imgEl.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    }
+
+    // Bind Add Product Photos (Max 8, First = Main Cover)
+    initMultiPhotoPreview({
+        inputId: 'addProductImagesInput',
+        gridId: 'addProductPreviewGrid',
+        warningId: 'addProductUploadWarning',
+        badgeId: 'productPhotoCountBadge',
+        submitId: 'addProductSubmitBtn',
+        maxFiles: 8,
+        roleFormatter: idx => (idx === 0 ? 'Main Cover' : `Gallery #${idx + 1}`)
+    });
+
+    // Bind Manage Product Photos Page (Max 8)
+    initMultiPhotoPreview({
+        inputId: 'productImagesInput',
+        gridId: 'uploadPreviewGrid',
+        warningId: 'uploadCountWarning',
+        submitId: 'uploadSubmitBtn',
+        maxFiles: 8,
+        roleFormatter: () => 'Ready'
+    });
+
+    // Bind Service Portfolio Photos
+    initMultiPhotoPreview({
+        inputId: 'servicePortfolioInput',
+        gridId: 'portfolioPreviewGrid',
+        maxFiles: 12,
+        roleFormatter: idx => `Portfolio #${idx + 1}`
+    });
+
+    // Bind Service Primary Cover Banner Preview
+    const coverInput = document.getElementById('serviceCoverInput');
+    const coverBox = document.getElementById('coverPreviewBox');
+    const coverImg = document.getElementById('coverPreviewImg');
+    const coverName = document.getElementById('coverPreviewName');
+
+    if (coverInput && coverBox && coverImg) {
+        coverInput.addEventListener('change', function () {
+            const file = this.files && this.files[0];
+            if (!file) {
+                coverBox.classList.add('hidden-initial');
+                coverBox.style.display = 'none';
+                return;
+            }
+            if (coverName) coverName.textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                coverImg.src = e.target.result;
+                coverBox.classList.remove('hidden-initial');
+                coverBox.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // === 8. Provider Dashboard Workspace Tabs & Catalog Search ===
+    const tabButtons = document.querySelectorAll('#dashboardTabsBar .dash-tab-btn');
+    const tabSections = document.querySelectorAll('.dash-tab-section');
+
+    if (tabButtons.length > 0) {
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const target = this.dataset.tab;
+                tabButtons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                tabSections.forEach(sec => {
+                    if (target === 'all' || sec.dataset.section === target) {
+                        sec.style.display = 'block';
+                    } else {
+                        sec.style.display = 'none';
+                    }
+                });
+            });
+        });
+    }
+
+    const catalogSearch = document.getElementById('catalogSearchInput');
+    if (catalogSearch) {
+        catalogSearch.addEventListener('input', function () {
+            const query = this.value.trim().toLowerCase();
+            document.querySelectorAll('.catalog-product-row').forEach(row => {
+                const haystack = row.dataset.search || '';
+                row.style.display = haystack.includes(query) ? '' : 'none';
+            });
+        });
+    }
+
+    // === 9. Vendor Store Orders Filter & Search ===
+    const orderFilterBtns = document.querySelectorAll('#orderStatusFilters .dash-tab-btn');
+    const vendorOrderSearch = document.getElementById('vendorOrderSearch');
+    const vendorOrderRows = document.querySelectorAll('.vendor-order-row');
+
+    if (orderFilterBtns.length > 0 || vendorOrderSearch) {
+        let activeStatuses = 'ALL';
+
+        function applyVendorOrderFilters() {
+            const q = (vendorOrderSearch ? vendorOrderSearch.value : '').trim().toLowerCase();
+            vendorOrderRows.forEach(row => {
+                const rowStatus = row.dataset.status || '';
+                const rowSearch = row.dataset.search || '';
+                const statusMatch = activeStatuses === 'ALL' || activeStatuses.split(',').includes(rowStatus);
+                const searchMatch = !q || rowSearch.includes(q);
+                row.style.display = (statusMatch && searchMatch) ? '' : 'none';
+            });
+        }
+
+        orderFilterBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                orderFilterBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                activeStatuses = this.dataset.status;
+                applyVendorOrderFilters();
+            });
+        });
+
+        if (vendorOrderSearch) {
+            vendorOrderSearch.addEventListener('input', applyVendorOrderFilters);
+        }
+    }
 });
+
+// === 10. Max Withdrawal Amount Button ===
+    const maxWithdrawBtn = document.getElementById('maxWithdrawBtn');
+    const withdrawAmountInput = document.getElementById('withdrawAmountInput');
+
+    if (maxWithdrawBtn && withdrawAmountInput) {
+        maxWithdrawBtn.addEventListener('click', function () {
+            withdrawAmountInput.value = this.dataset.max || '';
+        });
+    }

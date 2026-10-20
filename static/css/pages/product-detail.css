@@ -428,3 +428,34 @@
     color: #1e40af;
     text-decoration: underline;
 }
+
+/* --- Logistics & Escrow Transparency Card --- */
+.logistics-preview-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 18px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.logistics-preview-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.4;
+}
+
+.logistics-preview-row i {
+    margin-top: 3px;
+    font-size: 14px;
+}
+
+.stock-status.low-stock {
+    color: #d97706;
+    font-weight: 600;
+}

@@ -746,3 +746,296 @@ select.form-control {
     flex-grow: 1;
     padding: 8px;
 }
+
+/* ==========================================================================
+   EXECUTIVE PROVIDER DASHBOARD ENHANCEMENTS (dashboard.css additions)
+   ========================================================================== */
+
+.provider-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.trust-score-pill {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.nav-count-pill {
+    display: inline-block;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    margin-left: 6px;
+}
+
+.pill-danger {
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.dashboard-alert-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: 10px;
+}
+
+.banner-danger {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.banner-warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+}
+
+.banner-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 13.5px;
+}
+
+.banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.dashboard-tabs-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 10px;
+}
+
+.dash-tab-btn {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dash-tab-btn:hover {
+    border-color: #93c5fd;
+    color: #1e293b;
+}
+
+.dash-tab-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+}
+
+.client-note-box {
+    background: #f8fafc;
+    border-left: 3px solid #3b82f6;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: #334155;
+}
+
+.quote-builder-box {
+    flex: 1;
+    min-width: 280px;
+}
+
+.catalog-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.catalog-Filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.catalog-search-box {
+    min-width: 240px;
+    padding: 8px 12px;
+    font-size: 13.5px;
+}
+
+.gap-12 {
+    gap: 12px;
+}
+
+.shipping-tier-pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+}
+
+.stock-pill {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+.stock-low {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.stock-out {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* ==========================================================================
+   PRODUCT PHOTO MANAGER & LIVE PREVIEW DROPZONE (dashboard.css additions)
+   ========================================================================== */
+
+.existing-photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+}
+
+.existing-photo-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.photo-thumb-wrapper {
+    position: relative;
+    width: 100%;
+    height: 140px;
+    background: #f8fafc;
+}
+
+.photo-thumb-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-role-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #ffffff;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+}
+
+.photo-meta-bar {
+    padding: 10px;
+    text-align: center;
+    border-top: 1px solid #f1f5f9;
+}
+
+.upload-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 36px 20px;
+    border: 2px dashed #93c5fd;
+    border-radius: 12px;
+    background: #f8fafc;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.upload-dropzone:hover {
+    background: #eff6ff;
+    border-color: #2563eb;
+}
+
+.dropzone-icon {
+    font-size: 32px;
+    color: #2563eb;
+}
+
+.dropzone-title {
+    font-size: 15px;
+    color: #0f172a;
+}
+
+/* ==========================================================================
+   LIVE SCOPE PILLS & COMPACT SERVICE MEDIA DROPZONES (dashboard.css)
+   ========================================================================== */
+
+.dropzone-compact {
+    padding: 24px 16px;
+    min-height: 135px;
+}
+
+.scope-preview-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.scope-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+}
+
+.scope-pill-inc {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.scope-pill-exc {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.payout-current-box {
+    padding: 16px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}

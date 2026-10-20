@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Order, OrderItem, Cart, CartItem, PaymentAttempt, ShippingAddress, ServiceOrder, ServiceDispute
+from django.urls import reverse
+from django.utils.html import format_html
+from .models import (
+    Order, OrderItem, Cart, CartItem, PaymentAttempt, 
+    ShippingAddress, ServiceOrder, ServiceDispute,
+    SupportTicket, TicketMessage
+)
 
 # --- INLINES ---
 class OrderItemInline(admin.TabularInline):
@@ -13,6 +19,11 @@ class PaymentAttemptInline(admin.TabularInline):
 class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 0
+
+class TicketMessageInline(admin.TabularInline):
+    model = TicketMessage
+    extra = 0
+    readonly_fields = ('sender', 'body', 'attachment', 'is_staff_reply', 'is_read', 'created_at')
 
 # --- ADMIN MODELS ---
 @admin.register(Order)
@@ -51,6 +62,47 @@ class ServiceDisputeAdmin(admin.ModelAdmin):
     list_filter = ('status', 'reason', 'created_at')
     search_fields = ('order__reference_code', 'description')
     readonly_fields = ('created_at', 'updated_at')
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = (
+        'ticket_reference', 'user', 'category', 'priority', 
+        'status', 'created_at', 'arbitration_console_link'
+    )
+    list_filter = ('status', 'priority', 'category', 'created_at')
+    search_fields = (
+        'ticket_reference', 'subject', 'description', 
+        'user__username', 'user__email', 
+        'order__reference', 'service_order__reference_code'
+    )
+    readonly_fields = ('ticket_reference', 'created_at', 'updated_at', 'resolved_at')
+    inlines = [TicketMessageInline]
+
+    fieldsets = (
+        ('Ticket Overview', {
+            'fields': ('ticket_reference', 'user', 'category', 'priority', 'status')
+        }),
+        ('Contextual Escrow & Order Links', {
+            'fields': ('order', 'order_item', 'service_order', 'payment_attempt')
+        }),
+        ('Issue & Resolution Details', {
+            'fields': ('subject', 'description', 'evidence', 'resolution_notes')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'resolved_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def arbitration_console_link(self, obj):
+        url = reverse('orders:ticket_detail', args=[obj.ticket_reference])
+        return format_html(
+            '<a href="{}" style="background: #2563eb; color: #fff; padding: 4px 10px; '
+            'border-radius: 6px; font-weight: 600; font-size: 12px; text-decoration: none;">'
+            'Arbitrate / Reply</a>',
+            url
+        )
+    arbitration_console_link.short_description = 'Live Console'
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):

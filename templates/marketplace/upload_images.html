@@ -1,25 +1,112 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block content %}
-<div class="feedback-wrapper mt-40 mb-40">
-    <div class="summary-card">
-        <h2 class="section-heading mt-0">Upload images for {{ product.name }}</h2>
-        <p class="section-subtitle">Select up to 8 images. Our system will automatically remove the background and standardize them for the marketplace.</p>
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.3">
+{% endblock %}
 
-        <!-- THE FIX: Added 'dashboard:' to the url namespace -->
-        <form method="POST" enctype="multipart/form-data" action="{% url 'dashboard:upload_product_images' product.id %}" class="mt-20">
+{% block content %}
+<div class="details-page-wrapper animate-fade-in">
+    <div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
+        <div>
+            <h2 class="section-heading checkout-page-title mb-5">Manage Product Photos</h2>
+            <p class="text-14-muted m-0">
+                Product: <strong>{{ product.name }}</strong> &bull;
+                <span class="text-12-muted">{{ product.images.count }} photo{{ product.images.count|pluralize }} uploaded</span>
+            </p>
+        </div>
+        <div class="flex-align-center gap-10">
+            <a href="{% url 'dashboard:edit_product' product.id %}" class="action-btn btn-outline action-sm">
+                <i class="fa-solid fa-pen"></i> Edit Details
+            </a>
+            <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
+                <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% if product.images.all %}
+    <div class="summary-card mb-30">
+        <div class="flex-between align-center mb-15 flex-wrap gap-10">
+            <h3 class="checkout-section-title m-0">
+                <i class="fa-solid fa-images icon-primary-spaced"></i> Current Gallery ({{ product.images.count }})
+            </h3>
+            <span class="text-12-muted">
+                <i class="fa-solid fa-wand-magic-sparkles text-primary"></i> Background removal &amp; optimization runs automatically in the background
+            </span>
+        </div>
+
+        <div class="existing-photo-grid">
+            {% for img in product.images.all %}
+                <div class="existing-photo-card">
+                    <div class="photo-thumb-wrapper">
+                        <img src="{% if img.processed_image %}{{ img.processed_image.url }}{% else %}{{ img.original_image.url }}{% endif %}"
+                             alt="{{ product.name }}">
+                        {% if img.image_type == 'MAIN' %}
+                            <span class="photo-role-badge">Main Cover</span>
+                        {% endif %}
+                    </div>
+                    <div class="photo-meta-bar">
+                        <span class="status-badge 
+                            {% if img.processing_status == 'APPROVED' %}badge-completed
+                            {% elif img.processing_status == 'REJECTED' %}badge-danger
+                            {% else %}badge-pending{% endif %} badge-sm">
+                            {% if img.processing_status == 'PROCESSING' or img.processing_status == 'UPLOADED' %}
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                            {% endif %}
+                            {{ img.get_processing_status_display }}
+                        </span>
+                        {% if img.rejection_reason %}
+                            <small class="text-danger block mt-5">{{ img.rejection_reason }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="summary-card">
+        <h3 class="checkout-section-title mt-0">
+            <i class="fa-solid fa-cloud-arrow-up icon-primary-spaced"></i> Upload Additional Photos
+        </h3>
+        <p class="text-14-muted mb-20">
+            Select up to <strong>8 high-resolution photos</strong> (JPEG, PNG, or WebP). Our AI pipeline will automatically standardize backgrounds and generate fast-loading thumbnails.
+        </p>
+
+        <form method="POST" enctype="multipart/form-data" action="{% url 'dashboard:upload_product_images' product.id %}" id="photoUploadForm">
             {% csrf_token %}
             
-            <div class="form-group">
-                <label class="form-label-dark">Select Product Photos</label>
-                <input type="file" name="images" class="form-control" accept="image/png, image/jpeg, image/webp" multiple required>
-            </div>
+            <label for="productImagesInput" class="upload-dropzone" id="uploadDropzone">
+                <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+                <strong class="dropzone-title">Click to select photos or drag &amp; drop here</strong>
+                <span class="text-12-muted">Supports JPG, PNG, WebP &bull; Maximum 8 photos per batch</span>
+                <input type="file"
+                       name="images"
+                       id="productImagesInput"
+                       class="hidden-initial"
+                       accept="image/png, image/jpeg, image/webp"
+                       multiple
+                       required>
+            </label>
+
+            <div id="uploadCountWarning" class="warning-text-block mt-15 hidden-initial"></div>
+
+            <div id="uploadPreviewGrid" class="existing-photo-grid mt-20 hidden-initial"></div>
             
-            <button type="submit" class="action-btn btn-primary w-100 mt-20 py-15 text-16">
-                <i class="fa-solid fa-cloud-arrow-up icon-spaced"></i> Upload and Optimize
-            </button>
+            <div class="flex-between align-center mt-25 gap-15 flex-wrap">
+                <a href="{% url 'marketplace:product_detail' product.slug %}" class="action-btn btn-outline" target="_blank">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Preview Product Page
+                </a>
+                <button type="submit" class="action-btn btn-primary py-15 text-16" id="uploadSubmitBtn">
+                    <i class="fa-solid fa-wand-magic-sparkles icon-spaced"></i> Upload &amp; Optimize Photos
+                </button>
+            </div>
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
 {% endblock %}

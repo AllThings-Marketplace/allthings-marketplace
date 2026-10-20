@@ -51,7 +51,7 @@
 
                         <!-- Full-Width Add to Cart Button -->
                         <!-- NATIVE HTML FALLBACK applied here if you want consistency -->
-                        <form action="{% url 'add_to_cart' item.product.id %}" method="POST" class="w-100-block mt-10">
+                        <form action="{% url 'orders:add_to_cart' item.product.id %}" method="POST" class="w-100-block mt-10">
                             {% csrf_token %}
                             <button type="submit" class="action-btn btn-add w-100 requires-auth">
                                 Add to Cart

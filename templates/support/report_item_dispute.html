@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+    <div class="dispute-card">
+        <span class="status-badge badge-danger dispute-badge">Escrow Protection</span>
+        <h2 class="dispute-heading">Report an Issue with Delivered Item</h2>
+        <p class="text-14-muted dispute-intro">
+            Submitting this dispute immediately freezes the 72-hour vendor payout timer for <strong>{{ item.product.name }}</strong> (Order <strong>{{ item.order.reference }}</strong>) until an administrator reviews your evidence.
+        </p>
+
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="support-form-group">
+                <label class="support-label">Issue Summary</label>
+                <input type="text" name="subject" class="support-control" value="Dispute: {{ item.product.name }} ({{ item.order.reference }})" required>
+            </div>
+
+            <div class="support-form-group">
+                <label class="support-label">What went wrong?</label>
+                <textarea name="description" rows="4" class="support-control" placeholder="Describe the defect, damage, or discrepancy in detail..." required></textarea>
+            </div>
+
+            <div class="support-form-group-lg">
+                <label class="support-label">Photo Proof (Recommended)</label>
+                <input type="file" name="evidence" class="support-control support-file-input" accept="image/*" required>
+            </div>
+
+            <div class="dispute-actions-row">
+                <button type="submit" class="action-btn btn-primary btn-freeze-submit">
+                    <i class="fa-solid fa-lock"></i> Freeze Escrow &amp; Submit Dispute
+                </button>
+                <a href="{% url 'orders:order_details' item.order.id %}" class="action-btn btn-outline btn-cancel-center">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

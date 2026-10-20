@@ -4,6 +4,6 @@
     </option>
     <!-- Calls itself, adding two more dashes to the prefix for indentation -->
     {% if node.subcategories.all %}
-        {% include 'category_option_node.html' with current_categories=node.subcategories.all prefix=prefix|add:"--" %}
+        {% include 'partials/category_option_node.html' with current_categories=node.subcategories.all prefix=prefix|add:"--" %}
     {% endif %}
 {% endfor %}

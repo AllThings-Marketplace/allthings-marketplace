@@ -1,4 +1,41 @@
 document.addEventListener("DOMContentLoaded", function() {
+    // === 1. Dynamic Time-of-Day Greeting ===
+    const greetingElements = document.querySelectorAll('.dynamic-greeting');
+    if (greetingElements.length > 0) {
+        const hour = new Date().getHours();
+        let greeting = 'Good evening'; // 6:00 PM - 4:59 AM
+        
+        if (hour >= 5 && hour < 12) {
+            greeting = 'Good morning'; // 5:00 AM - 11:59 AM
+        } else if (hour >= 12 && hour < 18) {
+            greeting = 'Good afternoon'; // 12:00 PM - 5:59 PM
+        }
+        
+        greetingElements.forEach(el => {
+            el.textContent = greeting;
+        });
+    }
+
+    // === 2. Mobile Filter Sidebar Toggle ===
+    const mobileFilterBtn = document.getElementById('mobileFilterToggleBtn');
+    const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+    const sidebar = document.getElementById('marketplaceSidebar');
+
+    if (mobileFilterBtn && sidebar) {
+        mobileFilterBtn.addEventListener('click', () => {
+            sidebar.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+    }
+
+    if (closeSidebarBtn && sidebar) {
+        closeSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+    }
+
+    // === 3. Promo Slider Logic ===
     const track = document.getElementById('sliderTrack');
     const slides = document.querySelectorAll('.slide');
     const prevBtn = document.getElementById('prevBtn');
@@ -6,15 +43,13 @@ document.addEventListener("DOMContentLoaded", function() {
     const dots = document.querySelectorAll('.dot');
     const sliderContainer = document.getElementById('homeSlider');
 
-    // Exit gracefully if there are no slides to animate
     if (!track || slides.length <= 1) return; 
 
     let currentIndex = 0;
     let autoSlideInterval;
-    const slideDelay = 4000; // Increased to 4 seconds for better readability
+    const slideDelay = 4000;
 
     function goToSlide(index) {
-        // Reset to beginning or end for infinite loop effect
         if (index < 0) index = slides.length - 1;
         if (index >= slides.length) index = 0;
         
@@ -36,7 +71,6 @@ document.addEventListener("DOMContentLoaded", function() {
         clearInterval(autoSlideInterval);
     }
 
-    // Bind physical button clicks
     if (nextBtn) nextBtn.addEventListener('click', nextSlide);
     if (prevBtn) prevBtn.addEventListener('click', prevSlide);
     
@@ -44,10 +78,8 @@ document.addEventListener("DOMContentLoaded", function() {
         dot.addEventListener('click', () => goToSlide(index));
     });
 
-    // The Pause-On-Hover Logic
     sliderContainer.addEventListener('mouseenter', stopAutoSlide);
     sliderContainer.addEventListener('mouseleave', startAutoSlide);
 
-    // Initialize the slider timer
     startAutoSlide();
 });

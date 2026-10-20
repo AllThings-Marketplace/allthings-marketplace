@@ -1,0 +1,392 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/profile.css' %}?v=2.2">
+{% endblock %}
+
+{% block content %}
+<div class="profile-container animate-fade-in">
+    
+    <!-- 1. Profile Header Card -->
+    <div class="summary-card profile-header">
+        <div class="profile-identity">
+            <div class="profile-avatar">
+                {{ request.user.username|make_list|first|upper }}
+            </div>
+            
+            <div>
+                <h2 class="profile-name">
+                    {% if request.user.first_name or request.user.last_name %}
+                        {{ request.user.first_name }} {{ request.user.last_name }}
+                    {% else %}
+                        {{ request.user.username }}
+                    {% endif %}
+                </h2>
+                <p class="profile-email">@{{ request.user.username }} &bull; {{ request.user.email }}</p>
+                
+                <div class="mt-10 flex-wrap gap-10"> 
+                    {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
+                        <span class="status-badge badge-accepted">
+                            <i class="fa-solid fa-store"></i> Verified {{ request.user.provider_profile.get_provider_type_display }}
+                        </span>
+                    {% elif request.user.provider_profile %}
+                        <span class="status-badge badge-pending">
+                            <i class="fa-solid fa-spinner fa-spin"></i> KYC Status: {{ request.user.provider_profile.get_verification_status_display }}
+                        </span>
+                    {% else %}
+                        <span class="status-badge badge-customer">
+                            <i class="fa-solid fa-user"></i> Customer Account
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="profile-header-actions">
+            <a href="{% url 'orders:order_history' %}" class="action-btn btn-secondary action-sm">
+                <i class="fa-solid fa-receipt icon-spaced"></i> My Orders
+            </a>
+            <a href="{% url 'orders:support_center' %}" class="action-btn btn-outline action-sm">
+                <i class="fa-solid fa-headset icon-spaced"></i> Help &amp; Support
+            </a>
+            
+            {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
+                <a href="{% url 'dashboard:provider_settings' %}" class="action-btn btn-outline action-sm">
+                    <i class="fa-solid fa-sliders icon-spaced"></i> Store &amp; Payout Settings
+                </a>
+                <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-dark action-sm">
+                    <i class="fa-solid fa-briefcase icon-white-spaced"></i> Provider Portal
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2. Provider Onboarding / KYC Progress Callout (For Customers or Pending Applicants) -->
+    {% if not request.user.provider_profile %}
+        <div class="summary-card provider-cta-banner mb-25">
+            <div class="flex-between align-center flex-wrap gap-15">
+                <div>
+                    <h3 class="m-0 font-600-dark">
+                        <i class="fa-solid fa-bolt text-warning mr-5"></i> Want to sell electrical products or offer certified services?
+                    </h3>
+                    <p class="text-14-muted mt-5 mb-0">
+                        Apply for a Verified Provider account to list products, receive service bookings, and get escrow-protected payouts.
+                    </p>
+                </div>
+                <a href="/accounts/apply-provider/" class="action-btn btn-primary action-sm">
+                    <i class="fa-solid fa-store icon-spaced"></i> Become a Provider
+                </a>
+            </div>
+        </div>
+    {% elif request.user.provider_profile.verification_status != 'ACTIVE' %}
+        <div class="summary-card provider-cta-banner mb-25">
+            <div class="flex-between align-center flex-wrap gap-15">
+                <div>
+                    <h3 class="m-0 font-600-dark">
+                        <i class="fa-solid fa-shield-halved text-primary mr-5"></i> Complete Your Provider Verification ({{ request.user.provider_profile.get_verification_status_display }})
+                    </h3>
+                    <p class="text-14-muted mt-5 mb-0">
+                        Your provider application for <strong>{{ request.user.provider_profile.business_name }}</strong> is currently in progress.
+                    </p>
+                </div>
+                <a href="/accounts/provider-status/" class="action-btn btn-primary action-sm">
+                    <i class="fa-solid fa-arrow-right icon-spaced"></i> Continue Verification
+                </a>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- 3. Two-Column Layout: Personal & Security (Left) + Address Book & Business Summary (Right) -->
+    <div class="profile-grid-2">
+        
+        <!-- LEFT STACK: Personal Info & Password Security -->
+        <div class="profile-side-stack">
+            
+            <!-- Personal Details Card -->
+            <div class="summary-card settings-card">
+                <div class="profile-settings-header">
+                    <h3 class="profile-settings-title">
+                        <i class="fa-regular fa-id-card text-primary icon-spaced"></i> Personal Details
+                    </h3>
+                    <p class="profile-settings-subtitle">Update your personal account credentials.</p>
+                </div>
+
+                {% if kyc_locked %}
+                    <div class="kyc-lock-banner mb-15">
+                        <i class="fa-solid fa-lock text-primary"></i>
+                        <span>Your legal first and last name are locked to match your KYC &amp; verified payout bank account.</span>
+                    </div>
+                {% endif %}
+
+                <form method="POST" action="{% url 'accounts:profile' %}" class="django-form profile-form-wrapper">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_profile">
+                    
+                    {{ form.as_p }}
+                    
+                    <button type="submit" class="action-btn btn-primary btn-block-lg mt-15">
+                        <i class="fa-solid fa-floppy-disk icon-white-spaced"></i> Save Personal Details
+                    </button>
+                </form>
+            </div>
+
+            <!-- Password & Account Security Card -->
+            <div class="summary-card settings-card">
+                <div class="profile-settings-header">
+                    <h3 class="profile-settings-title">
+                        <i class="fa-solid fa-key text-primary icon-spaced"></i> Password &amp; Security
+                    </h3>
+                    <p class="profile-settings-subtitle">Keep your account protected with a strong password.</p>
+                </div>
+
+                <form method="POST" action="{% url 'accounts:profile' %}" class="profile-form-wrapper">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="change_password">
+
+                    <div class="form-group">
+                        <label class="form-label-dark">Current Password *</label>
+                        <input type="password" name="old_password" class="form-control" autocomplete="current-password" required>
+                    </div>
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label-dark">New Password *</label>
+                            <input type="password" name="new_password1" class="form-control" autocomplete="new-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-dark">Confirm New Password *</label>
+                            <input type="password" name="new_password2" class="form-control" autocomplete="new-password" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="action-btn btn-outline w-100 mt-10">
+                        <i class="fa-solid fa-shield-halved icon-spaced"></i> Update Password
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+        <!-- RIGHT STACK: Interactive Delivery Address Book & Provider Quick Summary -->
+        <div class="profile-side-stack">
+            
+            <!-- Saved Delivery Address Book -->
+            <div class="summary-card">
+                <div class="profile-settings-header flex-between align-center flex-wrap gap-10">
+                    <div>
+                        <h3 class="profile-settings-title m-0">
+                            <i class="fa-solid fa-map-location-dot text-primary icon-spaced"></i> Delivery Address Book
+                        </h3>
+                        <p class="profile-settings-subtitle m-0">Manage your saved destinations for 1-click checkout.</p>
+                    </div>
+                    <button type="button" class="action-btn btn-outline action-sm" id="toggleNewAddressBtn">
+                        <i class="fa-solid fa-plus"></i> Add Address
+                    </button>
+                </div>
+
+                <!-- Collapsible Add Address Form -->
+                <form method="POST" action="{% url 'accounts:profile' %}" id="newAddressFormBox" class="new-address-panel hidden-initial mt-15">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add_address">
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label-dark">Label (Home, Office, Site) *</label>
+                            <input type="text" name="label" class="form-control" value="Home" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-dark">Recipient Phone *</label>
+                            <input type="text" name="phone" class="form-control" placeholder="080..." required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label-dark">Recipient First Name *</label>
+                            <input type="text" name="first_name" class="form-control" value="{{ request.user.first_name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-dark">Recipient Last Name *</label>
+                            <input type="text" name="last_name" class="form-control" value="{{ request.user.last_name }}" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label-dark">State / Region *</label>
+                            <select name="region" class="form-control" required>
+                                <option value="Rivers State" selected>Rivers State</option>
+                                <option value="Lagos State">Lagos State</option>
+                                <option value="Abuja (FCT)">Abuja (FCT)</option>
+                                <option value="Abia State">Abia State</option>
+                                <option value="Delta State">Delta State</option>
+                                <option value="Akwa Ibom">Akwa Ibom</option>
+                                <option value="Bayelsa State">Bayelsa State</option>
+                                <option value="Enugu State">Enugu State</option>
+                                <option value="Imo State">Imo State</option>
+                                <option value="Anambra State">Anambra State</option>
+                                <option value="Edo State">Edo State</option>
+                                <option value="Oyo State">Oyo State</option>
+                                <option value="Kano State">Kano State</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-dark">City / Town *</label>
+                            <input type="text" name="city" class="form-control" placeholder="E.g., Port Harcourt, Oyigbo" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label-dark">Street Address *</label>
+                        <input type="text" name="street_address" class="form-control" placeholder="House number and street name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label-dark">Closest Landmark (Optional)</label>
+                        <input type="text" name="landmark" class="form-control" placeholder="E.g., Opposite Total Filling Station">
+                    </div>
+
+                    <label class="filter-checkbox-item mb-15">
+                        <input type="checkbox" name="is_default" checked>
+                        <span>Set as my default delivery address</span>
+                    </label>
+
+                    <button type="submit" class="action-btn btn-primary w-100">
+                        <i class="fa-solid fa-check icon-spaced"></i> Save Delivery Address
+                    </button>
+                </form>
+
+                {% if saved_addresses %}
+                    <div class="saved-addresses-list mt-15">
+                        {% for addr in saved_addresses %}
+                            <div class="saved-address-item {% if addr.is_default %}default-addr{% endif %}">
+                                <div class="flex-between align-center mb-5">
+                                    <strong>
+                                        <i class="fa-solid fa-location-dot text-primary"></i>
+                                        {{ addr.label|default:"Home" }} — {{ addr.first_name }} {{ addr.last_name }}
+                                    </strong>
+                                    {% if addr.is_default %}
+                                        <span class="addr-default-badge">Default</span>
+                                    {% endif %}
+                                </div>
+                                <p class="text-13-muted m-0">{{ addr.street_address }}</p>
+                                <p class="text-12-muted m-0">
+                                    {% if addr.city %}{{ addr.city }}, {% endif %}{{ addr.region }}
+                                    {% if addr.landmark %} &bull; Near {{ addr.landmark }}{% endif %}
+                                </p>
+                                <div class="flex-between align-center mt-10 pt-8 addr-actions-bar">
+                                    <span class="text-12-muted"><i class="fa-solid fa-phone"></i> {{ addr.phone }}</span>
+                                    <div class="flex-align-center gap-10">
+                                        {% if not addr.is_default %}
+                                            <form method="POST" action="{% url 'accounts:profile' %}" class="m-0">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="set_default_address">
+                                                <input type="hidden" name="address_id" value="{{ addr.id }}">
+                                                <button type="submit" class="addr-action-link text-primary">Set Default</button>
+                                            </form>
+                                        {% endif %}
+                                        <form method="POST" action="{% url 'accounts:profile' %}" class="m-0">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_address">
+                                            <input type="hidden" name="address_id" value="{{ addr.id }}">
+                                            <button type="submit" class="addr-action-link text-danger">Delete</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-reviews-state mt-15">
+                        <i class="fa-solid fa-location-crosshairs text-muted mb-10 icon-24"></i>
+                        <p class="m-0">No saved delivery addresses yet. Click <strong>+ Add Address</strong> above to save your primary location.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if request.user.provider_profile %}
+            <!-- Provider Store & Payout Summary (Links to Dedicated Provider Settings) -->
+            <div class="summary-card">
+                <div class="profile-settings-header flex-between align-center flex-wrap gap-10">
+                    <div>
+                        <h3 class="profile-settings-title m-0">
+                            <i class="fa-solid fa-building-columns text-primary icon-spaced"></i> Business &amp; Payout Summary
+                        </h3>
+                        <p class="profile-settings-subtitle m-0">{{ request.user.provider_profile.business_name }}</p>
+                    </div>
+                    {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
+                        <a href="{% url 'dashboard:provider_settings' %}" class="action-btn btn-outline action-sm">
+                            <i class="fa-solid fa-gear"></i> Manage Store &amp; Bank
+                        </a>
+                    {% endif %}
+                </div>
+
+                <div class="provider-meta-list mt-15">
+                    <div class="provider-meta-row">
+                        <span>Store / Dispatch Hub</span>
+                        <strong>{{ request.user.provider_profile.region|default:"Not Set" }}</strong>
+                    </div>
+                    <div class="provider-meta-row">
+                        <span>Payout Bank</span>
+                        <strong>{{ request.user.provider_profile.bank_name|default:"Not Linked" }}</strong>
+                    </div>
+                    <div class="provider-meta-row">
+                        <span>Account Number</span>
+                        <strong>
+                            {% if request.user.provider_profile.account_number %}
+                                &bull;&bull;&bull;&bull;&bull;&bull;{{ request.user.provider_profile.account_number|slice:"-4:" }}
+                            {% else %}
+                                Not Linked
+                            {% endif %}
+                        </strong>
+                    </div>
+                    <div class="provider-meta-row">
+                        <span>Verified Account Name</span>
+                        <strong>{{ request.user.provider_profile.account_name|default:"-" }}</strong>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- 4. Provider Ratings & Reviews Section -->
+    {% if request.user.provider_profile %}
+    <div class="summary-card mt-25">
+        <div class="provider-rating text-center rating-container">
+            <h2 class="rating-score">{{ avg_rating }}</h2>
+            <div class="star-display-outer">
+                <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                <div class="star-display-inner" style="width: {{ star_percentage }};">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                </div>
+            </div>
+            <p class="rating-meta">Based on {{ review_count }} verified review{{ review_count|pluralize }}</p>
+        </div>
+
+        <h3 class="profile-settings-title feedback-section-title">Recent Client &amp; Buyer Feedback</h3>
+        <div class="transaction-list">
+            {% for review in recent_reviews %}
+                <div class="transaction-item review-item-stack">
+                    <div class="review-header-row">
+                        <strong class="review-author">{{ review.customer.first_name|default:review.customer.username }} {{ review.customer.last_name|slice:":1" }}</strong>
+                        <span class="review-date">{{ review.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <p class="review-body">{{ review.public_review }}</p>
+                </div>
+            {% empty %}
+                <div class="empty-reviews-state">
+                    <p>No public reviews yet.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/profile.js' %}"></script>
+{% endblock %}

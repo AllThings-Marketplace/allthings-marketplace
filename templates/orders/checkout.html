@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components/modal.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="checkout-header">
+    <h2 class="section-heading checkout-page-title">Secure Checkout</h2>
+    <p class="section-subtitle">Select your delivery destination and preferred logistics partner.</p>
+</div>
+
+<form method="POST" action="{% url 'orders:checkout' %}" id="checkoutForm" data-quotes-url="{% url 'orders:shipping_quotes_ajax' %}" data-subtotal="{{ checkout_subtotal }}">
+    {% csrf_token %}
+    
+    {% for product_id in selected_products %}
+        <input type="hidden" name="selected_products" value="{{ product_id }}" class="selected-product-input">
+    {% endfor %}
+
+    <input type="hidden" name="quote_token" id="quoteTokenInput" value="{% if quotes %}{{ quotes.0.quote_token }}{% endif %}">
+
+    <div class="checkout-container">
+        
+        <div class="checkout-main-col">
+            <!-- 1. DELIVERY ADDRESS SECTION -->
+            <div class="summary-card checkout-form-card">
+                <h3 class="checkout-section-title">
+                    <i class="fa-solid fa-location-dot icon-primary-spaced"></i> 1. Delivery Address
+                </h3>
+                
+                {% if saved_addresses %}
+                    <div class="address-options">
+                        {% for address in saved_addresses %}
+                            <label class="address-card {% if forloop.first %}selected{% endif %}">
+                                <input type="radio"
+                                       name="selected_address"
+                                       value="{{ address.id }}"
+                                       class="address-radio"
+                                       data-region="{{ address.region }}"
+                                       data-city="{{ address.city|default:'' }}"
+                                       {% if forloop.first %}checked{% endif %}>
+                                <div class="address-details">
+                                    <div class="address-card-header">
+                                        <strong>{{ address.first_name }} {{ address.last_name }}</strong>
+                                        <span class="address-label-pill">{{ address.label|default:"Home" }}</span>
+                                    </div>
+                                    <p>{{ address.street_address }}{% if address.landmark %} (Near {{ address.landmark }}){% endif %}</p>
+                                    <p>{% if address.city %}{{ address.city }}, {% endif %}{{ address.region }}</p>
+                                    <p>Phone: {{ address.phone }}</p>
+                                </div>
+                            </label>
+                        {% endfor %}
+                        
+                        <label class="address-card" id="new-address-trigger">
+                            <input type="radio" name="selected_address" value="new" class="address-radio">
+                            <div class="address-details">
+                                <strong><i class="fa-solid fa-plus"></i> Add a New Address</strong>
+                                <p>Deliver to a different home, office, or project site.</p>
+                            </div>
+                        </label>
+                    </div>
+                {% else %}
+                    <input type="hidden" name="selected_address" value="new" id="forcedNewAddressInput">
+                {% endif %}
+
+                <div id="new-address-form" class="{% if not saved_addresses %}force-show-form{% endif %}">
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label>Address Label</label>
+                            <select name="address_label" class="form-control">
+                                <option value="Home">Home</option>
+                                <option value="Office">Office / Shop</option>
+                                <option value="Project Site">Project Site</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>First Name *</label>
+                            <input type="text" name="first_name" class="form-control new-address-input" value="{{ request.user.first_name }}">
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name *</label>
+                            <input type="text" name="last_name" class="form-control new-address-input" value="{{ request.user.last_name }}">
+                        </div>
+                    </div>
+
+                    <div class="form-grid-3">
+                        <div class="form-group">
+                            <label>Phone Number *</label>
+                            <input type="tel" name="phone" class="form-control new-address-input" value="{{ request.user.phone_number|default:'' }}" placeholder="080...">
+                        </div>
+                        <div class="form-group">
+                            <label>Alt Phone</label>
+                            <input type="tel" name="alt_phone" class="form-control" placeholder="Optional">
+                        </div>
+                        <div class="form-group">
+                            <label>WhatsApp</label>
+                            <input type="tel" name="whatsapp" class="form-control" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>State *</label>
+                            <select name="region" id="newAddressState" class="form-control new-address-input">
+                                <option value="Rivers State" selected>Rivers State</option>
+                                <option value="Abia State">Abia State</option>
+                                <option value="Abuja FCT">Abuja (FCT)</option>
+                                <option value="Akwa Ibom State">Akwa Ibom State</option>
+                                <option value="Anambra State">Anambra State</option>
+                                <option value="Bayelsa State">Bayelsa State</option>
+                                <option value="Cross River State">Cross River State</option>
+                                <option value="Delta State">Delta State</option>
+                                <option value="Edo State">Edo State</option>
+                                <option value="Enugu State">Enugu State</option>
+                                <option value="Imo State">Imo State</option>
+                                <option value="Kano State">Kano State</option>
+                                <option value="Lagos State">Lagos State</option>
+                                <option value="Ogun State">Ogun State</option>
+                                <option value="Oyo State">Oyo State</option>
+                                <option value="Other State">Other Nigerian State</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>City / Town / LGA *</label>
+                            <input type="text" name="city" id="newAddressCity" class="form-control new-address-input" placeholder="E.g., Port Harcourt, Oyigbo, Obio/Akpor">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Street Address *</label>
+                        <textarea name="street_address" class="form-control new-address-input" rows="2" placeholder="House number, street name, and area..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nearby Landmark (Recommended for Riders)</label>
+                        <input type="text" name="landmark" class="form-control" placeholder="E.g., Opposite Market Junction, beside Total Filling Station">
+                    </div>
+
+                    <label class="save-address-checkbox">
+                        <input type="checkbox" name="save_address" checked>
+                        <span>Save this address to my address book for future orders</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 2. LOGISTICS / COURIER SELECTION SECTION -->
+            <div class="summary-card checkout-form-card mt-20">
+                <div class="courier-section-header">
+                    <h3 class="checkout-section-title m-0">
+                        <i class="fa-solid fa-truck-fast icon-primary-spaced"></i> 2. Choose Delivery Option
+                    </h3>
+                    <span id="quoteLoadingBadge" class="quote-loading-badge" style="display: none;">
+                        <i class="fa-solid fa-spinner fa-spin"></i> Updating rates...
+                    </span>
+                </div>
+
+                {% if vendor_count > 1 %}
+                <div class="multi-vendor-ship-note">
+                    <i class="fa-solid fa-boxes-packing"></i>
+                    <span>
+                        Your cart includes items from <strong>{{ vendor_count }} different vendors</strong>.
+                        Delivery fees below cover all {{ vendor_count }} vendor pickups combined.
+                    </span>
+                </div>
+                {% endif %}
+
+                <div id="courierOptionsContainer" class="courier-options-grid">
+                    {% for quote in quotes %}
+                    <label class="courier-card {% if forloop.first %}selected{% endif %}">
+                        <input type="radio"
+                               name="selected_courier"
+                               value="{{ quote.courier_code }}"
+                               class="courier-radio"
+                               data-amount="{{ quote.amount }}"
+                               data-token="{{ quote.quote_token }}"
+                               data-name="{{ quote.courier_name }}"
+                               {% if forloop.first %}checked{% endif %}>
+                        <div class="courier-card-body">
+                            <div class="courier-top-row">
+                                <span class="courier-title">
+                                    <i class="fa-solid {{ quote.icon }} text-primary"></i> {{ quote.courier_name }}
+                                </span>
+                                {% if quote.badge %}
+                                    <span class="courier-badge">{{ quote.badge }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="courier-desc">{{ quote.description }}</p>
+                            <div class="courier-bottom-row">
+                                <span class="courier-eta"><i class="fa-regular fa-clock"></i> Est: {{ quote.estimated_delivery }}</span>
+                                <strong class="courier-price">NGN {{ quote.amount|floatformat:0|intcomma }}</strong>
+                            </div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+
+                <div class="security-notice mt-15">
+                    <i class="fa-solid fa-shield-halved security-icon"></i>
+                    <p>Your payment is held safely in AllThings Escrow. You will receive a 6-digit Delivery PIN to give the rider only when your items arrive.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. ORDER SUMMARY & PAYSTACK CTA -->
+        <div class="summary-card checkout-summary-sticky">
+            <h3 class="checkout-summary-title">Order Summary</h3>
+            
+            <ul class="checkout-item-list">
+                {% for item in checkout_items %}
+                    <li class="checkout-item-row">
+                        <span class="checkout-item-name">
+                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }}
+                            {% if item.variant %}
+                                <small class="checkout-variant-text">({{ item.variant.attribute_name }}: {{ item.variant.attribute_value }})</small>
+                            {% endif %}
+                            <small class="checkout-vendor-tag">Seller: {{ item.product.provider.business_name|default:"AllThings" }}</small>
+                        </span>
+                        <span class="checkout-item-price">NGN {{ item.get_total|floatformat:0|intcomma }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <div class="checkout-cost-breakdown">
+                <div class="cost-row">
+                    <span>Items Subtotal</span>
+                    <span id="summarySubtotal">NGN {{ checkout_subtotal|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="cost-row">
+                    <span>Delivery Fee (<span id="summaryCourierName">{% if quotes %}{{ quotes.0.courier_name }}{% else %}Standard{% endif %}</span>)</span>
+                    <span id="summaryShipping">NGN {{ initial_shipping|floatformat:0|intcomma }}</span>
+                </div>
+            </div>
+
+            <div class="summary-total checkout-summary-total">
+                <span>Total to Pay</span>
+                <span class="checkout-total-price" id="summaryTotal">NGN {{ checkout_total|floatformat:0|intcomma }}</span>
+            </div>
+            
+            <button type="submit" class="action-btn btn-checkout" id="paystackSubmitBtn">
+                <i class="fa-solid fa-lock icon-white-spaced"></i> Pay with Paystack
+            </button>
+            
+            <div class="checkout-trust-badge">
+                <span class="checkout-trust-text"><i class="fa-solid fa-bolt"></i> SECURED BY PAYSTACK ESCROW</span>
+            </div>
+        </div>
+        
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/checkout.js' %}"></script>
+{% endblock %}

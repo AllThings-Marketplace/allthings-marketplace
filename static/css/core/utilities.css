@@ -279,3 +279,22 @@
     border-radius: 4px; 
     display: inline-block; 
 }
+
+/* Force the dropdown to show when JavaScript adds the active class */
+.nav-dropdown-menu.active {
+    display: block !important;
+}
+
+/* Make the bell feel interactive and physical when clicked */
+.bell-trigger {
+    cursor: pointer;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.bell-trigger:hover {
+    color: #2563eb;
+}
+
+.bell-trigger:active {
+    transform: scale(0.90);
+}

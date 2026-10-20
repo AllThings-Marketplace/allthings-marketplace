@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in ticket-wrapper">
+    <div class="ticket-back-nav">
+        <a href="{% url 'orders:support_center' %}" class="text-14-muted ticket-back-link">
+            <i class="fa-solid fa-arrow-left"></i> Back to Support Center
+        </a>
+    </div>
+
+    <!-- Ticket Header Card -->
+    <div class="ticket-card">
+        <div class="ticket-header-top">
+            <div class="ticket-header-title-box">
+                <span class="ticket-ref-tag">{{ ticket.ticket_reference }}</span>
+                <h2 class="ticket-subject-heading">{{ ticket.subject }}</h2>
+            </div>
+            <span class="status-badge {% if ticket.status == 'OPEN' %}badge-warning{% elif ticket.status == 'IN_PROGRESS' %}badge-accepted{% else %}badge-completed{% endif %}">
+                {{ ticket.get_status_display }}
+            </span>
+        </div>
+
+        <div class="ticket-meta-bar">
+            <span><strong>Category:</strong> {{ ticket.get_category_display }}</span>
+            <span><strong>Priority:</strong> {{ ticket.get_priority_display }}</span>
+            {% if ticket.order %}
+                <span><strong>Order:</strong> <a href="{% url 'orders:order_details' ticket.order.id %}">{{ ticket.order.reference }}</a></span>
+            {% endif %}
+            {% if ticket.order_item %}
+                <span><strong>Disputed Item:</strong> {{ ticket.order_item.product.name }} ({{ ticket.order_item.get_status_display }})</span>
+            {% endif %}
+            {% if ticket.service_order %}
+                <span><strong>Service Booking:</strong> {{ ticket.service_order.reference_code }}</span>
+            {% endif %}
+        </div>
+
+        {% if ticket.resolution_notes %}
+        <div class="resolution-note-box">
+            <strong>Official Resolution Note:</strong> {{ ticket.resolution_notes }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Conversation Thread -->
+    <div class="ticket-card">
+        <h3 class="support-section-heading">Conversation History</h3>
+        
+        <div class="ticket-thread-list">
+            {% for msg in ticket_messages %}
+            <div class="ticket-msg {% if msg.is_staff_reply %}ticket-msg-staff{% elif msg.sender == request.user %}ticket-msg-self{% else %}ticket-msg-other{% endif %}">
+                <div class="ticket-msg-header">
+                    <strong>
+                        {% if msg.is_staff_reply %}
+                            <i class="fa-solid fa-shield-halved staff-shield-icon"></i> AllThings Support Team
+                        {% else %}
+                            {{ msg.sender.get_full_name|default:msg.sender.username }}
+                        {% endif %}
+                    </strong>
+                    <span class="text-12-muted">{{ msg.created_at|date:"M d, Y g:i A" }}</span>
+                </div>
+                {% if msg.body %}
+                    <p class="ticket-msg-body">{{ msg.body }}</p>
+                {% endif %}
+                {% if msg.attachment %}
+                    <div class="ticket-msg-attachment">
+                        <a href="{{ msg.attachment.url }}" target="_blank" class="attachment-link">
+                            <i class="fa-solid fa-paperclip"></i> View Attached Proof
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Reply Box -->
+    {% if ticket.status not in 'RESOLVED_CUSTOMER,RESOLVED_PROVIDER,CLOSED' or is_staff %}
+    <div class="ticket-card">
+        <h4 class="support-subheading">Post a Reply</h4>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <textarea name="body" rows="3" class="support-control reply-textarea" placeholder="Write your message or provide additional details..." required></textarea>
+            <div class="reply-actions-row">
+                <input type="file" name="attachment" accept="image/*,.pdf" class="support-file-raw">
+                <button type="submit" class="action-btn btn-primary">
+                    <i class="fa-solid fa-reply"></i> Send Reply
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if is_staff and ticket.status not in 'RESOLVED_CUSTOMER,RESOLVED_PROVIDER,CLOSED' %}
+    <!-- ADMIN 1-CLICK ESCROW ARBITRATION PANEL -->
+    <div class="ticket-card arbitration-card">
+        <h4 class="arbitration-heading">
+            <i class="fa-solid fa-gavel"></i> Admin Escrow &amp; Ticket Arbitration
+        </h4>
+        <form method="POST" action="{% url 'orders:resolve_ticket' ticket.ticket_reference %}">
+            {% csrf_token %}
+            <textarea name="resolution_notes" rows="2" class="support-control reply-textarea" placeholder="Official resolution notes (visible to customer and provider)..." required></textarea>
+            <div class="arbitration-btn-group">
+                <button type="submit" name="decision" value="release_provider" class="action-btn btn-primary btn-release-escrow">
+                    <i class="fa-solid fa-unlock"></i> Release Escrow to Provider
+                </button>
+                <button type="submit" name="decision" value="refund_customer" class="action-btn btn-primary btn-refund-customer">
+                    <i class="fa-solid fa-rotate-left"></i> Rule for Customer (Approve Refund)
+                </button>
+                <button type="submit" name="decision" value="close" class="action-btn btn-outline">
+                    Close Ticket
+                </button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -118,9 +118,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dropdownTriggers.forEach(trigger => {
         trigger.addEventListener('click', (e) => {
+            e.preventDefault(); // Stop links/buttons from jumping the page
             e.stopPropagation(); // Prevent the document click listener from firing immediately
             
-            const menu = trigger.nextElementSibling;
+            // Find the specific menu belonging to this trigger's container
+            const container = trigger.closest('.nav-dropdown-container');
+            const menu = container.querySelector('.nav-dropdown-menu');
+            
             const isCurrentlyOpen = menu.classList.contains('active');
 
             // Close ALL open dropdowns first
@@ -133,10 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.nav-dropdown-menu').forEach(menu => {
-            menu.classList.remove('active');
-        });
+    // Close dropdowns when clicking anywhere outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.nav-dropdown-container')) {
+            document.querySelectorAll('.nav-dropdown-menu').forEach(menu => {
+                menu.classList.remove('active');
+            });
+        }
     });
 });

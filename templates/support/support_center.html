@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in support-wrapper">
+    <div class="support-header">
+        <div>
+            <h1 class="support-page-title">Help &amp; Resolution Center</h1>
+            <p class="text-14-muted m-0">Self-service payment verification, escrow protection, and direct support tickets.</p>
+        </div>
+        <a href="{% url 'orders:order_history' %}" class="action-btn btn-outline">
+            <i class="fa-solid fa-box-open"></i> My Orders
+        </a>
+    </div>
+
+    {% if unverified_attempts %}
+    <!-- LAYER 1: SMART SELF-SERVICE PAYSTACK TRIAGE -->
+    <div class="triage-banner">
+        <h3 class="triage-title">
+            <i class="fa-solid fa-bolt"></i> Instant Payment Recovery (Self-Service)
+        </h3>
+        <p class="triage-desc">
+            Were you debited for an order that still shows unpaid? Click <strong>Verify Now</strong> to query Paystack live and confirm your order immediately.
+        </p>
+        <div class="triage-list">
+            {% for attempt in unverified_attempts %}
+            <div class="triage-item">
+                <div class="triage-item-info">
+                    <strong>{{ attempt.order.reference }}</strong>
+                    <span class="text-12-muted block">Ref: {{ attempt.reference }} &bull; NGN {{ attempt.amount|floatformat:0|intcomma }}</span>
+                    <span class="text-12-muted block">Attempted {{ attempt.created_at|naturaltime }}</span>
+                </div>
+                <form method="POST" action="{% url 'orders:reverify_payment_attempt' attempt.id %}" class="triage-form">
+                    {% csrf_token %}
+                    <button type="submit" class="action-btn btn-primary btn-verify-sm">
+                        <i class="fa-solid fa-rotate"></i> Verify Now
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="support-grid">
+        
+        <!-- LEFT COLUMN: OPEN A NEW CONTEXTUAL TICKET -->
+        <div class="support-card">
+            <h3 class="support-card-title">Open a Support Ticket</h3>
+            
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="support-form-group">
+                    <label class="support-label">What do you need help with?</label>
+                    <select name="category" id="ticketCategorySelect" class="support-control" required>
+                        {% for code, label in categories %}
+                            <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if disputable_items %}
+                <div class="support-form-group">
+                    <label class="support-label">Related Product Item (Optional - Freezes Escrow on Dispute)</label>
+                    <select name="order_item_id" class="support-control">
+                        <option value="">-- None / Not Applicable --</option>
+                        {% for item in disputable_items %}
+                            <option value="{{ item.id }}">
+                                {{ item.order.reference }} &bull; {{ item.product.name|truncatechars:24 }} (NGN {{ item.price|floatformat:0|intcomma }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                {% if recent_services %}
+                <div class="support-form-group">
+                    <label class="support-label">Related Service Booking (Optional)</label>
+                    <select name="service_order_id" class="support-control">
+                        <option value="">-- None / Not Applicable --</option>
+                        {% for s_order in recent_services %}
+                            <option value="{{ s_order.id }}">
+                                {{ s_order.reference_code }} &bull; {{ s_order.service.name|truncatechars:24 }} ({{ s_order.get_status_display }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="support-form-group">
+                    <label class="support-label">Subject</label>
+                    <input type="text" name="subject" class="support-control" placeholder="Brief summary of the issue" required>
+                </div>
+
+                <div class="support-form-group">
+                    <label class="support-label">Detailed Description</label>
+                    <textarea name="description" rows="4" class="support-control" placeholder="Provide full details so our team can resolve this quickly..." required></textarea>
+                </div>
+
+                <div class="support-form-group-lg">
+                    <label class="support-label">Attach Proof / Receipt / Photo (Optional)</label>
+                    <input type="file" name="evidence" class="support-control support-file-input" accept="image/*,.pdf">
+                </div>
+
+                <button type="submit" class="action-btn btn-primary w-100">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Support Ticket
+                </button>
+            </form>
+        </div>
+
+        <!-- RIGHT COLUMN: YOUR TICKET HISTORY -->
+        <div class="support-card">
+            <h3 class="support-card-title">Your Support Tickets</h3>
+
+            {% if tickets %}
+                <div class="ticket-list">
+                    {% for t in tickets %}
+                    <a href="{% url 'orders:ticket_detail' t.ticket_reference %}" class="ticket-list-item">
+                        <div class="ticket-list-top">
+                            <span class="ticket-ref-tag">{{ t.ticket_reference }}</span>
+                            <span class="status-badge badge-xs {% if t.status == 'OPEN' %}badge-warning{% elif t.status == 'IN_PROGRESS' %}badge-accepted{% else %}badge-completed{% endif %}">
+                                {{ t.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="ticket-list-subject">{{ t.subject }}</div>
+                        <div class="text-12-muted">
+                            {{ t.get_category_display }} &bull; Updated {{ t.updated_at|naturaltime }}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state-wrapper support-empty-state">
+                    <i class="fa-solid fa-headset support-empty-icon"></i>
+                    <p class="text-14-muted m-0">You have no active or past support tickets.</p>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}?v=2.0">
 {% endblock %}
 
 {% block content %}
@@ -28,38 +29,45 @@
                     <i class="fa-solid fa-circle-check verified-badge" title="Identity Verified"></i>
                 </h1>
                 
-                <p class="provider-category">{{ provider.business_category|default:"Professional Services" }}</p>
+                <p class="provider-category">
+                    {{ provider.business_category|default:provider.get_provider_type_display }}
+                </p>
                 
                 <div class="provider-stats-row">
                     <div class="stat-box">
                         <span class="stat-value"><i class="fa-solid fa-star text-warning"></i> {{ rating }}</span>
-                        <span class="stat-label">{{ review_count }} Reviews</span>
+                        <span class="stat-label">{{ review_count }} Review{{ review_count|pluralize }}</span>
                     </div>
                     <div class="stat-box">
                         <span class="stat-value">{{ total_completed }}</span>
-                        <span class="stat-label">Jobs Done</span>
+                        <span class="stat-label">Completed</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value text-primary">{{ provider.trust_score }}%</span>
+                        <span class="stat-label">Trust Score</span>
                     </div>
                 </div>
 
                 <div class="trust-signals">
-                    <h4 class="sidebar-heading">Verifications</h4>
+                    <h4 class="sidebar-heading">Verified Credentials</h4>
                     <ul class="trust-list">
                         {% if provider.id_type %}
                             <li><i class="fa-solid fa-shield-halved text-success"></i> {{ provider.get_id_type_display }} Verified</li>
                         {% endif %}
                         {% if provider.cac_registration_number %}
-                            <li><i class="fa-solid fa-file-contract text-blue"></i> CAC Registered</li>
+                            <li><i class="fa-solid fa-file-contract text-blue"></i> CAC Registered Business</li>
                         {% endif %}
-                        {% if provider.store_address %}
-                            <li><i class="fa-solid fa-location-dot text-danger"></i> Location Verified</li>
+                        {% if provider.store_address or provider.region %}
+                            <li><i class="fa-solid fa-location-dot text-danger"></i> Physical Location Verified</li>
                         {% endif %}
+                        <li><i class="fa-solid fa-lock text-primary"></i> AllThings Escrow Protected</li>
                     </ul>
                 </div>
 
                 <div class="sidebar-actions">
                     <!-- Secure Internal Messaging Trigger -->
                     <button class="action-btn btn-primary w-100 mb-10 text-center requires-auth" onclick="openInquiryModal()">
-                        <i class="fa-regular fa-message icon-spaced"></i> Message Provider
+                        <i class="fa-regular fa-message icon-spaced"></i> Message {{ provider.business_name|truncatechars:18 }}
                     </button>
                     
                     <div class="flex-between gap-10">
@@ -68,28 +76,32 @@
                             {% if is_following %}
                                 <i class="fa-solid fa-user-check icon-spaced"></i> Following
                             {% else %}
-                                <i class="fa-solid fa-user-plus icon-spaced"></i> Follow
+                                <i class="fa-solid fa-user-plus icon-spaced"></i> Follow Store
                             {% endif %}
                         </button>
                         
-                        <!-- Share Icon (Secondary action) -->
-                        <button type="button" class="action-btn btn-outline" style="padding: 10px 15px;" onclick="copyProfileLink()" title="Share Profile">
+                        <!-- Share Icon -->
+                        <button type="button" class="action-btn btn-outline btn-share-profile" onclick="copyProfileLink()" title="Copy Store Link">
                             <i class="fa-solid fa-share-nodes"></i>
                         </button>
                     </div>
                     
                     <!-- Trust Micro-Signal -->
                     <div class="text-center mt-15 text-12-muted">
-                        <i class="fa-solid fa-bolt text-warning mr-5"></i> Usually responds in 1 hour
+                        <i class="fa-solid fa-bolt text-warning mr-5"></i> Usually responds within 1 hour
                     </div>
                 </div>
             </div>
             
-            {% if provider.store_address %}
+            {% if provider.store_address or provider.region %}
             <div class="provider-info-card mt-20">
-                <h4 class="sidebar-heading">Location</h4>
-                <p class="text-14-muted m-0">{{ provider.store_address }}</p>
-                {% if provider.region %}<p class="text-14-muted mt-5"><strong>Region:</strong> {{ provider.region }}</p>{% endif %}
+                <h4 class="sidebar-heading"><i class="fa-solid fa-map-location-dot text-primary mr-5"></i> Store &amp; Dispatch Base</h4>
+                {% if provider.store_address %}
+                    <p class="text-14-muted m-0">{{ provider.store_address }}</p>
+                {% endif %}
+                {% if provider.region %}
+                    <p class="text-12-muted mt-5 mb-0"><strong>State / Region:</strong> {{ provider.region }}</p>
+                {% endif %}
             </div>
             {% endif %}
         </aside>
@@ -100,21 +112,27 @@
             {% if provider.business_description %}
                 <section class="content-section mb-30">
                     <h2 class="section-title">About {{ provider.business_name }}</h2>
-                    <p class="provider-bio">{{ provider.business_description }}</p>
+                    <p class="provider-bio">{{ provider.business_description|linebreaksbr }}</p>
                 </section>
             {% endif %}
 
             <!-- Custom Tab Navigation -->
             <div class="premium-tabs mb-20">
                 {% if provider.provider_type in 'SERVICE, BOTH' %}
-                    <button class="tab-btn active" data-tab="services">Services Offered</button>
+                    <button class="tab-btn active" data-tab="services">
+                        <i class="fa-solid fa-screwdriver-wrench mr-5"></i> Services Offered ({{ services|length }})
+                    </button>
                 {% endif %}
                 
                 {% if provider.provider_type in 'VENDOR, BOTH' %}
-                    <button class="tab-btn {% if provider.provider_type == 'VENDOR' %}active{% endif %}" data-tab="products">Store Products</button>
+                    <button class="tab-btn {% if provider.provider_type == 'VENDOR' %}active{% endif %}" data-tab="products">
+                        <i class="fa-solid fa-box-open mr-5"></i> Store Products ({{ products|length }})
+                    </button>
                 {% endif %}
                 
-                <button class="tab-btn" data-tab="reviews">Reviews</button>
+                <button class="tab-btn" data-tab="reviews">
+                    <i class="fa-regular fa-star mr-5"></i> Client Reviews ({{ review_count }})
+                </button>
             </div>
 
             <!-- TAB CONTENT: Services -->
@@ -129,66 +147,97 @@
                                 {% endif %}>
                             </div>
                             <div class="premium-card-body">
+                                <span class="text-12-muted block mb-5">{{ service.category.name }}</span>
                                 <h3 class="service-title">{{ service.name }}</h3>
                                 <p class="price-value mt-10">
-                                    {% if service.pricing_type == 'FIXED' %}
-                                        NGN {{ service.base_price }}
-                                    {% elif service.pricing_type == 'STARTING' %}
-                                        From NGN {{ service.base_price }}
+                                    {% if service.pricing_type == 'FIXED' and service.base_price %}
+                                        NGN {{ service.base_price|floatformat:0|intcomma }}
+                                    {% elif service.pricing_type == 'STARTING' and service.base_price %}
+                                        From NGN {{ service.base_price|floatformat:0|intcomma }}
+                                    {% elif service.pricing_type == 'HOURLY' and service.base_price %}
+                                        NGN {{ service.base_price|floatformat:0|intcomma }}/hr
+                                    {% elif service.pricing_type == 'PACKAGES' %}
+                                        Tiered Packages
                                     {% else %}
                                         Custom Quote
                                     {% endif %}
                                 </p>
-                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">View Details</a>
+                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">
+                                    View &amp; Book
+                                </a>
                             </div>
                         </div>
                     {% empty %}
-                        <p class="text-muted">This provider has not listed any services yet.</p>
+                        <div class="premium-empty-state">
+                            <div class="empty-icon"><i class="fa-solid fa-toolbox"></i></div>
+                            <h3>No services listed yet</h3>
+                            <p>This provider has not published any active service packages yet.</p>
+                        </div>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
 
-            <!-- TAB CONTENT: Products -->
+            <!-- TAB CONTENT: Products (Crash-Proof Image Fallback) -->
             {% if provider.provider_type in 'VENDOR, BOTH' %}
             <div id="products-tab" class="tab-content {% if provider.provider_type == 'VENDOR' %}active{% endif %}">
                 <div class="service-grid">
                     {% for product in products %}
                         <div class="premium-card">
-                            <div class="card-image" 
-                                {% if product.images.first %}
-                                    style="background-image: url('{{ product.images.first.processed_image.url }}');"
-                                {% endif %}>
-                            </div>
+                            {% with first_img=product.images.first %}
+                                <div class="card-image" 
+                                    {% if first_img and first_img.processed_image %}
+                                        style="background-image: url('{{ first_img.processed_image.url }}');"
+                                    {% elif first_img and first_img.original_image %}
+                                        style="background-image: url('{{ first_img.original_image.url }}');"
+                                    {% elif product.image %}
+                                        style="background-image: url('{{ product.image.url }}');"
+                                    {% endif %}>
+                                </div>
+                            {% endwith %}
                             <div class="premium-card-body">
+                                <span class="text-12-muted block mb-5">{{ product.category.name }}</span>
                                 <h3 class="service-title text-14">{{ product.name }}</h3>
-                                <p class="price-value text-16 mt-5">NGN {{ product.price }}</p>
-                                <a href="{% url 'marketplace:product_detail' product.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">View Product</a>
+                                <p class="price-value text-16 mt-5">NGN {{ product.price|floatformat:0|intcomma }}</p>
+                                <a href="{% url 'marketplace:product_detail' product.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">
+                                    View Product
+                                </a>
                             </div>
                         </div>
                     {% empty %}
-                        <p class="text-muted">This store currently has no products.</p>
+                        <div class="premium-empty-state">
+                            <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
+                            <h3>No store products yet</h3>
+                            <p>This vendor has not published any products in their catalog yet.</p>
+                        </div>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
 
-            <!-- TAB CONTENT: Reviews -->
+            <!-- TAB CONTENT: Reviews (Fixed public_review display) -->
             <div id="reviews-tab" class="tab-content">
                 {% if reviews %}
                     <div class="reviews-list mt-20">
                         {% for review in reviews %}
-                            <div class="review-card p-20 mb-15 border-radius-8" style="border: 1px solid #e5e7eb; background: #fff;">
+                            <div class="provider-review-card">
                                 <div class="flex-between mb-10">
-                                    <strong class="text-15">{{ review.customer.get_full_name|default:review.customer.username }}</strong>
+                                    <div>
+                                        <strong class="text-15">{{ review.customer.get_full_name|default:review.customer.username }}</strong>
+                                        {% if review.is_verified %}
+                                            <span class="status-badge badge-completed badge-sm ml-5">
+                                                <i class="fa-solid fa-check-circle"></i> Verified Client
+                                            </span>
+                                        {% endif %}
+                                    </div>
                                     <span class="text-12-muted">{{ review.created_at|date:"M d, Y" }}</span>
                                 </div>
                                 <div class="rating-stars mb-10 text-warning text-14">
                                     <i class="fa-solid fa-star"></i>
-                                    <span class="text-dark font-600 ml-5">{{ review.overall_rating }}/5</span>
+                                    <span class="text-dark font-600 ml-5">{{ review.overall_rating }}.0 / 5.0</span>
                                 </div>
-                                {% if review.comment %}
-                                    <p class="text-14 text-muted m-0" style="line-height: 1.6;">"{{ review.comment }}"</p>
+                                {% if review.public_review or review.comment %}
+                                    <p class="provider-review-body">"{{ review.public_review|default:review.comment }}"</p>
                                 {% endif %}
                             </div>
                         {% endfor %}
@@ -197,7 +246,7 @@
                     <div class="premium-empty-state">
                         <div class="empty-icon"><i class="fa-regular fa-star"></i></div>
                         <h3>No reviews yet</h3>
-                        <p>Be the first to leave a review after completing an order.</p>
+                        <p>Be the first to leave a verified review after completing an order with {{ provider.business_name }}.</p>
                     </div>
                 {% endif %}
             </div>
@@ -205,7 +254,7 @@
         </main>
     </div>
 
-    <!-- Pre-Booking Inquiry Modal (Hidden by Default) -->
+    <!-- Pre-Booking Inquiry Modal -->
     <div id="inquiryModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header flex-between mb-15">
@@ -216,9 +265,9 @@
                 <p class="text-14-muted mb-15">Ask about availability, custom quotes, or specific product details before you book.</p>
                 <form id="inquiryForm" data-provider-id="{{ provider.id }}" onsubmit="submitInquiry(event)">
                     {% csrf_token %}
-                    <textarea id="inquiryMessage" class="form-control mb-15" rows="4" placeholder="Hi, do you offer..." required></textarea>
+                    <textarea id="inquiryMessage" class="form-control mb-15" rows="4" placeholder="Hi {{ provider.business_name }}, I would like to inquire about..." required></textarea>
                     <button type="submit" class="action-btn btn-primary w-100" id="sendInquiryBtn">
-                        Send Message
+                        <i class="fa-solid fa-paper-plane icon-spaced"></i> Send Inquiry
                     </button>
                 </form>
             </div>

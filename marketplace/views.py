@@ -1,9 +1,12 @@
 import json
+from decimal import Decimal, InvalidOperation
 from django.shortcuts import redirect, render, get_object_or_404
-from django.db.models import Avg, Count, Prefetch
+from django.db.models import Avg, Count, Prefetch, Q, F
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from .smart_search import parse_search_intent
 
+from .recommender import log_event, get_smart_feed
 from .models import (
     Product, Service, Category, SavedItem, ProductImage, 
     PromoBanner, ProviderInquiry
@@ -14,31 +17,43 @@ from feedback.models import Feedback
 
 
 def home(request):
-    query = request.GET.get('q', '')
+    query = request.GET.get('q', '').strip()
     category_id = request.GET.get('category')
+    
+    # Raw Faceted Filter Parameters from Sidebar
+    req_min_price = request.GET.get('min_price', '').strip()
+    req_max_price = request.GET.get('max_price', '').strip()
+    min_rating = request.GET.get('min_rating', '').strip()
+    item_type = request.GET.get('item_type', 'all').strip() # 'all', 'products', 'services'
+    in_stock = request.GET.get('in_stock') == '1'
+    sort_by = request.GET.get('sort', '').strip() # 'newest', 'price_asc', 'price_desc', 'rating'
 
-    # 1. Create a prefetch rule to ONLY grab images that Celery has successfully processed
+    # 1. Prefetch only approved images processed by Celery
     approved_images_prefetch = Prefetch(
         'images', 
         queryset=ProductImage.objects.filter(processing_status='APPROVED')
     )
 
-    # 2. Attach the prefetch to your main product query
+    # 2. Base QuerySets with Rating Annotations
     products = Product.objects.filter(is_active=True).annotate(
         avg_rating=Avg('reviews__overall_rating'),
         review_count=Count('reviews')
     ).prefetch_related(approved_images_prefetch)
     
-    services = Service.objects.filter(is_active=True)
+    services = Service.objects.filter(is_active=True).annotate(
+        avg_rating=Avg('reviews__overall_rating'),
+        review_count=Count('reviews')
+    )
+    
     categories = Category.objects.filter(is_active=True)
     banners = PromoBanner.objects.filter(is_active=True)
     
-    # 3. Attach the prefetch to your recommended products query as well
     recommended = Product.objects.filter(is_active=True).annotate(
         avg_rating=Avg('reviews__overall_rating'),
         review_count=Count('reviews')
     ).prefetch_related(approved_images_prefetch).order_by('?')[:4]
 
+    # 3. Category Filtering
     if category_id:
         try:
             category_id = int(category_id)
@@ -47,15 +62,109 @@ def home(request):
         except ValueError:
             category_id = None
 
+    # Track effective filters (combines NLP extraction + manual sidebar inputs)
+    active_min_price = None
+    active_max_price = None
+    active_location = None
+
+    # 4. Smart NLP Search Engine
     if query:
-        products = products.filter(name__icontains=query)
-        services = services.filter(name__icontains=query)
+        intent = parse_search_intent(query)
+        clean_query = intent['clean_query']
         
-    # Fetch Saved Product IDs for the current user's wishlist toggle
+        if clean_query:
+            products = products.filter(
+                Q(name__icontains=clean_query) | 
+                Q(category__name__icontains=clean_query)
+            )
+            services = services.filter(
+                Q(name__icontains=clean_query) | 
+                Q(category__name__icontains=clean_query)
+            )
+            
+        # Use NLP price bounds unless the user manually typed a different price in the sidebar
+        if intent['min_price'] and not req_min_price:
+            active_min_price = intent['min_price']
+        if intent['max_price'] and not req_max_price:
+            active_max_price = intent['max_price']
+            
+        if intent['location']:
+            active_location = intent['location']
+            products = products.filter(provider__store_address__icontains=active_location)
+            services = services.filter(provider__store_address__icontains=active_location)
+            
+        if intent['is_service_request'] and item_type == 'all':
+            item_type = 'services'
+
+    # 5. Manual Sidebar Price Overrides
+    if req_min_price:
+        try:
+            active_min_price = Decimal(req_min_price)
+        except InvalidOperation:
+            pass
+
+    if req_max_price:
+        try:
+            active_max_price = Decimal(req_max_price)
+        except InvalidOperation:
+            pass
+
+    # Apply Unified Price Bounds
+    if active_min_price is not None:
+        products = products.filter(price__gte=active_min_price)
+        services = services.filter(base_price__gte=active_min_price)
+
+    if active_max_price is not None:
+        products = products.filter(price__lte=active_max_price)
+        services = services.filter(base_price__lte=active_max_price)
+
+    # 6. Minimum Rating Filter
+    if min_rating:
+        try:
+            rating_val = float(min_rating)
+            products = products.filter(avg_rating__gte=rating_val)
+            services = services.filter(avg_rating__gte=rating_val)
+        except ValueError:
+            min_rating = ''
+
+    # 7. In-Stock Filter (Products)
+    if in_stock:
+        products = products.filter(stock_count__gt=0)
+
+    # 8. Item Type Toggle (All vs Products Only vs Services Only)
+    if item_type == 'products':
+        services = services.none()
+    elif item_type == 'services':
+        products = products.none()
+
+    # 9. Sorting Engine
+    if sort_by == 'price_asc':
+        products = products.order_by('price')
+        services = services.order_by('base_price')
+    elif sort_by == 'price_desc':
+        products = products.order_by('-price')
+        services = services.order_by('-base_price')
+    elif sort_by == 'rating':
+        products = products.order_by(F('avg_rating').desc(nulls_last=True), '-review_count')
+        services = services.order_by(F('avg_rating').desc(nulls_last=True), '-review_count')
+    elif sort_by == 'newest':
+        products = products.order_by('-id')
+        services = services.order_by('-id')
+
+    # Determine if we should show the Filtered Catalog view or the Default Smart Feed
+    has_active_filters = any([
+        query, category_id, active_min_price is not None, 
+        active_max_price is not None, min_rating, 
+        item_type != 'all', in_stock, sort_by
+    ])
+
+    # Fetch Saved Product IDs for wishlist hearts
     saved_product_ids = []
     if request.user.is_authenticated:
         saved_product_ids = SavedItem.objects.filter(user=request.user).values_list('product_id', flat=True)
-        
+
+    smart_feed = get_smart_feed(request)
+
     context = {
         'products': products,
         'services': services,
@@ -64,13 +173,25 @@ def home(request):
         'query': query,
         'recommended': recommended,
         'banners': banners, 
-        'saved_product_ids': saved_product_ids, 
+        'saved_product_ids': saved_product_ids,
+        'smart_feed': smart_feed,
+        # Filter state for UI persistence
+        'has_active_filters': has_active_filters,
+        'active_min_price': int(active_min_price) if active_min_price is not None else '',
+        'active_max_price': int(active_max_price) if active_max_price is not None else '',
+        'active_location': active_location,
+        'min_rating': min_rating,
+        'item_type': item_type,
+        'in_stock': in_stock,
+        'sort_by': sort_by,
     }
-    return render(request, 'home.html', context)
+    return render(request, 'marketplace/home.html', context)
 
 
 def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug)
+
+    log_event(request, product, 'VIEW')
     
     gallery_images = ProductImage.objects.filter(product=product, processing_status='APPROVED')
     variants = product.variants.all()
@@ -103,11 +224,14 @@ def product_detail(request, slug):
         'related_products': related_products,
         'saved_product_ids': saved_product_ids,
     }
-    return render(request, 'product_detail.html', context)
+    return render(request, 'marketplace/product_detail.html', context)
 
 
 def service_detail(request, slug):
     service = get_object_or_404(Service.objects.select_related('provider', 'category'), slug=slug)
+
+    log_event(request, service, 'VIEW')
+
     packages = service.packages.all()
     portfolio = service.portfolio_images.all()
     
@@ -127,7 +251,7 @@ def service_detail(request, slug):
         'review_count': review_count,
         'recent_reviews': recent_reviews,
     }
-    return render(request, 'service_detail.html', context)
+    return render(request, 'marketplace/service_detail.html', context)
 
 
 def get_category_attributes(request, category_id):
@@ -161,7 +285,7 @@ def toggle_saved_item(request, product_id):
 @login_required
 def saved_items_list(request):
     saved_items = SavedItem.objects.filter(user=request.user).select_related('product')
-    return render(request, 'saved_items.html', {'saved_items': saved_items})
+    return render(request, 'marketplace/saved_items.html', {'saved_items': saved_items})
 
 
 def public_provider_profile(request, provider_id):
@@ -212,7 +336,7 @@ def public_provider_profile(request, provider_id):
         'total_completed': total_completed,
         'is_following': is_following,
     }
-    return render(request, 'provider_profile.html', context)
+    return render(request, 'dashboard/provider_profile.html', context)
 
 
 @login_required
@@ -272,7 +396,7 @@ def universal_inbox(request):
     user = request.user
     
     # --- PROVIDER ROUTE ---
-    if hasattr(user, 'providerprofile'):
+    if hasattr(user, 'provider_profile'):
         provider = user.providerprofile
         inquiries = ProviderInquiry.objects.filter(provider=provider).select_related('sender').order_by('-created_at')
         active_orders = ServiceOrder.objects.filter(provider=provider).exclude(

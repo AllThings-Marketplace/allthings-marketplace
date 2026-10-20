@@ -740,3 +740,80 @@ body {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+/* --- Social Authentication UI --- */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 25px 0 20px 0;
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+.auth-divider::before, .auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.auth-divider span {
+    padding: 0 10px;
+}
+
+.social-auth-grid {
+    display: flex;
+    flex-direction: column; /* Stacks nicely since it is only one button now */
+    gap: 15px;
+}
+
+.btn-social {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    color: #374151;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s;
+    font-size: 15px;
+    width: 100%;
+}
+
+.btn-social:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.btn-google i {
+    color: #ea4335;
+    font-size: 18px;
+}
+
+/* Missing Layout Utilities */
+.w-100 { width: 100%; }
+.text-center { text-align: center; }
+.mt-15 { margin-top: 15px; }
+.mt-20 { margin-top: 20px; }
+
+/* Inline Cart Counter Pill inside Mobile Navigation Drawer */
+.mobile-menu-list li a .drawer-cart-badge {
+    position: static;
+    margin-left: auto;
+    background-color: #dc2626;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}

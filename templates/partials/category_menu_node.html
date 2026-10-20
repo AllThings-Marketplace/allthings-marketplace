@@ -5,7 +5,7 @@
                 - {{ node.name }}
             </a>
             {% if node.subcategories.all %}
-                {% include 'category_menu_node.html' with current_categories=node.subcategories.all %}
+                {% include 'partials/category_menu_node.html' with current_categories=node.subcategories.all %}
             {% endif %}
         </li>
     {% endfor %}

@@ -1,0 +1,61 @@
+{% load humanize %}
+<li class="product-card-wrapper">
+    <a href="{% url 'marketplace:product_detail' product.slug %}" class="block-link">
+        {% with first_img=product.images.first %}
+            {% if first_img and first_img.processed_image %}
+                <img src="{{ first_img.processed_image.url }}" alt="{{ product.name }}" class="card-img">
+            {% elif first_img and first_img.original_image %}
+                <img src="{{ first_img.original_image.url }}" alt="{{ product.name }}" class="card-img">
+            {% elif product.image %}
+                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="card-img">
+            {% else %}
+                <div class="card-img flex-center-muted"><i class="fa-solid fa-box icon-32"></i></div>
+            {% endif %}
+        {% endwith %}
+    </a>
+    
+    <!-- Information Layout -->
+    <div class="card-info-layout">
+        <div class="card-text-col">
+            <a href="{% url 'marketplace:product_detail' product.slug %}" class="item-info block-link">
+                <strong>{{ product.name }}</strong>
+            </a>
+            <!-- Formatted Price -->
+            <strong class="block-mt-10 card-price">NGN {{ product.price|floatformat:0|intcomma }}</strong>
+        </div>
+        
+        <!-- The Heart Button (Wishlist) -->
+        <div class="card-action-col">
+            <form action="/api/toggle-save/{{ product.id }}/" method="POST" class="save-item-form">
+                {% csrf_token %}
+                <button type="submit" class="btn-save-naked toggle-save-btn requires-auth" data-product-id="{{ product.id }}" aria-label="Save Item">
+                    {% if product.id in saved_product_ids %}
+                        <i class="fa-solid fa-heart text-danger"></i>
+                    {% else %}
+                        <i class="fa-regular fa-heart text-muted"></i>
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dynamic Star Ratings Row -->
+    <div class="card-rating-row mt-5">
+        <div class="rating-stars text-yellow flex-align-center" style="gap: 5px;">
+            <i class="fa-solid fa-star"></i>
+            <span class="font-600-dark">
+                {{ product.avg_rating|default_if_none:"0.0"|floatformat:1 }}
+            </span>
+        </div>
+        
+        <span class="text-12-muted">
+            {% if product.review_count > 0 %}
+                ({{ product.review_count }} review{{ product.review_count|pluralize }})
+            {% else %}
+                (No reviews)
+            {% endif %}
+        </span>
+    </div>
+
+    <a href="{% url 'orders:add_to_cart' product.id %}" class="action-btn btn-add ajax-cart-btn mt-1 requires-auth">Add to Cart</a>
+</li>
