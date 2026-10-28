@@ -3,21 +3,22 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}?v=2.0">
+    <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}?v=2.5">
 {% endblock %}
 
 {% block content %}
-    <!-- Hero Banner -->
-    <div class="provider-hero" 
-         {% if provider.exterior_image %}
-         style="background-image: url('{{ provider.exterior_image.url }}');"
-         {% endif %}>
+<div class="animate-fade-in">
+    <!-- Cinematic Storefront Hero Banner -->
+    <div class="provider-hero">
+        {% if provider.exterior_image %}
+            <img src="{{ provider.exterior_image.url }}" alt="{{ provider.business_name }} Cover" class="provider-hero-img">
+        {% endif %}
         <div class="hero-overlay"></div>
     </div>
 
     <div class="provider-layout-grid">
         
-        <!-- LEFT: Sticky Trust Card -->
+        <!-- LEFT: Sticky Executive Trust Card -->
         <aside class="provider-sidebar">
             <div class="provider-trust-card">
                 <div class="provider-avatar">
@@ -25,22 +26,26 @@
                 </div>
                 
                 <h1 class="provider-name">
-                    {{ provider.business_name }}
-                    <i class="fa-solid fa-circle-check verified-badge" title="Identity Verified"></i>
+                    <span>{{ provider.business_name }}</span>
+                    <i class="fa-solid fa-circle-check verified-badge" title="KYC Identity Verified"></i>
                 </h1>
                 
-                <p class="provider-category">
-                    {{ provider.business_category|default:provider.get_provider_type_display }}
-                </p>
+                <div class="provider-category-pill-wrap">
+                    <span class="provider-category-pill">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        {{ provider.business_category|default:provider.get_provider_type_display }}
+                    </span>
+                </div>
                 
+                <!-- 3-Column Metrics Bar -->
                 <div class="provider-stats-row">
                     <div class="stat-box">
-                        <span class="stat-value"><i class="fa-solid fa-star text-warning"></i> {{ rating }}</span>
+                        <span class="stat-value"><i class="fa-solid fa-star text-yellow"></i> {{ rating }}</span>
                         <span class="stat-label">{{ review_count }} Review{{ review_count|pluralize }}</span>
                     </div>
                     <div class="stat-box">
                         <span class="stat-value">{{ total_completed }}</span>
-                        <span class="stat-label">Completed</span>
+                        <span class="stat-label">Jobs Done</span>
                     </div>
                     <div class="stat-box">
                         <span class="stat-value text-primary">{{ provider.trust_score }}%</span>
@@ -52,27 +57,42 @@
                     <h4 class="sidebar-heading">Verified Credentials</h4>
                     <ul class="trust-list">
                         {% if provider.id_type %}
-                            <li><i class="fa-solid fa-shield-halved text-success"></i> {{ provider.get_id_type_display }} Verified</li>
+                            <li>
+                                <span class="trust-check-icon icon-green"><i class="fa-solid fa-id-card"></i></span>
+                                <span>{{ provider.get_id_type_display }} Verified</span>
+                            </li>
                         {% endif %}
                         {% if provider.cac_registration_number %}
-                            <li><i class="fa-solid fa-file-contract text-blue"></i> CAC Registered Business</li>
+                            <li>
+                                <span class="trust-check-icon icon-blue"><i class="fa-solid fa-file-contract"></i></span>
+                                <span>CAC Registered Business</span>
+                            </li>
                         {% endif %}
                         {% if provider.store_address or provider.region %}
-                            <li><i class="fa-solid fa-location-dot text-danger"></i> Physical Location Verified</li>
+                            <li>
+                                <span class="trust-check-icon icon-amber"><i class="fa-solid fa-location-dot"></i></span>
+                                <span>Verified Dispatch Base ({{ provider.region|default:"Nigeria" }})</span>
+                            </li>
                         {% endif %}
-                        <li><i class="fa-solid fa-lock text-primary"></i> AllThings Escrow Protected</li>
+                        <li>
+                            <span class="trust-check-icon icon-purple"><i class="fa-solid fa-lock"></i></span>
+                            <span>100% Escrow Protected</span>
+                        </li>
                     </ul>
                 </div>
 
                 <div class="sidebar-actions">
                     <!-- Secure Internal Messaging Trigger -->
-                    <button class="action-btn btn-primary w-100 mb-10 text-center requires-auth" onclick="openInquiryModal()">
+                    <button type="button" class="action-btn btn-primary w-100 mb-10 text-center requires-auth" onclick="openInquiryModal()">
                         <i class="fa-regular fa-message icon-spaced"></i> Message {{ provider.business_name|truncatechars:18 }}
                     </button>
                     
                     <div class="flex-between gap-10">
                         <!-- Dynamic Follow Button -->
-                        <button type="button" class="action-btn {% if is_following %}btn-success following{% else %}btn-outline{% endif %} w-100 toggle-follow-btn requires-auth" data-provider-id="{{ provider.id }}" id="followBtn">
+                        <button type="button"
+                                class="action-btn {% if is_following %}btn-success following{% else %}btn-outline{% endif %} w-100 toggle-follow-btn requires-auth"
+                                data-provider-id="{{ provider.id }}"
+                                id="followBtn">
                             {% if is_following %}
                                 <i class="fa-solid fa-user-check icon-spaced"></i> Following
                             {% else %}
@@ -86,9 +106,8 @@
                         </button>
                     </div>
                     
-                    <!-- Trust Micro-Signal -->
-                    <div class="text-center mt-15 text-12-muted">
-                        <i class="fa-solid fa-bolt text-warning mr-5"></i> Usually responds within 1 hour
+                    <div class="response-time-pill mt-15">
+                        <i class="fa-solid fa-bolt text-yellow"></i> Typically responds within 1 hour
                     </div>
                 </div>
             </div>
@@ -97,59 +116,63 @@
             <div class="provider-info-card mt-20">
                 <h4 class="sidebar-heading"><i class="fa-solid fa-map-location-dot text-primary mr-5"></i> Store &amp; Dispatch Base</h4>
                 {% if provider.store_address %}
-                    <p class="text-14-muted m-0">{{ provider.store_address }}</p>
+                    <p class="store-address-text">{{ provider.store_address }}</p>
                 {% endif %}
                 {% if provider.region %}
-                    <p class="text-12-muted mt-5 mb-0"><strong>State / Region:</strong> {{ provider.region }}</p>
+                    <div class="region-tag-row mt-10">
+                        <span class="region-tag"><i class="fa-solid fa-truck-fast"></i> Dispatches from {{ provider.region }}</span>
+                    </div>
                 {% endif %}
             </div>
             {% endif %}
         </aside>
 
-        <!-- RIGHT: Main Content -->
+        <!-- RIGHT: Main Storefront Content -->
         <main class="provider-main-content">
             
             {% if provider.business_description %}
-                <section class="content-section mb-30">
-                    <h2 class="section-title">About {{ provider.business_name }}</h2>
-                    <p class="provider-bio">{{ provider.business_description|linebreaksbr }}</p>
+                <section class="provider-about-card mb-25">
+                    <h2 class="section-title"><i class="fa-solid fa-circle-info text-primary mr-5"></i> About {{ provider.business_name }}</h2>
+                    <p class="provider-bio m-0">{{ provider.business_description|linebreaksbr }}</p>
                 </section>
             {% endif %}
 
             <!-- Custom Tab Navigation -->
-            <div class="premium-tabs mb-20">
+            <div class="premium-tabs mb-25">
                 {% if provider.provider_type in 'SERVICE, BOTH' %}
-                    <button class="tab-btn active" data-tab="services">
-                        <i class="fa-solid fa-screwdriver-wrench mr-5"></i> Services Offered ({{ services|length }})
+                    <button type="button" class="tab-btn active" data-tab="services">
+                        <i class="fa-solid fa-screwdriver-wrench"></i> Services Offered
+                        <span class="tab-count-badge">{{ services|length }}</span>
                     </button>
                 {% endif %}
                 
                 {% if provider.provider_type in 'VENDOR, BOTH' %}
-                    <button class="tab-btn {% if provider.provider_type == 'VENDOR' %}active{% endif %}" data-tab="products">
-                        <i class="fa-solid fa-box-open mr-5"></i> Store Products ({{ products|length }})
+                    <button type="button" class="tab-btn {% if provider.provider_type == 'VENDOR' %}active{% endif %}" data-tab="products">
+                        <i class="fa-solid fa-box-open"></i> Hardware Catalog
+                        <span class="tab-count-badge">{{ products|length }}</span>
                     </button>
                 {% endif %}
                 
-                <button class="tab-btn" data-tab="reviews">
-                    <i class="fa-regular fa-star mr-5"></i> Client Reviews ({{ review_count }})
+                <button type="button" class="tab-btn" data-tab="reviews">
+                    <i class="fa-solid fa-star"></i> Verified Reviews
+                    <span class="tab-count-badge">{{ review_count }}</span>
                 </button>
             </div>
 
-            <!-- TAB CONTENT: Services -->
+            <!-- TAB CONTENT 1: Services -->
             {% if provider.provider_type in 'SERVICE, BOTH' %}
             <div id="services-tab" class="tab-content active">
                 <div class="service-grid">
                     {% for service in services %}
                         <div class="premium-card">
-                            <div class="card-image" 
+                            <a href="{% url 'marketplace:service_detail' service.slug %}" class="store-card-media">
                                 {% if service.cover_image %}
-                                    style="background-image: url('{{ service.cover_image.url }}');"
-                                {% endif %}>
-                            </div>
-                            <div class="premium-card-body">
-                                <span class="text-12-muted block mb-5">{{ service.category.name }}</span>
-                                <h3 class="service-title">{{ service.name }}</h3>
-                                <p class="price-value mt-10">
+                                    <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="store-card-img cover-fit">
+                                {% else %}
+                                    <div class="store-card-fallback"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                                {% endif %}
+                                <span class="store-mode-badge">{{ service.get_service_mode_display }}</span>
+                                <span class="store-price-badge">
                                     {% if service.pricing_type == 'FIXED' and service.base_price %}
                                         NGN {{ service.base_price|floatformat:0|intcomma }}
                                     {% elif service.pricing_type == 'STARTING' and service.base_price %}
@@ -161,10 +184,18 @@
                                     {% else %}
                                         Custom Quote
                                     {% endif %}
-                                </p>
-                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">
-                                    View &amp; Book
-                                </a>
+                                </span>
+                            </a>
+                            <div class="premium-card-body">
+                                <span class="store-card-cat">{{ service.category.name }}</span>
+                                <h3 class="store-card-title">
+                                    <a href="{% url 'marketplace:service_detail' service.slug %}">{{ service.name }}</a>
+                                </h3>
+                                <div class="store-card-footer">
+                                    <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-primary action-sm w-100 text-center">
+                                        <i class="fa-solid fa-calendar-check icon-spaced"></i> View &amp; Book
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     {% empty %}
@@ -178,63 +209,79 @@
             </div>
             {% endif %}
 
-            <!-- TAB CONTENT: Products (Crash-Proof Image Fallback) -->
+            <!-- TAB CONTENT 2: Products -->
             {% if provider.provider_type in 'VENDOR, BOTH' %}
             <div id="products-tab" class="tab-content {% if provider.provider_type == 'VENDOR' %}active{% endif %}">
                 <div class="service-grid">
                     {% for product in products %}
                         <div class="premium-card">
-                            {% with first_img=product.images.first %}
-                                <div class="card-image" 
+                            <a href="{% url 'marketplace:product_detail' product.slug %}" class="store-card-media product-bg">
+                                {% with first_img=product.images.first %}
                                     {% if first_img and first_img.processed_image %}
-                                        style="background-image: url('{{ first_img.processed_image.url }}');"
+                                        <img src="{{ first_img.processed_image.url }}" alt="{{ product.name }}" class="store-card-img contain-fit">
                                     {% elif first_img and first_img.original_image %}
-                                        style="background-image: url('{{ first_img.original_image.url }}');"
+                                        <img src="{{ first_img.original_image.url }}" alt="{{ product.name }}" class="store-card-img contain-fit">
                                     {% elif product.image %}
-                                        style="background-image: url('{{ product.image.url }}');"
-                                    {% endif %}>
-                                </div>
-                            {% endwith %}
+                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="store-card-img contain-fit">
+                                    {% else %}
+                                        <div class="store-card-fallback"><i class="fa-solid fa-bolt"></i></div>
+                                    {% endif %}
+                                {% endwith %}
+
+                                {% if product.stock_count <= 0 %}
+                                    <span class="store-stock-pill stock-out">Out of Stock</span>
+                                {% elif product.stock_count <= 5 %}
+                                    <span class="store-stock-pill stock-low">{{ product.stock_count }} left</span>
+                                {% endif %}
+                            </a>
                             <div class="premium-card-body">
-                                <span class="text-12-muted block mb-5">{{ product.category.name }}</span>
-                                <h3 class="service-title text-14">{{ product.name }}</h3>
-                                <p class="price-value text-16 mt-5">NGN {{ product.price|floatformat:0|intcomma }}</p>
-                                <a href="{% url 'marketplace:product_detail' product.slug %}" class="action-btn btn-outline action-sm w-100 mt-15 text-center">
-                                    View Product
-                                </a>
+                                <span class="store-card-cat">{{ product.category.name }}</span>
+                                <h3 class="store-card-title">
+                                    <a href="{% url 'marketplace:product_detail' product.slug %}">{{ product.name }}</a>
+                                </h3>
+                                <div class="store-product-price">NGN {{ product.price|floatformat:0|intcomma }}</div>
+                                <div class="store-card-footer">
+                                    <a href="{% url 'marketplace:product_detail' product.slug %}" class="action-btn btn-outline action-sm w-100 text-center">
+                                        View Hardware
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     {% empty %}
                         <div class="premium-empty-state">
                             <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
                             <h3>No store products yet</h3>
-                            <p>This vendor has not published any products in their catalog yet.</p>
+                            <p>This vendor has not published any hardware in their catalog yet.</p>
                         </div>
                     {% endfor %}
                 </div>
             </div>
             {% endif %}
 
-            <!-- TAB CONTENT: Reviews (Fixed public_review display) -->
+            <!-- TAB CONTENT 3: Reviews -->
             <div id="reviews-tab" class="tab-content">
                 {% if reviews %}
-                    <div class="reviews-list mt-20">
+                    <div class="reviews-list">
                         {% for review in reviews %}
                             <div class="provider-review-card">
                                 <div class="flex-between mb-10">
-                                    <div>
-                                        <strong class="text-15">{{ review.customer.get_full_name|default:review.customer.username }}</strong>
+                                    <div class="flex-align-center gap-10">
+                                        <div class="reviewer-circle">
+                                            {{ review.customer.username|make_list|first|upper }}
+                                        </div>
+                                        <div>
+                                            <strong class="text-15 block">{{ review.customer.get_full_name|default:review.customer.username }}</strong>
+                                            <span class="text-12-muted">{{ review.created_at|date:"M d, Y" }}</span>
+                                        </div>
                                         {% if review.is_verified %}
                                             <span class="status-badge badge-completed badge-sm ml-5">
                                                 <i class="fa-solid fa-check-circle"></i> Verified Client
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <span class="text-12-muted">{{ review.created_at|date:"M d, Y" }}</span>
-                                </div>
-                                <div class="rating-stars mb-10 text-warning text-14">
-                                    <i class="fa-solid fa-star"></i>
-                                    <span class="text-dark font-600 ml-5">{{ review.overall_rating }}.0 / 5.0</span>
+                                    <span class="review-score-badge">
+                                        <i class="fa-solid fa-star text-yellow"></i> {{ review.overall_rating }}.0
+                                    </span>
                                 </div>
                                 {% if review.public_review or review.comment %}
                                     <p class="provider-review-body">"{{ review.public_review|default:review.comment }}"</p>
@@ -245,7 +292,7 @@
                 {% else %}
                     <div class="premium-empty-state">
                         <div class="empty-icon"><i class="fa-regular fa-star"></i></div>
-                        <h3>No reviews yet</h3>
+                        <h3>No client reviews yet</h3>
                         <p>Be the first to leave a verified review after completing an order with {{ provider.business_name }}.</p>
                     </div>
                 {% endif %}
@@ -258,21 +305,24 @@
     <div id="inquiryModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header flex-between mb-15">
-                <h3 class="m-0 font-600-dark">Message {{ provider.business_name }}</h3>
-                <button class="btn-close-naked" onclick="closeInquiryModal()"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="m-0 font-600-dark">
+                    <i class="fa-regular fa-paper-plane text-primary mr-5"></i> Message {{ provider.business_name }}
+                </h3>
+                <button type="button" class="btn-close-naked" onclick="closeInquiryModal()"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p class="text-14-muted mb-15">Ask about availability, custom quotes, or specific product details before you book.</p>
+                <p class="text-14-muted mb-15">Ask about availability, custom specifications, or bulk orders. Replies will appear in your AllThings Inbox.</p>
                 <form id="inquiryForm" data-provider-id="{{ provider.id }}" onsubmit="submitInquiry(event)">
                     {% csrf_token %}
                     <textarea id="inquiryMessage" class="form-control mb-15" rows="4" placeholder="Hi {{ provider.business_name }}, I would like to inquire about..." required></textarea>
                     <button type="submit" class="action-btn btn-primary w-100" id="sendInquiryBtn">
-                        <i class="fa-solid fa-paper-plane icon-spaced"></i> Send Inquiry
+                        <i class="fa-solid fa-paper-plane icon-spaced"></i> Send Secure Inquiry
                     </button>
                 </form>
             </div>
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}

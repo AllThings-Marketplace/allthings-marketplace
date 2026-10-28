@@ -3,11 +3,11 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}?v=3.0">
 {% endblock %}
 
 {% block content %}
-<div class="success-page-wrapper">
+<div class="success-page-wrapper animate-fade-in">
     
     <div class="summary-card success-card">
         
@@ -15,58 +15,62 @@
             <i class="fa-solid fa-check"></i>
         </div>
 
+        <span class="order-ref-chip">Order #{{ order.reference }}</span>
         <h1 class="success-title">Payment Confirmed!</h1>
         <p class="success-message">
-            Thank you for your order. Your funds are now safely locked in <strong>AllThings Escrow</strong> while the vendor prepares your package for dispatch.
+            Your payment is now safely locked in <strong>AllThings Escrow</strong> while the vendor prepares your hardware for courier dispatch.
         </p>
 
+        <!-- High-Contrast 6-Digit PIN Vault -->
         <div class="security-pin-notice">
-            <span class="security-pin-header">
-                <i class="fa-solid fa-lock security-pin-icon"></i> Your 6-Digit Delivery Handshake PIN(s)
-            </span>
+            <div class="security-pin-header">
+                <i class="fa-solid fa-key security-pin-icon"></i>
+                <span>Your 6-Digit Delivery Handshake PIN(s)</span>
+            </div>
             <p class="security-pin-text">
-                Share this code with the dispatch rider <strong>only after</strong> you have received and inspected your package:
+                Share this code with the dispatch rider <strong>only after</strong> you have inspected and accepted your package:
             </p>
-            <div class="mt-10">
+            <div class="pin-vault-list mt-12">
                 {% for item in order.items.all %}
-                    <div class="flex-between align-center py-5">
-                        <span class="text-12-muted">{{ item.product.name|truncatechars:28 }}</span>
-                        <strong class="text-primary-blue letter-spacing-2">{{ item.delivery_code }}</strong>
+                    <div class="pin-vault-row">
+                        <span class="pin-item-title">{{ item.quantity }}x {{ item.product.name|truncatechars:32 }}</span>
+                        <span class="pin-code-badge">{{ item.delivery_code }}</span>
                     </div>
                 {% endfor %}
             </div>
         </div>
 
+        <!-- Receipt Dossier -->
         <div class="success-details-box">
             <div class="success-detail-row">
                 <span class="success-detail-label">Order Reference</span>
-                <span class="success-detail-value">{{ order.reference }}</span>
+                <span class="success-detail-value">#{{ order.reference }}</span>
             </div>
 
             <div class="success-detail-row">
-                <span class="success-detail-label">Delivery Partner</span>
-                <span class="success-detail-value">{{ order.selected_courier }}</span>
+                <span class="success-detail-label">Assigned Courier</span>
+                <span class="success-detail-value"><i class="fa-solid fa-truck-fast text-primary mr-5"></i> {{ order.selected_courier }}</span>
             </div>
             
             <div class="success-detail-row">
-                <span class="success-detail-label">Total Paid (incl. Shipping)</span>
+                <span class="success-detail-label">Total Paid (incl. Delivery)</span>
                 <span class="success-detail-value-highlight">NGN {{ order.total_amount|floatformat:0|intcomma }}</span>
             </div>
             
             <div class="success-detail-row no-border">
                 <span class="success-detail-label">Escrow Status</span>
-                <span class="status-badge badge-completed success-badge">
-                    <i class="fa-solid fa-shield-check icon-spaced"></i> Secured in Escrow
+                <span class="soft-badge status-paid">
+                    <i class="fa-solid fa-shield-halved"></i> Secured in Escrow
                 </span>
             </div>
         </div>
 
         <div class="success-actions">
-            <a href="{% url 'orders:order_details' order.id %}" class="action-btn btn-primary action-flex w-100 text-center">
-                <i class="fa-solid fa-truck-fast icon-spaced"></i> Track Order &amp; View PIN
+            <a href="{% url 'orders:order_details' order.id %}" class="action-btn btn-primary action-flex text-center">
+                <i class="fa-solid fa-location-crosshairs icon-spaced"></i> Track Order &amp; PINs
             </a>
-            <a href="{% url 'marketplace:home' %}" class="action-btn btn-secondary action-flex w-100 text-center">
-                <i class="fa-solid fa-house icon-spaced"></i> Continue Shopping
+            <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-flex text-center">
+                <i class="fa-solid fa-bag-shopping icon-spaced"></i> Continue Shopping
             </a>
         </div>
         

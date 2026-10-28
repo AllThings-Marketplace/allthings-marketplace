@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.5">
 {% endblock %}
 
 {% block content %}
@@ -44,6 +44,10 @@
                 </a>
             {% endif %}
 
+            <a href="{% url 'marketplace:public_provider' profile.id %}" class="action-btn btn-outline action-sm" target="_blank">
+                <i class="fa-solid fa-arrow-up-right-from-square icon-spaced"></i> Public Storefront
+            </a>
+
             <a href="{% url 'dashboard:provider_settings' %}" class="action-btn btn-outline action-sm">
                 <i class="fa-solid fa-sliders icon-spaced"></i> Store Settings
             </a>
@@ -54,7 +58,7 @@
         </div>
     </div>
 
-    <!-- Priority Action Banners (Disputes, Paid Store Orders, Low Stock) -->
+    <!-- Priority Action Banners (Disputes, Paid Store Orders) -->
     {% if active_disputes %}
     <div class="dashboard-alert-banner banner-danger mt-20">
         <div class="banner-info">
@@ -134,9 +138,80 @@
             <i class="fa-solid fa-boxes-stacked"></i> Product Catalog ({{ products|length }})
         </button>
         {% endif %}
+        <button type="button" class="dash-tab-btn" data-tab="leads">
+            <i class="fa-solid fa-bullhorn"></i> Buyer Leads
+            {% if open_buyer_requests %}
+                <span class="nav-count-pill pill-danger">{{ open_buyer_requests|length }}</span>
+            {% endif %}
+        </button>
         <button type="button" class="dash-tab-btn" data-tab="financials">
             <i class="fa-solid fa-building-columns"></i> Wallet &amp; Payouts
         </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- BUYER SOURCING LEADS ("REQUEST WHAT YOU NEED") -->
+    <!-- ========================================== -->
+    <div class="dash-tab-section" data-section="leads">
+        <div class="flex-between align-center mt-30 mb-15 flex-wrap gap-10">
+            <div>
+                <h3 class="checkout-section-title m-0">
+                    <i class="fa-solid fa-bullhorn text-primary icon-spaced"></i> Open Buyer Requests &amp; Sourcing Leads
+                </h3>
+                <p class="text-12-muted mt-5 mb-0">Customers looking for products or services you can supply. Pitch an approved listing to win the order.</p>
+            </div>
+            <a href="{% url 'marketplace:my_requests' %}" class="action-btn btn-outline action-sm">
+                View All Buyer Leads &rarr;
+            </a>
+        </div>
+
+        <div class="transaction-list">
+            {% for lead in open_buyer_requests %}
+                <div class="transaction-item flex-between align-center flex-wrap gap-15">
+                    <div>
+                        <div class="flex-align-center gap-10 flex-wrap">
+                            <span class="font-700-dark text-15">{{ lead.title }}</span>
+                            <span class="status-badge badge-pending badge-sm">{{ lead.get_request_type_display }}</span>
+                            {% if lead.category %}
+                                <span class="shipping-tier-pill">{{ lead.category.name }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="text-12-muted block mt-5">
+                            Ref: <strong>{{ lead.reference }}</strong> &bull;
+                            <i class="fa-solid fa-location-dot text-primary"></i> {{ lead.location_detail|default:lead.region }}, {{ lead.region }} &bull;
+                            Posted {{ lead.created_at|timesince }} ago
+                        </span>
+                        {% if lead.specifications or lead.brand %}
+                            <span class="text-12-muted block mt-5">
+                                <strong>Specs:</strong> {{ lead.brand }} {{ lead.specifications }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-align-center gap-12">
+                        <div class="text-right">
+                            <span class="text-12-muted block">Target Budget</span>
+                            <strong class="text-primary">
+                                {% if lead.budget_max %}
+                                    Up to NGN {{ lead.budget_max|floatformat:0|intcomma }}
+                                {% elif lead.budget_min %}
+                                    From NGN {{ lead.budget_min|floatformat:0|intcomma }}
+                                {% else %}
+                                    Open Budget
+                                {% endif %}
+                            </strong>
+                        </div>
+                        <a href="{% url 'marketplace:request_detail' lead.id %}" class="action-btn btn-primary action-sm text-nowrap">
+                            <i class="fa-solid fa-reply icon-spaced"></i> Pitch Listing
+                        </a>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-bullhorn empty-state-icon text-muted"></i>
+                    <p>No open buyer sourcing requests right now. We will notify you as soon as a customer requests an item in your specialty.</p>
+                </div>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- ========================================== -->
@@ -212,7 +287,7 @@
                                 <form action="{% url 'dashboard:send_quote' req.id %}" method="POST" class="quote-form flex-align-center gap-10 flex-wrap">
                                     {% csrf_token %}
                                     <input type="number" name="labor_cost" class="form-control quote-input-sm" step="0.01" min="0" placeholder="Labor (NGN)" required>
-                                    <input type="number" name="materials_cost" class="form-control quote-input-md" step="0.01" min="0" placeholder="Materials (NGN)" value="0">
+                                    <input type="number" name="materials_cost" class="form-control quote-input-md" step="0.01" min="0" placeholder="Materials (NGN)" value="">
                                     <input type="text" name="provider_notes" class="form-control quote-input-grow" placeholder="Scope / breakdown notes...">
                                     <button type="submit" class="action-btn btn-primary action-sm text-nowrap">
                                         <i class="fa-solid fa-paper-plane"></i> Send Quote
@@ -337,7 +412,7 @@
             {% endfor %}
         </div>
 
-        <!-- 4. My Published Services -->
+        <!-- 4. My Published Services (With Moderation Status & Notes) -->
         <div class="flex-between align-center mt-40 mb-15">
             <h3 class="checkout-section-title m-0">My Listed Services ({{ my_services|length }})</h3>
             <a href="{% url 'dashboard:add_service' %}" class="action-btn btn-outline action-sm">
@@ -359,12 +434,25 @@
                                 {{ srv.category.name }} &bull; {{ srv.get_pricing_type_display }}
                                 {% if srv.base_price %} (NGN {{ srv.base_price|floatformat:0|intcomma }}){% endif %}
                             </span>
+                            {% if srv.moderation_note %}
+                                <span class="feedback-alert block mt-5">
+                                    <i class="fa-solid fa-triangle-exclamation"></i> {{ srv.moderation_note }}
+                                </span>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="flex-align-center gap-10">
-                        <span class="status-badge {% if srv.is_active %}badge-completed{% else %}badge-danger{% endif %} badge-sm">
-                            {% if srv.is_active %}Active{% else %}Hidden{% endif %}
+                        <span class="status-badge 
+                            {% if srv.status == 'APPROVED' and srv.is_active %}badge-completed
+                            {% elif srv.status == 'REJECTED' or not srv.is_active %}badge-danger
+                            {% else %}badge-pending{% endif %} badge-sm">
+                            {% if srv.status %}{{ srv.get_status_display }}{% elif srv.is_active %}Active{% else %}Hidden{% endif %}
                         </span>
+                        {% if srv.is_active and srv.slug %}
+                            <a href="{% url 'marketplace:service_detail' srv.slug %}" class="action-btn btn-outline action-sm" target="_blank" title="Preview Live Service">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> View
+                            </a>
+                        {% endif %}
                         <a href="{% url 'dashboard:edit_service' srv.id %}" class="action-btn btn-outline action-sm">
                             <i class="fa-solid fa-pen"></i> Edit
                         </a>
@@ -462,6 +550,11 @@
                                 </td>
                                 <td>
                                     <div class="flex-align-center gap-10">
+                                        {% if item.status == 'APPROVED' and item.is_active and item.slug %}
+                                            <a href="{% url 'marketplace:product_detail' item.slug %}" class="action-btn btn-outline action-sm" target="_blank" title="View Live Product">
+                                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                            </a>
+                                        {% endif %}
                                         <a href="{% url 'dashboard:edit_product' item.id %}" class="action-btn btn-outline action-sm">
                                             <i class="fa-solid fa-pen"></i> Edit
                                         </a>

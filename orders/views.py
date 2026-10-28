@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.urls import reverse
 from django.db.models import F, Q, Sum
 from django.shortcuts import redirect, get_object_or_404, render
@@ -14,6 +15,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 
+from accounts.models import VendorTransaction
 from .models import (
     Order, OrderItem, ShippingAddress, Cart, CartItem, 
     PaymentAttempt, ServiceOrder, OrderMessage, ServiceDispute,
@@ -78,6 +80,100 @@ def _notify_order_paid(order):
                 )
 
 
+def _fulfill_paid_product_order(order_id, reference=None):
+    """
+    Idempotent, row-locked product order fulfillment shared by verify_payment,
+    reverify_payment_attempt, and paystack_webhook.
+    """
+    with transaction.atomic():
+        order = Order.objects.select_for_update().filter(id=order_id).first()
+        if not order:
+            return None
+
+        if reference:
+            PaymentAttempt.objects.filter(reference=reference).update(
+                status='successful',
+                resolved_at=timezone.now()
+            )
+
+        if order.status == 'unpaid':
+            order.status = 'confirmed'
+            order.save(update_fields=['status'])
+
+            product_ct = ContentType.objects.get_for_model(Product)
+
+            for item in order.items.select_related('product', 'variant').all():
+                item.status = 'PAID'
+                item.save(update_fields=['status'])
+                item.generate_handshake_codes()
+
+                if item.variant:
+                    item.variant.stock = F('stock') - item.quantity
+                    item.variant.save()
+                if item.product:
+                    item.product.stock_count = F('stock_count') - item.quantity
+                    item.product.save()
+
+                    UserInteraction.objects.create(
+                        user=order.customer,
+                        content_type=product_ct,
+                        object_id=item.product.id,
+                        interaction_type=UserInteraction.InteractionType.PURCHASE,
+                        weight=15
+                    )
+
+            process_order_commissions(order)
+            _notify_order_paid(order)
+
+        return order
+
+
+def _fulfill_paid_service_order(service_order_id):
+    """
+    Idempotent, row-locked service booking escrow fulfillment shared by
+    verify_payment and paystack_webhook.
+    """
+    with transaction.atomic():
+        service_order = ServiceOrder.objects.select_for_update().filter(id=service_order_id).first()
+        if not service_order:
+            return None
+
+        if service_order.status in ['ACCEPTED', 'QUOTE_SENT'] and not service_order.is_paid:
+            service_order.status = 'PAID'
+            service_order.is_paid = True
+            service_order.save(update_fields=['status', 'is_paid'])
+
+            if service_order.service:
+                UserInteraction.objects.create(
+                    user=service_order.customer,
+                    content_type=ContentType.objects.get_for_model(Service),
+                    object_id=service_order.service.id,
+                    interaction_type=UserInteraction.InteractionType.PURCHASE,
+                    weight=15
+                )
+
+            create_service_escrow(service_order)
+
+            service_name = service_order.service.name if service_order.service else service_order.reference_code
+            if service_order.provider and service_order.provider.user:
+                _notify(
+                    recipient=service_order.provider.user,
+                    title=f"Service Booking Paid ({service_order.reference_code})",
+                    message=f"{service_order.customer.username} paid NGN {service_order.agreed_price:,.2f} into escrow for '{service_name}'.",
+                    target_obj=service_order,
+                    notif_type='ORDER'
+                )
+            _notify(
+                recipient=service_order.customer,
+                title=f"Service Payment Confirmed ({service_order.reference_code})",
+                message=f"Your payment for '{service_name}' is secured in escrow.",
+                target_obj=service_order,
+                notif_type='ORDER'
+            )
+
+        return service_order
+
+
 # --- 1. SHOPPING CART VIEWS (Products Only) ---
 
 def _get_cart_metrics(cart):
@@ -103,6 +199,11 @@ def _is_ajax(request):
 @login_required
 def add_to_cart(request, product_id):
     product = get_object_or_404(Product, id=product_id, is_active=True)
+
+    # If redirected here via GET after login, send user cleanly to the product detail page
+    if request.method != 'POST' and not _is_ajax(request):
+        return redirect('marketplace:product_detail', slug=product.slug)
+
     cart, _ = Cart.objects.get_or_create(customer=request.user)
     
     variant = None
@@ -620,75 +721,14 @@ def verify_payment(request):
         if response['data']['status'] == 'success':
             if order_type == 'service':
                 service_order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user)
-                if service_order.status == 'ACCEPTED':
-                    service_order.status = 'PAID'
-                    service_order.is_paid = True
-                    service_order.save(update_fields=['status', 'is_paid'])
-                    
-                    if service_order.service:
-                        UserInteraction.objects.create(
-                            user=request.user,
-                            content_type=ContentType.objects.get_for_model(Service),
-                            object_id=service_order.service.id,
-                            interaction_type=UserInteraction.InteractionType.PURCHASE,
-                            weight=15
-                        )
-                    
-                    create_service_escrow(service_order)
-
-                    service_name = service_order.service.name if service_order.service else service_order.reference_code
-                    if service_order.provider and service_order.provider.user:
-                        _notify(
-                            recipient=service_order.provider.user,
-                            title=f"Service Booking Paid ({service_order.reference_code})",
-                            message=f"{request.user.username} paid NGN {service_order.agreed_price:,.2f} into escrow for '{service_name}'.",
-                            target_obj=service_order,
-                            notif_type='ORDER'
-                        )
-                    _notify(
-                        recipient=request.user,
-                        title=f"Service Payment Confirmed ({service_order.reference_code})",
-                        message=f"Your payment for '{service_name}' is secured in escrow.",
-                        target_obj=service_order,
-                        notif_type='ORDER'
-                    )
-
-                    messages.success(request, f"Payment successful! Your booking for {service_name} is confirmed.")
+                _fulfill_paid_service_order(service_order.id)
+                service_name = service_order.service.name if service_order.service else service_order.reference_code
+                messages.success(request, f"Payment successful! Your booking for {service_name} is confirmed.")
                 return redirect('orders:order_history')
                 
             else:
                 order = get_object_or_404(Order, id=order_id, customer=request.user)
-                PaymentAttempt.objects.filter(reference=reference).update(status='successful')
-                
-                if order.status == 'unpaid':
-                    order.status = 'confirmed'
-                    order.save(update_fields=['status'])
-                    
-                    product_ct = ContentType.objects.get_for_model(Product)
-                    
-                    for item in order.items.all():
-                        item.status = 'PAID'
-                        item.save(update_fields=['status'])
-                        item.generate_handshake_codes()
-                        
-                        if item.variant:
-                            item.variant.stock = F('stock') - item.quantity
-                            item.variant.save()
-                        if item.product:
-                            item.product.stock_count = F('stock_count') - item.quantity
-                            item.product.save()
-                            
-                            UserInteraction.objects.create(
-                                user=order.customer,
-                                content_type=product_ct,
-                                object_id=item.product.id,
-                                interaction_type=UserInteraction.InteractionType.PURCHASE,
-                                weight=15
-                            )
-                    
-                    process_order_commissions(order)
-                    _notify_order_paid(order)
-
+                _fulfill_paid_product_order(order.id, reference=reference)
                 return redirect('orders:order_success', order_id=order.id)
         
         # --- CANCELLED OR FAILED PAYMENT ---
@@ -708,27 +748,98 @@ def verify_payment(request):
 
 
 @csrf_exempt
+@require_POST
 def paystack_webhook(request):
-    if request.method == 'POST':
-        payload = request.body
-        sig_header = request.headers.get('x-paystack-signature')
-        secret_key = settings.PAYSTACK_SECRET_KEY.encode('utf-8')
+    """
+    Handles asynchronous Paystack events at /webhook/paystack/:
+    - charge.success (Product Orders & Service Escrow Funding)
+    - transfer.success (Marks Vendor Payouts as COMPLETED)
+    - transfer.failed / transfer.reversed (Refunds Vendor Wallet automatically)
+    """
+    paystack_signature = request.headers.get('x-paystack-signature', '')
+    secret_key = getattr(settings, 'PAYSTACK_SECRET_KEY', '')
 
-        hash_val = hmac.new(secret_key, payload, hashlib.sha512).hexdigest()
-        if hash_val != sig_header:
-            return HttpResponse(status=400)
+    if not paystack_signature or not secret_key:
+        return HttpResponse(status=400)
 
-        event_data = json.loads(payload)
-        
-        if event_data.get('event') == 'charge.success':
-            metadata = event_data['data'].get('metadata', {})
-            order_id = metadata.get('order_id')
-            
-            if order_id:
-                process_webhook_payment.delay(order_id, event_data['data']['reference'])
+    # 1. Verify HMAC SHA-512 Signature from Paystack
+    computed_hmac = hmac.new(
+        secret_key.encode('utf-8'),
+        msg=request.body,
+        digestmod=hashlib.sha512
+    ).hexdigest()
 
+    if not hmac.compare_digest(computed_hmac, paystack_signature):
+        return HttpResponse(status=401)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return HttpResponse(status=400)
+
+    event = payload.get('event', '')
+    data = payload.get('data', {})
+    reference = data.get('reference', '')
+    metadata = data.get('metadata') or {}
+
+    if not reference:
         return HttpResponse(status=200)
-    return HttpResponse(status=405)
+
+    # ---------------------------------------------------------
+    # A. CUSTOMER PAYMENTS (charge.success)
+    # ---------------------------------------------------------
+    if event == 'charge.success':
+        order_type = metadata.get('type')
+        order_id = metadata.get('order_id')
+
+        if order_type == 'service' and order_id:
+            _fulfill_paid_service_order(order_id)
+        elif order_type == 'product' and order_id:
+            _fulfill_paid_product_order(order_id, reference=reference)
+        else:
+            # Fallback lookup by reference if metadata was omitted
+            attempt = PaymentAttempt.objects.filter(reference=reference).first()
+            if attempt:
+                _fulfill_paid_product_order(attempt.order_id, reference=reference)
+            else:
+                srv_order = ServiceOrder.objects.filter(
+                    Q(paystack_reference=reference) | Q(reference_code=reference)
+                ).first()
+                if srv_order:
+                    _fulfill_paid_service_order(srv_order.id)
+
+    # ---------------------------------------------------------
+    # B. VENDOR PAYOUT TRANSFERS (transfer.success / failed)
+    # ---------------------------------------------------------
+    elif event == 'transfer.success':
+        with transaction.atomic():
+            txn = VendorTransaction.objects.select_for_update().filter(
+                reference=reference,
+                transaction_type='PAYOUT'
+            ).first()
+            if txn and txn.status == 'PENDING':
+                txn.status = 'COMPLETED'
+                txn.save(update_fields=['status'])
+
+    elif event in ['transfer.failed', 'transfer.reversed']:
+        with transaction.atomic():
+            txn = VendorTransaction.objects.select_for_update().select_related('wallet').filter(
+                reference=reference,
+                transaction_type='PAYOUT'
+            ).first()
+            if txn and txn.status == 'PENDING':
+                wallet = txn.wallet
+                wallet.available_balance += Decimal(str(txn.net_amount))
+                wallet.total_withdrawn = max(
+                    Decimal('0.00'),
+                    wallet.total_withdrawn - Decimal(str(txn.net_amount))
+                )
+                wallet.save(update_fields=['available_balance', 'total_withdrawn'])
+
+                txn.status = 'FAILED'
+                txn.save(update_fields=['status'])
+
+    return HttpResponse(status=200)
 
 
 @login_required
@@ -1177,40 +1288,7 @@ def reverify_payment_attempt(request, attempt_id):
     response = paystack.verify_transaction(attempt.reference)
 
     if response.get('data') and response['data'].get('status') == 'success':
-        with transaction.atomic():
-            attempt.status = 'successful'
-            attempt.resolved_at = timezone.now()
-            attempt.save(update_fields=['status', 'resolved_at'])
-
-            if order.status == 'unpaid':
-                order.status = 'confirmed'
-                order.save(update_fields=['status'])
-
-                product_ct = ContentType.objects.get_for_model(Product)
-
-                for item in order.items.all():
-                    item.status = 'PAID'
-                    item.save(update_fields=['status'])
-                    item.generate_handshake_codes()
-
-                    if item.variant:
-                        item.variant.stock = F('stock') - item.quantity
-                        item.variant.save()
-                    if item.product:
-                        item.product.stock_count = F('stock_count') - item.quantity
-                        item.product.save()
-
-                        UserInteraction.objects.create(
-                            user=order.customer,
-                            content_type=product_ct,
-                            object_id=item.product.id,
-                            interaction_type=UserInteraction.InteractionType.PURCHASE,
-                            weight=15
-                        )
-
-                process_order_commissions(order)
-                _notify_order_paid(order)
-
+        _fulfill_paid_product_order(order.id, reference=attempt.reference)
         messages.success(request, f"Payment verified! Order {order.reference} is now confirmed and in escrow.")
         return redirect('orders:order_details', order_id=order.id)
     else:

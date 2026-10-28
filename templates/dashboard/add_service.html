@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.3">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
 {% endblock %}
 
 {% block content %}
@@ -27,14 +27,43 @@
         <div class="form-grid-2">
             <div class="form-group">
                 <label class="form-label-dark">Service Title *</label>
-                <input type="text" name="name" class="form-control" placeholder="E.g., Complete Inverter &amp; Solar Panel Installation" required>
+                <input type="text"
+                       name="name"
+                       id="listingTitleInput"
+                       class="form-control"
+                       placeholder="E.g., Complete Inverter &amp; Solar Panel Installation"
+                       autocomplete="off"
+                       required>
+                <div id="smartCategorySuggestionBar" class="smart-cat-bar hidden-initial mt-8">
+                    <span class="smart-cat-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Suggested:</span>
+                    <div id="smartCategoryPills" class="smart-cat-pills"></div>
+                </div>
             </div>
+
             <div class="form-group">
-                <label class="form-label-dark">Service Category *</label>
-                <select name="category_id" class="form-control" required>
-                    <option value="">Select a category...</option>
+                <div class="flex-between align-center mb-5">
+                    <label class="form-label-dark m-0">Service Category *</label>
+                    <span id="categoryMatchStatus" class="text-12-muted"></span>
+                </div>
+
+                <div class="cat-search-wrapper mb-8">
+                    <i class="fa-solid fa-magnifying-glass cat-search-icon"></i>
+                    <input type="text"
+                           id="categorySearchInput"
+                           class="form-control cat-search-input"
+                           placeholder="Type to filter service categories..."
+                           autocomplete="off">
+                </div>
+
+                <select name="category_id" class="form-control" id="category-selector" data-cat-type="SERVICE" required>
+                    <option value="">Select a service category...</option>
                     {% for cat in parent_categories %}
-                        <option value="{{ cat.id }}" class="parent-category-option">{{ cat.name }}</option>
+                        <option value="{{ cat.id }}"
+                                class="parent-category-option"
+                                data-keywords="{{ cat.search_keywords|default:''|lower }} {{ cat.name|lower }}"
+                                data-clean-name="{{ cat.name }}">
+                            {{ cat.name }}
+                        </option>
                         {% if cat.subcategories.all %}
                             {% include 'partials/category_option_node.html' with current_categories=cat.subcategories.all prefix="--" %}
                         {% endif %}
@@ -151,7 +180,6 @@
             <i class="fa-solid fa-image icon-primary-spaced"></i> 5. Cover Banner &amp; Work Portfolio
         </h3>
         <div class="form-grid-2">
-            <!-- Cover Image Dropzone -->
             <div class="form-group">
                 <label class="form-label-dark">Primary Cover Image (Required) *</label>
                 <label for="serviceCoverInput" class="upload-dropzone dropzone-compact">
@@ -173,7 +201,6 @@
                 </div>
             </div>
 
-            <!-- Portfolio Images Dropzone -->
             <div class="form-group">
                 <label class="form-label-dark">Past Work / Portfolio Photos (Optional)</label>
                 <label for="servicePortfolioInput" class="upload-dropzone dropzone-compact">

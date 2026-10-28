@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.0">
+{% endblock %}
+
+{% block content %}
+<div class="sell-landing-wrapper animate-fade-in">
+
+    <!-- 1. EXECUTIVE HERO SECTION -->
+    <section class="sell-hero-card">
+        <div class="sell-hero-badge">
+            <i class="fa-solid fa-bolt text-yellow"></i> ALLTHINGS PARTNER NETWORK
+        </div>
+        <h1 class="sell-hero-title">
+            Grow Your Hardware Store or Engineering Practice on AllThings
+        </h1>
+        <p class="sell-hero-subtitle">
+            Reach thousands of homeowners, contractors, and businesses looking for genuine electrical components, solar hardware, and KYC-certified technical professionals—backed by 100% Escrow security.
+        </p>
+
+        <div class="sell-hero-actions">
+            {% if user.is_authenticated %}
+                {% if user.provider_profile %}
+                    {% if user.provider_profile.verification_status == 'ACTIVE' %}
+                        <a href="{% url 'dashboard:provider_dashboard' %}" class="sell-cta-btn sell-cta-primary">
+                            <i class="fa-solid fa-store"></i> Go to Your Provider Portal &rarr;
+                        </a>
+                    {% else %}
+                        <a href="{% url 'accounts:provider_status' %}" class="sell-cta-btn sell-cta-primary">
+                            <i class="fa-solid fa-shield-halved"></i> Continue Your Verification ({{ user.provider_profile.get_verification_status_display }}) &rarr;
+                        </a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'accounts:apply_provider' %}" class="sell-cta-btn sell-cta-primary">
+                        <i class="fa-solid fa-rocket"></i> Start Provider Application &rarr;
+                    </a>
+                {% endif %}
+            {% else %}
+                <a href="{% url 'accounts:register' %}?next={% url 'accounts:apply_provider' %}" class="sell-cta-btn sell-cta-primary">
+                    <i class="fa-solid fa-user-plus"></i> Create Account &amp; Start Selling &rarr;
+                </a>
+                <a href="{% url 'accounts:login' %}?next={% url 'accounts:apply_provider' %}" class="sell-cta-btn sell-cta-outline">
+                    Already have an account? Log In
+                </a>
+            {% endif %}
+        </div>
+
+        <div class="sell-hero-trust-pills">
+            <span><i class="fa-solid fa-circle-check text-success"></i> Zero Listing Fees</span>
+            <span><i class="fa-solid fa-shield-halved text-blue"></i> Guaranteed Escrow Payouts</span>
+            <span><i class="fa-solid fa-building-columns text-yellow"></i> Direct Nigerian Bank Transfers</span>
+        </div>
+    </section>
+
+    <!-- 2. CHOOSE YOUR PATH: VENDOR VS SERVICE PROFESSIONAL VS BOTH -->
+    <section class="sell-section">
+        <div class="sell-section-header">
+            <span class="sell-eyebrow">BUILT FOR HARDWARE &amp; EXPERTISE</span>
+            <h2>Three Ways to Earn on AllThings</h2>
+            <p>Whether you run an electrical equipment shop, work as a certified field engineer, or do both, you can manage everything from one command center.</p>
+        </div>
+
+        <div class="sell-pillars-grid">
+            <div class="sell-pillar-card">
+                <div class="sell-pillar-icon icon-blue">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+                <h3>Retail &amp; Wholesale Vendors</h3>
+                <p>List cables, inverters, solar panels, circuit breakers, lighting, and tools. Our AI pipeline automatically cleans and standardizes your product photos onto studio-white backgrounds.</p>
+                <ul class="sell-feature-list">
+                    <li><i class="fa-solid fa-check text-success"></i> Dynamic category specs &amp; multi-variant stock</li>
+                    <li><i class="fa-solid fa-check text-success"></i> Automated courier dispatch (Bike, GIGL, Waybill)</li>
+                    <li><i class="fa-solid fa-check text-success"></i> 6-Digit PIN delivery handshake protection</li>
+                </ul>
+            </div>
+
+            <div class="sell-pillar-card featured-pillar">
+                <div class="pillar-popular-tag">Most Popular</div>
+                <div class="sell-pillar-icon icon-green">
+                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                </div>
+                <h3>Certified Service Professionals</h3>
+                <p>Get booked for solar installations, house conduit wiring, DB upgrades, fault tracing, and HVAC servicing without chasing clients for payment after the job is done.</p>
+                <ul class="sell-feature-list">
+                    <li><i class="fa-solid fa-check text-success"></i> Fixed rates, tiered packages, or custom site quotes</li>
+                    <li><i class="fa-solid fa-check text-success"></i> Client funds Escrow <strong>before</strong> you start work</li>
+                    <li><i class="fa-solid fa-check text-success"></i> Showcase your portfolio &amp; verified client reviews</li>
+                </ul>
+            </div>
+
+            <div class="sell-pillar-card">
+                <div class="sell-pillar-icon icon-purple">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <h3>Hybrid Engineering Stores (Both)</h3>
+                <p>Supply the hardware and install it too. Sell inverters, batteries, or wiring materials directly from your catalog while accepting installation bookings on the same profile.</p>
+                <ul class="sell-feature-list">
+                    <li><i class="fa-solid fa-check text-success"></i> Unified public storefront for products &amp; services</li>
+                    <li><i class="fa-solid fa-check text-success"></i> Single wallet ledger for all store &amp; job earnings</li>
+                    <li><i class="fa-solid fa-check text-success"></i> Higher search ranking with Trust Score fast-track</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. HOW ONBOARDING & ESCROW PAYOUTS WORK (4 STEPS) -->
+    <section class="sell-section sell-roadmap-box">
+        <div class="sell-section-header">
+            <span class="sell-eyebrow">FAST &amp; SECURE ONBOARDING</span>
+            <h2>How It Works in 4 Simple Steps</h2>
+            <p>We verify every merchant and technician to keep scams off the platform—so honest professionals win more business.</p>
+        </div>
+
+        <div class="sell-steps-grid">
+            <div class="sell-step-item">
+                <div class="sell-step-num">01</div>
+                <h4>Verify Email &amp; Phone</h4>
+                <p>Complete the basic application and confirm your email address and phone number instantly via 6-digit OTP.</p>
+            </div>
+            <div class="sell-step-item">
+                <div class="sell-step-num">02</div>
+                <h4>KYC &amp; Store Location</h4>
+                <p>Upload your valid ID (NIN, Driver's License, Passport, or Voter's Card) and pin your shop or operating base via GPS.</p>
+            </div>
+            <div class="sell-step-item">
+                <div class="sell-step-num">03</div>
+                <h4>Link Your Bank Account</h4>
+                <p>Verify your Nigerian bank account in real time via Paystack so your earnings go straight to your bank.</p>
+            </div>
+            <div class="sell-step-item">
+                <div class="sell-step-num">04</div>
+                <h4>List, Fulfill &amp; Withdraw</h4>
+                <p>Publish your products or services, fulfill escrow-funded orders, and withdraw cleared earnings to your bank.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. BOTTOM CALL TO ACTION -->
+    <section class="sell-bottom-cta">
+        <div>
+            <h2>Ready to Open Your Storefront?</h2>
+            <p>Have your phone, valid ID, and bank account number handy—application takes less than 5 minutes.</p>
+        </div>
+        <div>
+            {% if user.is_authenticated %}
+                {% if user.provider_profile %}
+                    <a href="{% url 'accounts:provider_status' %}" class="sell-cta-btn sell-cta-primary">
+                        Open Provider Application &rarr;
+                    </a>
+                {% else %}
+                    <a href="{% url 'accounts:apply_provider' %}" class="sell-cta-btn sell-cta-primary">
+                        Begin Provider Registration &rarr;
+                    </a>
+                {% endif %}
+            {% else %}
+                <a href="{% url 'accounts:register' %}?next={% url 'accounts:apply_provider' %}" class="sell-cta-btn sell-cta-primary">
+                    Register &amp; Apply Now &rarr;
+                </a>
+            {% endif %}
+        </div>
+    </section>
+
+</div>
+{% endblock %}

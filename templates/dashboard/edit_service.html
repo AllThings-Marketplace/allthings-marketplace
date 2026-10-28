@@ -2,43 +2,72 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-header flex-between align-center mb-40">
-    <div>
-        <h2 class="section-heading checkout-page-title mb-5">Edit Service</h2>
-        <p class="text-14-muted m-0">Updating: <strong>{{ service.name }}</strong></p>
+<div class="details-page-wrapper animate-fade-in">
+    <div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
+        <div>
+            <h2 class="section-heading checkout-page-title mb-5">Edit Service</h2>
+            <p class="text-14-muted m-0">Updating: <strong>{{ service.name }}</strong></p>
+        </div>
+        <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
     </div>
-    <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-outline action-sm">
-        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
-    </a>
-</div>
 
-<div class="summary-card">
-    <form method="POST" action="{% url 'dashboard:edit_service' service.id %}" enctype="multipart/form-data">
+    <form method="POST" action="{% url 'dashboard:edit_service' service.id %}" enctype="multipart/form-data" class="summary-card">
         {% csrf_token %}
         
+        <!-- 1. Basic Information & Smart Service Category Selector -->
+        <h3 class="checkout-section-title mt-0">
+            <i class="fa-solid fa-briefcase icon-primary-spaced"></i> 1. Basic Information
+        </h3>
+
         <div class="form-grid-2 mb-20">
             <div class="form-group">
-                <label class="form-label-dark">Service Name *</label>
-                <input type="text" name="name" class="form-control" value="{{ service.name }}" required>
+                <label class="form-label-dark">Service Title *</label>
+                <input type="text"
+                       name="name"
+                       id="listingTitleInput"
+                       class="form-control"
+                       value="{{ service.name }}"
+                       autocomplete="off"
+                       required>
+                <div id="smartCategorySuggestionBar" class="smart-cat-bar hidden-initial mt-8">
+                    <span class="smart-cat-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Suggested:</span>
+                    <div id="smartCategoryPills" class="smart-cat-pills"></div>
+                </div>
             </div>
 
             <div class="form-group">
-                <label class="form-label-dark">Category *</label>
-                <select name="category_id" class="form-control" required>
+                <div class="flex-between align-center mb-5">
+                    <label class="form-label-dark m-0">Service Category *</label>
+                    <span id="categoryMatchStatus" class="text-12-muted"></span>
+                </div>
+
+                <div class="cat-search-wrapper mb-8">
+                    <i class="fa-solid fa-magnifying-glass cat-search-icon"></i>
+                    <input type="text"
+                           id="categorySearchInput"
+                           class="form-control cat-search-input"
+                           placeholder="Type to filter service categories..."
+                           autocomplete="off">
+                </div>
+
+                <select name="category_id" class="form-control" id="category-selector" data-cat-type="SERVICE" required>
+                    <option value="">Select a service category...</option>
                     {% for cat in parent_categories %}
-                        <option value="{{ cat.id }}" {% if cat.id == service.category_id %}selected{% endif %}>
+                        <option value="{{ cat.id }}"
+                                class="parent-category-option"
+                                data-keywords="{{ cat.search_keywords|default:''|lower }} {{ cat.name|lower }}"
+                                data-clean-name="{{ cat.name }}"
+                                {% if cat.id == service.category_id %}selected{% endif %}>
                             {{ cat.name }}
                         </option>
                         {% if cat.subcategories.all %}
-                            {% for sub in cat.subcategories.all %}
-                                <option value="{{ sub.id }}" {% if sub.id == service.category_id %}selected{% endif %}>
-                                    -- {{ sub.name }}
-                                </option>
-                            {% endfor %}
+                            {% include 'partials/category_option_node.html' with current_categories=cat.subcategories.all prefix="--" selected_category_id=service.category_id %}
                         {% endif %}
                     {% endfor %}
                 </select>
@@ -46,13 +75,18 @@
         </div>
 
         <div class="form-group mb-20">
-            <label class="form-label-dark">Description *</label>
+            <label class="form-label-dark">Service Description *</label>
             <textarea name="description" class="form-control" rows="4" required>{{ service.description }}</textarea>
         </div>
 
+        <!-- 2. Location & Coverage -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-location-dot icon-primary-spaced"></i> 2. Location &amp; Coverage
+        </h3>
+
         <div class="form-grid-2 mb-20">
             <div class="form-group">
-                <label class="form-label-dark">Service Mode *</label>
+                <label class="form-label-dark">Where is this service performed? *</label>
                 <select name="service_mode" class="form-control" required>
                     <option value="CUSTOMER_LOC" {% if service.service_mode == 'CUSTOMER_LOC' %}selected{% endif %}>I travel to customer</option>
                     <option value="PROVIDER_LOC" {% if service.service_mode == 'PROVIDER_LOC' %}selected{% endif %}>Customer comes to me</option>
@@ -62,16 +96,43 @@
             </div>
             
             <div class="form-group">
-                <label class="form-label-dark">Service Radius (km)</label>
-                <input type="number" name="service_radius_km" class="form-control" value="{{ service.service_radius_km|default_if_none:'' }}" placeholder="e.g., 20">
-                <small class="form-text-muted">Leave blank if not applicable.</small>
+                <label class="form-label-dark">Travel Coverage Radius (km)</label>
+                <input type="number" name="service_radius_km" class="form-control" value="{{ service.service_radius_km|default_if_none:'' }}" placeholder="e.g., 25">
+                <small class="text-12-muted">Leave blank if workshop or remote.</small>
             </div>
         </div>
 
+        <!-- 3. Scope of Work (With Live Tag Pills) -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-list-check icon-primary-spaced"></i> 3. Scope of Work (Escrow Protection)
+        </h3>
+        <p class="text-12-muted mb-15">
+            <i class="fa-solid fa-shield-halved text-primary"></i> Clear scopes prevent disputes. Separate each item with a <strong>comma (,)</strong> to see a live preview below.
+        </p>
+
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
+                <label class="form-label-dark"><i class="fa-solid fa-check text-success"></i> What's Included</label>
+                <textarea name="whats_included" id="whatsIncludedInput" class="form-control" rows="3" placeholder="e.g., Inspection, Labour, Cleanup">{{ service.whats_included|join:", " }}</textarea>
+                <div id="includedPreviewPills" class="scope-preview-pills mt-8"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark"><i class="fa-solid fa-xmark text-danger"></i> What's Excluded</label>
+                <textarea name="whats_excluded" id="whatsExcludedInput" class="form-control" rows="3" placeholder="e.g., Cost of spare parts, Major masonry">{{ service.whats_excluded|join:", " }}</textarea>
+                <div id="excludedPreviewPills" class="scope-preview-pills mt-8"></div>
+            </div>
+        </div>
+
+        <!-- 4. Pricing -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-tag icon-primary-spaced"></i> 4. Pricing Model
+        </h3>
+
         {% if service.pricing_type != 'QUOTE' and service.pricing_type != 'PACKAGES' %}
             <div class="form-group mb-20">
-                <label class="form-label-dark">Base Price (NGN) *</label>
-                <input type="number" name="base_price" class="form-control" step="0.01" value="{{ service.base_price|default_if_none:'' }}">
+                <label class="form-label-dark">Base Price (NGN) * ({{ service.get_pricing_type_display }})</label>
+                <input type="number" name="base_price" class="form-control" step="0.01" value="{{ service.base_price|default_if_none:'' }}" required>
             </div>
         {% else %}
             <div class="warning-text-block mb-20">
@@ -80,33 +141,60 @@
             </div>
         {% endif %}
 
-        <div class="form-grid-2 mb-20">
-            <div class="form-group">
-                <label class="form-label-dark">What's Included (Comma separated)</label>
-                <textarea name="whats_included" class="form-control" rows="2" placeholder="e.g., Inspection, Labour, Cleanup">{{ service.whats_included|join:", " }}</textarea>
-            </div>
+        <!-- 5. Cover Image & Portfolio Dropzones -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-image icon-primary-spaced"></i> 5. Cover Banner &amp; Work Portfolio
+        </h3>
 
+        <div class="form-grid-2 mb-30">
             <div class="form-group">
-                <label class="form-label-dark">What's Excluded (Comma separated)</label>
-                <textarea name="whats_excluded" class="form-control" rows="2" placeholder="e.g., Cost of spare parts, Major masonry">{{ service.whats_excluded|join:", " }}</textarea>
-            </div>
-        </div>
-
-        <div class="form-group mb-30 border-top-light pt-20">
-            <label class="form-label-dark">Update Cover Image</label>
-            {% if service.cover_image %}
-                <div class="mb-10">
-                    <img src="{{ service.cover_image.url }}" alt="Current Cover" class="current-cover-preview">
-                    <p class="text-12-muted mt-5">Current Cover Image</p>
+                <label class="form-label-dark">Update Primary Cover Image (Optional)</label>
+                {% if service.cover_image %}
+                    <div class="existing-photo-card mb-15">
+                        <div class="photo-thumb-wrapper">
+                            <img src="{{ service.cover_image.url }}" alt="Current Cover">
+                            <span class="photo-role-badge">Current Cover</span>
+                        </div>
+                    </div>
+                {% endif %}
+                <label for="serviceCoverInput" class="upload-dropzone dropzone-compact">
+                    <i class="fa-solid fa-panorama dropzone-icon"></i>
+                    <strong class="dropzone-title">Replace Cover Banner</strong>
+                    <span class="text-12-muted">Leave empty to keep your existing cover</span>
+                    <input type="file" name="cover_image" id="serviceCoverInput" class="hidden-initial" accept="image/*">
+                </label>
+                <div id="coverPreviewBox" class="mt-15 hidden-initial">
+                    <div class="existing-photo-card">
+                        <div class="photo-thumb-wrapper">
+                            <img src="" id="coverPreviewImg" alt="New Cover Preview">
+                            <span class="photo-role-badge">New Cover</span>
+                        </div>
+                        <div class="photo-meta-bar">
+                            <small class="text-12-muted truncate-text block" id="coverPreviewName"></small>
+                        </div>
+                    </div>
                 </div>
-            {% endif %}
-            <input type="file" name="cover_image" class="form-control" accept="image/*">
-            <small class="form-text-muted">Leave empty to keep your existing cover image.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark">Add More Portfolio Photos (Optional)</label>
+                <label for="servicePortfolioInput" class="upload-dropzone dropzone-compact">
+                    <i class="fa-solid fa-images dropzone-icon"></i>
+                    <strong class="dropzone-title">Upload Additional Work Photos</strong>
+                    <span class="text-12-muted">Select multiple before/after project photos</span>
+                    <input type="file" name="portfolio_images" id="servicePortfolioInput" class="hidden-initial" accept="image/*" multiple>
+                </label>
+                <div id="portfolioPreviewGrid" class="existing-photo-grid mt-15 hidden-initial"></div>
+            </div>
         </div>
 
         <button type="submit" class="action-btn btn-primary w-100 py-15 text-16 font-600-block">
-            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Changes
+            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Service Changes
         </button>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
 {% endblock %}

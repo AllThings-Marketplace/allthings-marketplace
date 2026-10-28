@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.6">
+{% endblock %}
+
+{% block content %}
+<div class="request-page-shell animate-fade-in">
+    <div class="saved-header-banner mb-25">
+        <div>
+            <span class="sourcing-eyebrow">ALLTHINGS SOURCING ENGINE</span>
+            <h2 class="section-heading checkout-page-title m-0">Can't Find What You Need?</h2>
+            <p class="text-14-muted mt-5 mb-0">Tell us what you're looking for and we'll match you with verified vendors or service professionals.</p>
+        </div>
+        <a href="{% url 'marketplace:my_requests' %}" class="action-btn btn-outline action-sm">
+            <i class="fa-solid fa-list-check icon-spaced"></i> My Requests
+        </a>
+    </div>
+
+    <div class="summary-card request-form-card">
+        <form method="POST" action="{% url 'marketplace:create_request' %}" id="customerRequestForm">
+            {% csrf_token %}
+            <input type="hidden" name="request_type" id="requestTypeInput" value="{{ initial_type }}">
+
+            <!-- 1. Interactive Product vs. Service Type Selector -->
+            <label class="form-label-dark mb-10 block">1. What are you looking for? *</label>
+            <div class="request-type-switcher mb-25">
+                <button type="button"
+                        class="req-type-tab {% if initial_type == 'PRODUCT' %}active{% endif %}"
+                        data-type="PRODUCT">
+                    <i class="fa-solid fa-box-open"></i>
+                    <div>
+                        <strong>Physical Product</strong>
+                        <small>Hardware, cables, inverters, appliances, tools</small>
+                    </div>
+                </button>
+                <button type="button"
+                        class="req-type-tab {% if initial_type == 'SERVICE' %}active{% endif %}"
+                        data-type="SERVICE">
+                    <i class="fa-solid fa-screwdriver-wrench"></i>
+                    <div>
+                        <strong>Professional Service</strong>
+                        <small>Electrician, solar installer, HVAC, repairs</small>
+                    </div>
+                </button>
+            </div>
+
+            <!-- 2. Core Request Details (Pre-filled from Search Bar) -->
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label id="requestTitleLabel" class="form-label-dark">
+                        {% if initial_type == 'SERVICE' %}Service Needed *{% else %}Product Name / Model *{% endif %}
+                    </label>
+                    <input type="text"
+                           name="title"
+                           id="requestTitleInput"
+                           class="form-control"
+                           value="{{ initial_query }}"
+                           placeholder="E.g., 5kVA Hybrid Solar Inverter or Certified Electrician"
+                           required>
+                </div>
+
+                <!-- Product Category Select -->
+                <div class="form-group {% if initial_type == 'SERVICE' %}hidden-initial{% endif %}" id="productCategoryGroup">
+                    <label class="form-label-dark">Product Category *</label>
+                    <select name="category_id" id="productCategorySelect" class="form-control" {% if initial_type == 'SERVICE' %}disabled{% endif %}>
+                        <option value="">Select product department...</option>
+                        {% for cat in product_categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Service Category Select -->
+                <div class="form-group {% if initial_type == 'PRODUCT' %}hidden-initial{% endif %}" id="serviceCategoryGroup">
+                    <label class="form-label-dark">Service Category *</label>
+                    <select name="category_id" id="serviceCategorySelect" class="form-control" {% if initial_type == 'PRODUCT' %}disabled{% endif %}>
+                        <option value="">Select service specialty...</option>
+                        {% for cat in service_categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- 3A. Product-Only Fields -->
+            <div id="productSpecificFields" class="{% if initial_type == 'SERVICE' %}hidden-initial{% endif %}">
+                <div class="form-grid-3">
+                    <div class="form-group">
+                        <label class="form-label-dark">Preferred Brand (Optional)</label>
+                        <input type="text" name="brand" class="form-control" placeholder="E.g., Coleman, Luminous, Schneider">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-dark">Condition</label>
+                        <select name="condition" class="form-control">
+                            <option value="NEW">Brand New</option>
+                            <option value="REFURBISHED">Refurbished / Foreign Used</option>
+                            <option value="USED">Local Used</option>
+                            <option value="ANY">Any Condition</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-dark">Key Specifications (Optional)</label>
+                        <input type="text" name="specifications" class="form-control" placeholder="E.g., 16mm 4-Core, 48V 200Ah">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3B. Service-Only Fields -->
+            <div id="serviceSpecificFields" class="{% if initial_type == 'PRODUCT' %}hidden-initial{% endif %}">
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label class="form-label-dark">Preferred Service Date (Optional)</label>
+                        <input type="date" name="preferred_date" min="{% now 'Y-m-d' %}" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-dark">Specific Technical Scope (Optional)</label>
+                        <input type="text" name="specifications" class="form-control" placeholder="E.g., 3-bedroom conduit wiring, inverter fault">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Budget & Location -->
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label-dark">Minimum Budget (NGN) — Optional</label>
+                    <input type="number" name="budget_min" class="form-control" placeholder="E.g., 50000" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label-dark">Maximum Budget (NGN) — Optional</label>
+                    <input type="number" name="budget_max" class="form-control" placeholder="E.g., 120000" min="0">
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label-dark">State / Region *</label>
+                    <select name="region" class="form-control" required>
+                        <option value="Rivers State" selected>Rivers State</option>
+                        <option value="Lagos State">Lagos State</option>
+                        <option value="Abuja (FCT)">Abuja (FCT)</option>
+                        <option value="Abia State">Abia State</option>
+                        <option value="Delta State">Delta State</option>
+                        <option value="Akwa Ibom State">Akwa Ibom State</option>
+                        <option value="Bayelsa State">Bayelsa State</option>
+                        <option value="Enugu State">Enugu State</option>
+                        <option value="Imo State">Imo State</option>
+                        <option value="Anambra State">Anambra State</option>
+                        <option value="Edo State">Edo State</option>
+                        <option value="Oyo State">Oyo State</option>
+                        <option value="Kano State">Kano State</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label-dark">City / Town / Area *</label>
+                    <input type="text" name="location_detail" class="form-control" placeholder="E.g., Oyigbo, Port Harcourt, Obio/Akpor" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label-dark">Additional Details / Requirements</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Describe any specific requirements, quantities, or site details..."></textarea>
+            </div>
+
+            <button type="submit" class="action-btn btn-primary w-100 py-15 text-16 font-700-block mt-10">
+                <i class="fa-solid fa-paper-plane icon-spaced"></i> Submit Request &amp; Check Matches
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const tabs = document.querySelectorAll(".req-type-tab");
+    const typeInput = document.getElementById("requestTypeInput");
+    const titleLabel = document.getElementById("requestTitleLabel");
+    const prodCatGroup = document.getElementById("productCategoryGroup");
+    const srvCatGroup = document.getElementById("serviceCategoryGroup");
+    const prodCatSelect = document.getElementById("productCategorySelect");
+    const srvCatSelect = document.getElementById("serviceCategorySelect");
+    const prodFields = document.getElementById("productSpecificFields");
+    const srvFields = document.getElementById("serviceSpecificFields");
+
+    tabs.forEach(tab => {
+        tab.addEventListener("click", function () {
+            const selectedType = this.dataset.type;
+            typeInput.value = selectedType;
+
+            tabs.forEach(t => t.classList.remove("active"));
+            this.classList.add("active");
+
+            if (selectedType === "SERVICE") {
+                titleLabel.textContent = "Service Needed *";
+                prodCatGroup.classList.add("hidden-initial");
+                prodCatSelect.disabled = true;
+                srvCatGroup.classList.remove("hidden-initial");
+                srvCatSelect.disabled = false;
+                prodFields.classList.add("hidden-initial");
+                srvFields.classList.remove("hidden-initial");
+            } else {
+                titleLabel.textContent = "Product Name / Model *";
+                srvCatGroup.classList.add("hidden-initial");
+                srvCatSelect.disabled = true;
+                prodCatGroup.classList.remove("hidden-initial");
+                prodCatSelect.disabled = false;
+                srvFields.classList.add("hidden-initial");
+                prodFields.classList.remove("hidden-initial");
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

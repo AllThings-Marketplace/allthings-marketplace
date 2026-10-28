@@ -10,7 +10,14 @@ urlpatterns = [
     path('logout/', views.custom_logout, name='logout'),
     path('profile/', views.profile_view, name='profile'),
     
-    # Provider Onboarding (Not the dashboard!)
+    # Dedicated "Sell on AllThings" Landing Page
+    path('sell/', views.sell_on_allthings, name='sell_on_allthings'),
+
+    # Inline Contact OTP Verification Endpoints (AJAX)
+    path('otp/send/', views.send_verification_otp, name='send_otp'),
+    path('otp/verify/', views.verify_contact_otp, name='verify_otp'),
+
+    # Provider Onboarding Wizard
     path('apply-provider/', views.apply_provider, name='apply_provider'),
     path('provider-status/', views.provider_status, name='provider_status'),
 ]

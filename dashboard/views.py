@@ -9,7 +9,6 @@ from django.core.exceptions import ValidationError
 
 # Django Core & Auth
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponseForbidden
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
@@ -19,7 +18,7 @@ from orders.models import Order, OrderItem, ServiceOrder, ServiceQuote, SupportT
 from orders.paystack import PaystackAPI
 from marketplace.models import (
     Product, Service, ProductImage, ServiceImage, 
-    Category, ProductVariant, ServicePackage
+    Category, ProductVariant, ServicePackage, CustomerRequest
 )
 
 # Utilities & AI Tasks
@@ -29,16 +28,58 @@ from marketplace.tasks import (
     process_service_cover_task, 
     process_service_portfolio_task
 )
-from marketplace.validators import validate_product_image 
+from marketplace.validators import (
+    validate_product_image,
+    inspect_listing_safety,
+    MAX_PRODUCT_IMAGES,
+    MAX_PORTFOLIO_IMAGES,
+)
+
+
+def _get_categories_for_type(cat_type):
+    """
+    Returns parent categories filtered by 'PRODUCT' or 'SERVICE'.
+    Safely falls back to all active parent categories if none are tagged yet.
+    """
+    qs = Category.objects.filter(
+        parent__isnull=True,
+        is_active=True,
+        category_type=cat_type
+    ).prefetch_related('subcategories')
+    if not qs.exists():
+        qs = Category.objects.filter(
+            parent__isnull=True,
+            is_active=True
+        ).prefetch_related('subcategories')
+    return qs
+
+
+def _check_active_provider_gate(request):
+    """
+    Central security gate for the Provider Portal (/dashboard/):
+    1. If the user has not started a provider application -> redirect to 'Sell on AllThings'.
+    2. If the user is still in onboarding (Stages 1-5 or Flagged) -> redirect to 'provider_status'.
+    3. Returns (profile, None) only when profile.verification_status == 'ACTIVE'.
+    """
+    profile = getattr(request.user, 'provider_profile', None)
+    if not profile:
+        messages.info(request, "Apply to become a verified provider to access the Provider Portal.")
+        return None, redirect('accounts:sell_on_allthings')
+
+    if profile.verification_status != 'ACTIVE':
+        messages.info(request, "Please complete your provider verification steps to unlock your Provider Portal.")
+        return None, redirect('accounts:provider_status')
+
+    return profile, None
 
 
 # --- 1. MAIN DASHBOARD ---
 
 @login_required
 def provider_dashboard(request):
-    profile = getattr(request.user, 'provider_profile', None)
-    if not profile:
-        return HttpResponseForbidden("Only registered service providers can view this page.")
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
     
     is_vendor = profile.provider_type in ['VENDOR', 'BOTH']
     is_service = profile.provider_type in ['SERVICE', 'BOTH']
@@ -61,7 +102,7 @@ def provider_dashboard(request):
     past_jobs = []
     
     if is_service:
-        my_services = Service.objects.filter(provider=profile).select_related('category')
+        my_services = Service.objects.filter(provider=profile).select_related('category').order_by('-id')
         pending_requests = ServiceOrder.objects.filter(
             provider=profile,
             status='REQUESTED'
@@ -82,6 +123,18 @@ def provider_dashboard(request):
         Q(order_item__product__provider=profile) | Q(service_order__provider=profile),
         status__in=['OPEN', 'IN_PROGRESS']
     ).select_related('order', 'order_item__product', 'service_order__service').distinct()[:5]
+
+    # Open Customer Sourcing Requests ("Request What You Need") matching this provider's type
+    open_leads_qs = CustomerRequest.objects.filter(
+        status__in=['PENDING', 'MATCHING', 'MATCHED']
+    ).exclude(customer=request.user).select_related('category', 'customer')
+
+    if profile.provider_type == 'VENDOR':
+        open_leads_qs = open_leads_qs.filter(request_type='PRODUCT')
+    elif profile.provider_type == 'SERVICE':
+        open_leads_qs = open_leads_qs.filter(request_type='SERVICE')
+
+    open_buyer_requests = list(open_leads_qs.order_by('-created_at')[:8])
     
     # Wallet, Ledger History & Real-Time Withdrawal Eligibility
     wallet, _ = VendorWallet.objects.get_or_create(provider=profile)
@@ -98,7 +151,7 @@ def provider_dashboard(request):
         if days_since < 7:
             days_left = 7 - days_since
 
-    has_bank_details = all([profile.account_name, profile.account_number, profile.bank_code])
+    has_bank_details = all([profile.account_name, profile.account_number, profile.bank_name])
     can_withdraw = (
         profile.verification_status == 'ACTIVE'
         and days_left == 0
@@ -115,6 +168,7 @@ def provider_dashboard(request):
         'active_jobs': active_jobs,
         'past_jobs': past_jobs,
         'active_disputes': active_disputes,
+        'open_buyer_requests': open_buyer_requests,
         'pending_store_orders_count': pending_store_orders_count,
         'low_stock_count': low_stock_count,
         'recent_transactions': recent_transactions, 
@@ -129,10 +183,12 @@ def provider_dashboard(request):
 
 @login_required
 def request_payout(request):
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
-        
-        if not profile or profile.verification_status != 'ACTIVE' or not hasattr(profile, 'wallet'):
+        if not hasattr(profile, 'wallet'):
             messages.error(request, "Your account is not eligible for withdrawals.")
             return redirect('dashboard:provider_dashboard')
 
@@ -156,8 +212,8 @@ def request_payout(request):
         
         # Verify provider has banking details set up
         if not all([profile.account_name, profile.account_number, profile.bank_code]):
-            messages.error(request, "Please complete your bank details (including Bank Code) in your profile settings before withdrawing.")
-            return redirect('dashboard:provider_dashboard')
+            messages.error(request, "Please verify your payout bank account in Store Settings before withdrawing.")
+            return redirect('dashboard:provider_settings')
         
         try:
             amount = Decimal(request.POST.get('amount'))
@@ -215,18 +271,42 @@ def request_payout(request):
     return redirect('dashboard:provider_dashboard')
 
 
+def _dispatch_task_safely(task_func, obj_id):
+    """
+    Queues the Celery task asynchronously via .delay(), or executes it inline
+    if Redis/Celery broker is not running so images never get stuck in UPLOADED.
+    """
+    try:
+        task_func.delay(obj_id)
+    except Exception:
+        task_func(obj_id)
+
+
 # --- 3. LISTING MANAGEMENT (Products & Services) ---
 
 @login_required
 def add_product(request):
-    profile = getattr(request.user, 'provider_profile', None)
-    if not profile or profile.provider_type not in ['VENDOR', 'BOTH']:
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
+    if profile.provider_type not in ['VENDOR', 'BOTH']:
         messages.error(request, "Only vendors can add products.")
         return redirect('dashboard:provider_dashboard')
 
     if request.method == 'POST':
         try:
             with transaction.atomic():
+                name = request.POST.get('name', '').strip()
+                description = request.POST.get('description', '').strip()
+
+                # Layer 1: Anti-Leakage & Content Safety Guardrail
+                is_flagged, flag_reason = inspect_listing_safety(
+                    title=name,
+                    description=description,
+                    provider=profile
+                )
+
                 category_id = request.POST.get('category_id')
                 if not category_id:
                     raise ValidationError("Please select a product category.")
@@ -250,8 +330,12 @@ def add_product(request):
                 uploaded_files = request.FILES.getlist('images')
                 if not uploaded_files:
                     raise ValidationError("You must upload at least one product image.")
+                if len(uploaded_files) > MAX_PRODUCT_IMAGES:
+                    raise ValidationError(f"You can upload a maximum of {MAX_PRODUCT_IMAGES} images per product.")
 
-                # Logistics & Package Sizing Extraction
+                for img_file in uploaded_files:
+                    validate_product_image(img_file)
+
                 shipping_class = request.POST.get('shipping_class', Product.ShippingClass.SMALL)
                 if shipping_class not in dict(Product.ShippingClass.choices):
                     shipping_class = Product.ShippingClass.SMALL
@@ -266,14 +350,15 @@ def add_product(request):
                 product = Product.objects.create(
                     provider=profile,
                     category=category,
-                    name=request.POST.get('name'),
+                    name=name,
                     price=request.POST.get('price'),
                     stock_count=request.POST.get('stock_count', 0),
                     shipping_class=shipping_class,
                     weight_kg=weight_kg,
-                    description=request.POST.get('description', ''),
+                    description=description,
                     attributes=dynamic_attributes, 
-                    status=Product.ProductStatus.PENDING, 
+                    status=Product.ProductStatus.PENDING,
+                    moderation_note=flag_reason if is_flagged else '',
                     is_active=False 
                 )
 
@@ -285,8 +370,8 @@ def add_product(request):
                 has_variants = False
                 total_variant_stock = 0
 
-                for name, value, price, stock in zip(variant_names, variant_values, variant_prices, variant_stocks):
-                    if name.strip() and value.strip():
+                for v_name, value, price, stock in zip(variant_names, variant_values, variant_prices, variant_stocks):
+                    if v_name.strip() and value.strip():
                         has_variants = True
                         try:
                             safe_price = Decimal(price.strip()) if price.strip() else None
@@ -298,7 +383,7 @@ def add_product(request):
 
                         ProductVariant.objects.create(
                             product=product,
-                            attribute_name=name.strip(),
+                            attribute_name=v_name.strip(),
                             attribute_value=value.strip(),
                             price_override=safe_price,
                             stock=safe_stock
@@ -306,8 +391,9 @@ def add_product(request):
 
                 if has_variants:
                     product.stock_count = total_variant_stock
-                    product.save()
+                    product.save(update_fields=['stock_count'])
 
+                image_ids = []
                 for index, image_file in enumerate(uploaded_files):
                     new_image = ProductImage.objects.create(
                         product=product,
@@ -315,26 +401,35 @@ def add_product(request):
                         processing_status='UPLOADED',
                         image_type='MAIN' if index == 0 else 'GALLERY'
                     )
-                    process_product_image_task.delay(new_image.id)
+                    image_ids.append(new_image.id)
 
-            messages.success(request, f"Product submitted! {len(uploaded_files)} images are being optimized.")
+            for img_id in image_ids:
+                _dispatch_task_safely(process_product_image_task, img_id)
+
+            if is_flagged:
+                messages.warning(request, f"Product saved and queued for admin review: {flag_reason}")
+            else:
+                messages.success(request, f"Product submitted! {len(uploaded_files)} photo(s) are being optimized and will go live automatically.")
             return redirect('dashboard:provider_dashboard')
 
         except Category.DoesNotExist:
             messages.error(request, "Invalid category selected.")
         except ValidationError as e:
             error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
-            messages.error(request, f"Upload Error: {error_msg}")
+            messages.error(request, error_msg)
         except Exception as e:
             messages.error(request, f"System Error: {str(e)}")
 
-    parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
+    parent_categories = _get_categories_for_type('PRODUCT')
     return render(request, 'dashboard/add_product.html', {'parent_categories': parent_categories})
 
 
 @login_required
 def upload_product_images(request, product_id):
-    profile = getattr(request.user, 'provider_profile', None)
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     product = get_object_or_404(Product, id=product_id, provider=profile)
 
     if request.method == 'POST':
@@ -344,13 +439,29 @@ def upload_product_images(request, product_id):
             messages.error(request, "Please select at least one image to upload.")
             return redirect('dashboard:provider_dashboard')
 
+        existing_count = product.images.count()
+        if existing_count + len(uploaded_files) > MAX_PRODUCT_IMAGES:
+            messages.error(
+                request,
+                f"This product already has {existing_count} image(s). Maximum allowed is {MAX_PRODUCT_IMAGES} images per product."
+            )
+            return redirect('dashboard:upload_product_images', product_id=product.id)
+
+        try:
+            for image_file in uploaded_files:
+                validate_product_image(image_file)
+        except ValidationError as e:
+            error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+            messages.error(request, error_msg)
+            return redirect('dashboard:upload_product_images', product_id=product.id)
+
         for image_file in uploaded_files:
             new_image = ProductImage.objects.create(
                 product=product,
                 original_image=image_file,
                 processing_status='UPLOADED'
             )
-            process_product_image_task.delay(new_image.id)
+            _dispatch_task_safely(process_product_image_task, new_image.id)
         
         messages.success(request, f"Successfully uploaded {len(uploaded_files)} image(s). Our system is optimizing them now.")
         return redirect('dashboard:provider_dashboard')
@@ -360,19 +471,36 @@ def upload_product_images(request, product_id):
 
 @login_required
 def add_service(request):
-    profile = getattr(request.user, 'provider_profile', None)
-    if not profile:
-        messages.error(request, "Only registered providers can add services.")
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
+    if profile.provider_type not in ['SERVICE', 'BOTH']:
+        messages.error(request, "Only service providers can add services.")
         return redirect('dashboard:provider_dashboard')
 
     if request.method == 'POST':
         try:
             with transaction.atomic():
+                name = request.POST.get('name', '').strip()
+                description = request.POST.get('description', '').strip()
+                included_raw = request.POST.get('whats_included', '')
+                excluded_raw = request.POST.get('whats_excluded', '')
+                pkg_features = request.POST.getlist('pkg_features[]')
+
+                # Layer 1: Anti-Leakage & Safety Guardrail
+                is_flagged, flag_reason = inspect_listing_safety(
+                    title=name,
+                    description=description,
+                    extra_texts=[included_raw, excluded_raw, *pkg_features],
+                    provider=profile
+                )
+
                 category = Category.objects.get(id=request.POST.get('category_id'))
                 pricing_type = request.POST.get('pricing_type')
                 
-                included_list = [i.strip() for i in request.POST.get('whats_included', '').split(',') if i.strip()]
-                excluded_list = [i.strip() for i in request.POST.get('whats_excluded', '').split(',') if i.strip()]
+                included_list = [i.strip() for i in included_raw.split(',') if i.strip()]
+                excluded_list = [i.strip() for i in excluded_raw.split(',') if i.strip()]
 
                 base_price_raw = request.POST.get('base_price')
                 base_price = Decimal(base_price_raw.strip()) if base_price_raw and pricing_type not in ['QUOTE', 'PACKAGES'] else None
@@ -382,79 +510,125 @@ def add_service(request):
 
                 cover_image = request.FILES.get('cover_image')
                 if not cover_image:
-                    raise ValidationError("A cover image is required.")
+                    raise ValidationError("A primary cover image is required.")
+                validate_product_image(cover_image)
+
+                portfolio_files = request.FILES.getlist('portfolio_images')
+                if len(portfolio_files) > MAX_PORTFOLIO_IMAGES:
+                    raise ValidationError(f"You can upload a maximum of {MAX_PORTFOLIO_IMAGES} portfolio images.")
+                for p_file in portfolio_files:
+                    validate_product_image(p_file)
+
+                # Layer 2: Verified Providers go live immediately unless flagged by Layer 1
+                is_fast_tracked = (
+                    not is_flagged
+                    and profile.verification_status == 'ACTIVE'
+                    and getattr(profile, 'trust_score', 100) >= 50
+                )
 
                 service = Service.objects.create(
                     provider=profile,
                     category=category,
-                    name=request.POST.get('name'),
-                    description=request.POST.get('description'),
+                    name=name,
+                    description=description,
                     service_mode=request.POST.get('service_mode'),
                     service_radius_km=radius,
                     pricing_type=pricing_type,
                     base_price=base_price,
                     whats_included=included_list,
                     whats_excluded=excluded_list,
-                    cover_image=cover_image
+                    cover_image=cover_image,
+                    status=Service.ServiceStatus.APPROVED if is_fast_tracked else Service.ServiceStatus.PENDING,
+                    moderation_note=flag_reason if is_flagged else '',
+                    is_active=is_fast_tracked,
                 )
 
                 if pricing_type == 'PACKAGES':
                     pkg_names = request.POST.getlist('pkg_names[]')
                     pkg_prices = request.POST.getlist('pkg_prices[]')
                     pkg_durations = request.POST.getlist('pkg_durations[]')
-                    pkg_features = request.POST.getlist('pkg_features[]')
 
-                    for name, price, dur, feat in zip(pkg_names, pkg_prices, pkg_durations, pkg_features):
-                        if name.strip() and price.strip():
+                    for p_name, price, dur, feat in zip(pkg_names, pkg_prices, pkg_durations, pkg_features):
+                        if p_name.strip() and price.strip():
                             ServicePackage.objects.create(
                                 service=service,
-                                name=name.strip(),
+                                name=p_name.strip(),
                                 price=Decimal(price.strip()),
                                 estimated_duration=dur.strip(),
                                 features=[f.strip() for f in feat.split(',') if f.strip()]
                             )
 
-                portfolio_files = request.FILES.getlist('portfolio_images')
                 portfolio_ids = []
-                
                 for p_file in portfolio_files:
                     s_img = ServiceImage.objects.create(service=service, image=p_file)
                     portfolio_ids.append(s_img.id)
 
-            transaction.on_commit(lambda: process_service_cover_task.delay(service.id))
-            
+            transaction.on_commit(lambda: _dispatch_task_safely(process_service_cover_task, service.id))
             for pid in portfolio_ids:
-                transaction.on_commit(lambda: process_service_portfolio_task.delay(pid))
+                transaction.on_commit(lambda pid=pid: _dispatch_task_safely(process_service_portfolio_task, pid))
 
-            messages.success(request, "Service published! Your images are being optimized in the background.")
+            if is_fast_tracked:
+                messages.success(request, f"'{service.name}' is now live on the marketplace! Your banner and portfolio photos are being optimized in the background.")
+            else:
+                messages.warning(request, f"'{service.name}' was saved and queued for admin review: {flag_reason}")
             return redirect('dashboard:provider_dashboard')
 
         except Category.DoesNotExist:
             messages.error(request, "Invalid category selected.")
         except ValidationError as e:
             error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
-            messages.error(request, f"Upload Error: {error_msg}")
+            messages.error(request, error_msg)
         except Exception as e:
             messages.error(request, f"System Error: {str(e)}")
 
-    parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
+    parent_categories = _get_categories_for_type('SERVICE')
     return render(request, 'dashboard/add_service.html', {'parent_categories': parent_categories})
 
 
 @login_required
 def edit_service(request, service_id):
-    profile = getattr(request.user, 'provider_profile', None)
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     service = get_object_or_404(Service, id=service_id, provider=profile)
 
     if request.method == 'POST':
         try:
             with transaction.atomic():
+                name = request.POST.get('name', service.name).strip()
+                description = request.POST.get('description', service.description).strip()
+                included_raw = request.POST.get('whats_included', '')
+                excluded_raw = request.POST.get('whats_excluded', '')
+
+                # Re-verify anti-leakage safety on edit
+                is_flagged, flag_reason = inspect_listing_safety(
+                    title=name,
+                    description=description,
+                    extra_texts=[included_raw, excluded_raw],
+                    provider=profile
+                )
+
+                new_cover = request.FILES.get('cover_image')
+                if new_cover:
+                    validate_product_image(new_cover)
+
+                portfolio_files = request.FILES.getlist('portfolio_images')
+                if portfolio_files:
+                    existing_port_count = service.portfolio_images.count()
+                    if existing_port_count + len(portfolio_files) > MAX_PORTFOLIO_IMAGES:
+                        raise ValidationError(
+                            f"This service already has {existing_port_count} portfolio photo(s). Maximum allowed is {MAX_PORTFOLIO_IMAGES}."
+                        )
+                    for p_file in portfolio_files:
+                        validate_product_image(p_file)
+
                 category_id = request.POST.get('category_id')
                 if category_id:
                     service.category_id = category_id
                 
-                service.name = request.POST.get('name', service.name)
-                service.description = request.POST.get('description', service.description)
+                service.name = name
+                service.description = description
                 
                 submitted_mode = request.POST.get('service_mode', service.service_mode)
                 if submitted_mode in dict(Service.ServiceMode.choices):
@@ -463,29 +637,49 @@ def edit_service(request, service_id):
                 radius_raw = request.POST.get('service_radius_km', '').strip()
                 service.service_radius_km = int(radius_raw) if radius_raw.isdigit() else None
                 
-                included_raw = request.POST.get('whats_included', '')
                 service.whats_included = [i.strip() for i in included_raw.split(',') if i.strip()]
-                    
-                excluded_raw = request.POST.get('whats_excluded', '')
                 service.whats_excluded = [i.strip() for i in excluded_raw.split(',') if i.strip()]
 
                 base_price_raw = request.POST.get('base_price')
                 if base_price_raw and service.pricing_type not in ['QUOTE', 'PACKAGES']:
                     service.base_price = Decimal(base_price_raw.strip())
 
-                new_cover = request.FILES.get('cover_image')
+                if is_flagged:
+                    service.status = Service.ServiceStatus.PENDING
+                    service.moderation_note = flag_reason
+                    service.is_active = False
+                elif service.status != Service.ServiceStatus.REJECTED:
+                    service.status = Service.ServiceStatus.APPROVED
+                    service.moderation_note = ''
+                    service.is_active = True
+
                 if new_cover:
                     service.cover_image = new_cover
-                    transaction.on_commit(lambda: process_service_cover_task.delay(service.id))
+                    transaction.on_commit(lambda: _dispatch_task_safely(process_service_cover_task, service.id))
+
+                portfolio_ids = []
+                for p_file in portfolio_files:
+                    s_img = ServiceImage.objects.create(service=service, image=p_file)
+                    portfolio_ids.append(s_img.id)
+
+                for pid in portfolio_ids:
+                    transaction.on_commit(lambda pid=pid: _dispatch_task_safely(process_service_portfolio_task, pid))
 
                 service.save()
-                messages.success(request, f"'{service.name}' was updated successfully!")
-                return redirect('dashboard:provider_dashboard')
 
+            if is_flagged:
+                messages.warning(request, f"Changes saved, but '{service.name}' was placed under review: {flag_reason}")
+            else:
+                messages.success(request, f"'{service.name}' was updated successfully!")
+            return redirect('dashboard:provider_dashboard')
+
+        except ValidationError as e:
+            error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+            messages.error(request, error_msg)
         except Exception as e:
             messages.error(request, f"Error updating service: {str(e)}")
 
-    parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
+    parent_categories = _get_categories_for_type('SERVICE')
     
     context = {
         'service': service,
@@ -496,36 +690,63 @@ def edit_service(request, service_id):
 
 @login_required
 def edit_product(request, product_id):
-    product = get_object_or_404(Product, id=product_id, provider=request.user.provider_profile)
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
+    product = get_object_or_404(Product, id=product_id, provider=profile)
     
     if request.method == 'POST':
-        product.name = request.POST.get('name', product.name).strip()
-        category_id = request.POST.get('category_id')
-        if category_id:
-            product.category_id = category_id
-        product.price = request.POST.get('price', product.price)
-        
-        stock_input = request.POST.get('stock_count', '').strip()
-        product.stock_count = int(stock_input) if stock_input.isdigit() else 0
-
-        shipping_class = request.POST.get('shipping_class', product.shipping_class)
-        if shipping_class in dict(Product.ShippingClass.choices):
-            product.shipping_class = shipping_class
-
         try:
-            weight_val = Decimal(request.POST.get('weight_kg', product.weight_kg))
-            if weight_val > 0:
-                product.weight_kg = weight_val
-        except (InvalidOperation, TypeError, ValueError):
-            pass
-        
-        product.description = request.POST.get('description', product.description)
-        
-        product.save()
-        messages.success(request, f"'{product.name}' has been updated successfully.")
-        return redirect('dashboard:provider_dashboard')
+            name = request.POST.get('name', product.name).strip()
+            description = request.POST.get('description', product.description).strip()
 
-    parent_categories = Category.objects.filter(parent__isnull=True, is_active=True)
+            is_flagged, flag_reason = inspect_listing_safety(
+                title=name,
+                description=description,
+                provider=profile
+            )
+
+            product.name = name
+            category_id = request.POST.get('category_id')
+            if category_id:
+                product.category_id = category_id
+            product.price = request.POST.get('price', product.price)
+            
+            stock_input = request.POST.get('stock_count', '').strip()
+            product.stock_count = int(stock_input) if stock_input.isdigit() else 0
+
+            shipping_class = request.POST.get('shipping_class', product.shipping_class)
+            if shipping_class in dict(Product.ShippingClass.choices):
+                product.shipping_class = shipping_class
+
+            try:
+                weight_val = Decimal(request.POST.get('weight_kg', product.weight_kg))
+                if weight_val > 0:
+                    product.weight_kg = weight_val
+            except (InvalidOperation, TypeError, ValueError):
+                pass
+            
+            product.description = description
+
+            if is_flagged:
+                product.status = Product.ProductStatus.PENDING
+                product.moderation_note = flag_reason
+                product.is_active = False
+            
+            product.save()
+
+            if is_flagged:
+                messages.warning(request, f"Changes saved, but '{product.name}' was flagged for review: {flag_reason}")
+            else:
+                messages.success(request, f"'{product.name}' has been updated successfully.")
+            return redirect('dashboard:provider_dashboard')
+
+        except ValidationError as e:
+            error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+            messages.error(request, error_msg)
+
+    parent_categories = _get_categories_for_type('PRODUCT')
     
     context = {
         'product': product,
@@ -538,9 +759,11 @@ def edit_product(request, product_id):
 
 @login_required
 def vendor_orders(request):
-    profile = getattr(request.user, 'provider_profile', None)
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
     
-    if not profile or profile.provider_type not in ['VENDOR', 'BOTH']:
+    if profile.provider_type not in ['VENDOR', 'BOTH']:
         messages.error(request, "Only product vendors can manage store orders.")
         return redirect('dashboard:provider_dashboard')
 
@@ -568,8 +791,11 @@ def vendor_orders(request):
 
 @login_required
 def update_item_status(request, item_id, new_status):
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
         item = get_object_or_404(OrderItem, id=item_id, product__provider=profile)
         
         valid_transitions = {
@@ -594,8 +820,11 @@ def update_item_status(request, item_id, new_status):
 
 @login_required
 def accept_service_request(request, order_id):
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='REQUESTED')
         
         service_order.status = 'ACCEPTED'
@@ -607,8 +836,11 @@ def accept_service_request(request, order_id):
 
 @login_required
 def decline_service_request(request, order_id):
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='REQUESTED')
         
         service_order.status = 'DECLINED'
@@ -620,8 +852,11 @@ def decline_service_request(request, order_id):
 
 @login_required
 def provider_start_service(request, order_id):
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='PAID')
         
         service_order.status = 'IN_PROGRESS'
@@ -633,8 +868,11 @@ def provider_start_service(request, order_id):
 
 @login_required
 def provider_complete_service(request, order_id):
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='IN_PROGRESS')
         
         service_order.status = 'COMPLETED'
@@ -647,8 +885,11 @@ def provider_complete_service(request, order_id):
 
 @login_required
 def send_quote(request, order_id):
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
+
     if request.method == 'POST':
-        profile = getattr(request.user, 'provider_profile', None)
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='REQUESTED')
         
         labor_cost = request.POST.get('labor_cost', 0)
@@ -674,6 +915,7 @@ def send_quote(request, order_id):
 
     return redirect('dashboard:provider_dashboard')
 
+
 @login_required
 def provider_settings(request):
     """
@@ -682,25 +924,27 @@ def provider_settings(request):
     2. Origin Dispatch Base & GPS Coordinates (Powers LogisticsEngine shipping quotes)
     3. Password-Protected + Paystack-Verified Payout Bank Account
     """
-    if not hasattr(request.user, 'provider_profile'):
-        return redirect('accounts:profile')
-
-    profile = request.user.provider_profile
-    if profile.verification_status != 'ACTIVE':
-        return redirect('accounts:profile')
+    profile, gate_redirect = _check_active_provider_gate(request)
+    if gate_redirect:
+        return gate_redirect
 
     if request.method == 'POST':
         section = request.POST.get('section', 'storefront')
 
         # 1. Public Storefront & Branding
         if section == 'storefront':
+            if 'exterior_image' in request.FILES:
+                try:
+                    validate_product_image(request.FILES['exterior_image'])
+                    profile.exterior_image = request.FILES['exterior_image']
+                except ValidationError as e:
+                    error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+                    messages.error(request, error_msg)
+                    return redirect('dashboard:provider_settings')
+
             profile.business_category = request.POST.get('business_category', '').strip()
             profile.phone = request.POST.get('phone', '').strip()
             profile.business_description = request.POST.get('business_description', '').strip()
-
-            if 'exterior_image' in request.FILES:
-                profile.exterior_image = request.FILES['exterior_image']
-
             profile.save()
             messages.success(request, "Public storefront settings updated!")
             return redirect('dashboard:provider_settings')
@@ -774,10 +1018,11 @@ def provider_settings(request):
                         )
                         return redirect('dashboard:provider_settings')
 
+                    profile.bank_code = bank_code
                     profile.bank_name = bank_name or profile.bank_name
                     profile.account_number = account_number
                     profile.account_name = resolved_name
-                    profile.save(update_fields=['bank_name', 'account_number', 'account_name'])
+                    profile.save()
                     VendorWallet.objects.get_or_create(provider=profile)
 
                     messages.success(request, f"Payout account verified and updated to {resolved_name} ({profile.bank_name}).")

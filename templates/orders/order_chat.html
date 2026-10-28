@@ -3,20 +3,23 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/chat.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/chat.css' %}?v=2.5">
 {% endblock %}
 
 {% block content %}
-<div class="chat-container">
-    <!-- Chat Header -->
+<div class="chat-container animate-fade-in">
+    <!-- Executive Chat Header -->
     <div class="chat-header flex-between align-center flex-wrap gap-10">
-        <div>
-            <h3 class="m-0 text-16">
-                <i class="fa-regular fa-comments text-blue icon-spaced"></i> {{ chat_partner }}
-            </h3>
-            <span class="text-12-muted">
-                Booking Ref: <strong>{{ order.reference_code }}</strong> &bull; {{ order.service.name }}
-            </span>
+        <div class="flex-align-center gap-12">
+            <div class="chat-partner-avatar">
+                {{ chat_partner|make_list|first|upper }}
+            </div>
+            <div>
+                <h3 class="m-0 text-16 font-700-dark">{{ chat_partner }}</h3>
+                <span class="text-12-muted">
+                    Booking Ref: <strong>{{ order.reference_code }}</strong> &bull; {{ order.service.name|truncatechars:38 }}
+                </span>
+            </div>
         </div>
         <div class="flex-align-center gap-10">
             <span class="status-badge badge-pending badge-sm">{{ order.get_status_display }}</span>
@@ -34,10 +37,10 @@
 
     <!-- Contract Context Strip -->
     <div class="chat-context-strip">
-        <span><i class="fa-regular fa-calendar"></i> Scheduled: <strong>{{ order.preferred_date }} at {{ order.preferred_time }}</strong></span>
+        <span><i class="fa-regular fa-calendar text-primary"></i> Scheduled: <strong>{{ order.preferred_date }} at {{ order.preferred_time }}</strong></span>
         <span>
-            <i class="fa-solid fa-shield-halved text-primary"></i>
-            Escrow Price: <strong>{% if order.agreed_price > 0 %}NGN {{ order.agreed_price|floatformat:0|intcomma }}{% else %}Awaiting Quote{% endif %}</strong>
+            <i class="fa-solid fa-shield-halved text-success"></i>
+            Escrow Rate: <strong>{% if order.agreed_price > 0 %}NGN {{ order.agreed_price|floatformat:0|intcomma }}{% else %}Awaiting Custom Quote{% endif %}</strong>
         </span>
     </div>
 
@@ -58,32 +61,33 @@
                 <span class="message-meta">{{ msg.created_at|date:"M d, h:i A" }}</span>
             </div>
         {% empty %}
-            <div class="text-center mt-40">
-                <i class="fa-regular fa-message text-muted mb-10 icon-32"></i>
-                <p class="text-14-muted">No messages yet. Discuss scope details, arrival times, or share site photos here.</p>
+            <div class="chat-empty-box">
+                <i class="fa-regular fa-comments chat-empty-icon"></i>
+                <h4>Start the Conversation</h4>
+                <p class="text-13-muted m-0">Discuss site access, technical requirements, or share inspection photos here. All messages are logged for escrow protection.</p>
             </div>
         {% endfor %}
     </div>
 
     <!-- Attachment Preview Pill -->
-    <div id="chatAttachmentPreview" class="chat-attachment-preview" style="display: none;">
-        <span id="chatAttachmentName" class="text-12-muted"></span>
+    <div id="chatAttachmentPreview" class="chat-attachment-preview hidden-initial">
+        <span id="chatAttachmentName" class="text-12-muted font-600-dark"></span>
         <button type="button" id="clearChatAttachment" class="clear-text-btn text-danger">&times; Remove</button>
     </div>
 
     <!-- Message Input Form -->
     <div class="chat-footer">
-        <form action="{% url 'orders:send_order_message' order.id %}" method="POST" enctype="multipart/form-data" class="flex-between align-center gap-10" id="chatForm">
+        <form action="{% url 'orders:send_order_message' order.id %}" method="POST" enctype="multipart/form-data" class="chat-composer-row" id="chatForm">
             {% csrf_token %}
             
-            <label for="chat-file" class="action-btn btn-outline icon-only cursor-pointer" title="Attach Photo">
+            <label for="chat-file" class="chat-attach-btn" title="Attach Site Photo">
                 <i class="fa-solid fa-paperclip"></i>
             </label>
             <input type="file" name="attachment" id="chat-file" class="hidden-initial" accept="image/*">
             
-            <input type="text" name="body" id="chatInput" class="form-control flex-grow-1" placeholder="Type your message..." autocomplete="off">
+            <input type="text" name="body" id="chatInput" class="form-control chat-text-input" placeholder="Write a message..." autocomplete="off">
             
-            <button type="submit" class="action-btn btn-primary icon-only" title="Send Message">
+            <button type="submit" class="action-btn btn-primary chat-send-btn" title="Send Message">
                 <i class="fa-solid fa-paper-plane"></i>
             </button>
         </form>
@@ -93,33 +97,4 @@
 
 {% block extra_js %}
     <script src="{% static 'js/pages/chat.js' %}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const chatHistory = document.getElementById('chatHistory');
-            if (chatHistory) {
-                chatHistory.scrollTop = chatHistory.scrollHeight;
-            }
-            const fileInput = document.getElementById('chat-file');
-            const previewBox = document.getElementById('chatAttachmentPreview');
-            const previewName = document.getElementById('chatAttachmentName');
-            const clearBtn = document.getElementById('clearChatAttachment');
-
-            if (fileInput && previewBox) {
-                fileInput.addEventListener('change', function () {
-                    if (this.files && this.files[0]) {
-                        previewName.textContent = 'Attached: ' + this.files[0].name;
-                        previewBox.style.display = 'flex';
-                    } else {
-                        previewBox.style.display = 'none';
-                    }
-                });
-            }
-            if (clearBtn && fileInput) {
-                clearBtn.addEventListener('click', function () {
-                    fileInput.value = '';
-                    previewBox.style.display = 'none';
-                });
-            }
-        });
-    </script>
 {% endblock %}

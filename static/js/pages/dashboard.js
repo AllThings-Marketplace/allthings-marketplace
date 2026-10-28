@@ -408,3 +408,181 @@ document.addEventListener('DOMContentLoaded', function () {
             withdrawAmountInput.value = this.dataset.max || '';
         });
     }
+
+// === 11. Smart Category Auto-Guesser & Live Category Search ===
+    const titleInput = document.getElementById('listingTitleInput') || document.querySelector('input[name="name"]');
+    const catSelect = document.getElementById('category-selector');
+    const catSearchInput = document.getElementById('categorySearchInput');
+    const suggestionBar = document.getElementById('smartCategorySuggestionBar');
+    const suggestionPills = document.getElementById('smartCategoryPills');
+    const matchStatus = document.getElementById('categoryMatchStatus');
+
+    if (catSelect) {
+        // Built-in electrical & service domain synonym dictionary
+        const DOMAIN_SYNONYMS = {
+            wire: ['cable', 'wires', 'cables', 'wiring', 'coil', 'copper', 'armoured', 'mm', 'coleman', 'cutix', 'trunking', 'conduit'],
+            solar: ['inverter', 'battery', 'panel', 'mppt', 'charge', 'tubular', 'lithium', 'felicity', 'luminous', 'kva', 'hybrid'],
+            lighting: ['bulb', 'led', 'chandelier', 'floodlight', 'lamp', 'spotlight', 'strip', 'ceiling', 'downlight', 'watt'],
+            breaker: ['distribution', 'mcb', 'mccb', 'changeover', 'gear', 'fuse', 'isolator', 'contactor', 'stabilizer', 'avr', 'surge'],
+            socket: ['switch', 'switches', 'sockets', 'extension', 'plug', 'wall', 'dimmer', 'gang'],
+            tool: ['multimeter', 'tester', 'drill', 'plier', 'crimping', 'screwdriver', 'meter', 'clamp'],
+            appliance: ['fan', 'heater', 'ac', 'air', 'conditioner', 'hvac', 'fridge', 'freezer', 'pump', 'extractor'],
+            installation: ['install', 'wiring', 'rewiring', 'setup', 'mounting', 'earthing', 'piping', 'conduit'],
+            repair: ['fix', 'fault', 'diagnosis', 'troubleshooting', 'maintenance', 'servicing', 'refill', 'compressor']
+        };
+
+        // Snapshot all original options for live search filtering
+        const allOptions = Array.from(catSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text,
+            cleanName: opt.getAttribute('data-clean-name') || opt.text.replace(/^[-—\s]+/, '').trim(),
+            keywords: (opt.getAttribute('data-keywords') || opt.text).toLowerCase(),
+            className: opt.className,
+            isSubcategory: opt.text.trim().startsWith('-')
+        }));
+
+        let userManuallySelectedCategory = false;
+        catSelect.addEventListener('change', function (e) {
+            if (e.isTrusted) {
+                userManuallySelectedCategory = true;
+            }
+        });
+
+        // A. Live Category Dropdown Search Filter
+        if (catSearchInput) {
+            catSearchInput.addEventListener('input', function () {
+                const query = this.value.trim().toLowerCase();
+                const currentSelectedVal = catSelect.value;
+
+                catSelect.innerHTML = '';
+                let matchCount = 0;
+
+                allOptions.forEach(item => {
+                    if (!item.value) {
+                        const placeholderOpt = document.createElement('option');
+                        placeholderOpt.value = '';
+                        placeholderOpt.textContent = item.text;
+                        catSelect.appendChild(placeholderOpt);
+                        return;
+                    }
+
+                    const matches = !query || item.text.toLowerCase().includes(query) || item.keywords.includes(query);
+                    if (matches) {
+                        matchCount++;
+                        const opt = document.createElement('option');
+                        opt.value = item.value;
+                        opt.textContent = item.text;
+                        opt.className = item.className;
+                        opt.setAttribute('data-keywords', item.keywords);
+                        opt.setAttribute('data-clean-name', item.cleanName);
+                        if (item.value === currentSelectedVal) {
+                            opt.selected = true;
+                        }
+                        catSelect.appendChild(opt);
+                    }
+                });
+
+                if (matchStatus) {
+                    matchStatus.textContent = query ? `${matchCount} match${matchCount === 1 ? '' : 'es'}` : '';
+                }
+            });
+        }
+
+        // B. Smart Category Guesser from Product / Service Name
+        if (titleInput && suggestionBar && suggestionPills) {
+            titleInput.addEventListener('input', function () {
+                const rawTitle = this.value.trim().toLowerCase();
+                const tokens = rawTitle.split(/[\s,./\-()]+/).filter(t => t.length >= 2);
+
+                if (tokens.length === 0) {
+                    suggestionBar.classList.add('hidden-initial');
+                    suggestionBar.style.display = 'none';
+                    return;
+                }
+
+                // Expand tokens using domain synonyms
+                const expandedTokens = new Set(tokens);
+                tokens.forEach(token => {
+                    Object.entries(DOMAIN_SYNONYMS).forEach(([groupKey, words]) => {
+                        if (token.includes(groupKey) || words.some(w => token === w || (token.length >= 3 && w.startsWith(token)))) {
+                            expandedTokens.add(groupKey);
+                            words.forEach(w => expandedTokens.add(w));
+                        }
+                    });
+                });
+
+                // Score each category option
+                const scored = [];
+                allOptions.forEach(item => {
+                    if (!item.value) return;
+                    let score = 0;
+                    const haystack = `${item.cleanName.toLowerCase()} ${item.keywords}`;
+
+                    tokens.forEach(tok => {
+                        if (item.cleanName.toLowerCase().includes(tok)) {
+                            score += 6; // Direct category name hit
+                        } else if (haystack.includes(tok)) {
+                            score += 4; // Explicit keyword hit
+                        }
+                    });
+
+                    expandedTokens.forEach(syn => {
+                        if (haystack.includes(syn)) {
+                            score += 2; // Synonym group hit
+                        }
+                    });
+
+                    // Slight preference for specific subcategories over broad parent categories
+                    if (score > 0 && item.isSubcategory) {
+                        score += 1;
+                    }
+
+                    if (score > 0) {
+                        scored.push({ ...item, score });
+                    }
+                });
+
+                scored.sort((a, b) => b.score - a.score);
+                const topMatches = scored.slice(0, 3);
+
+                if (topMatches.length === 0) {
+                    suggestionBar.classList.add('hidden-initial');
+                    suggestionBar.style.display = 'none';
+                    return;
+                }
+
+                // Render clickable Smart Suggestion Pills
+                suggestionPills.innerHTML = '';
+                topMatches.forEach((match, idx) => {
+                    const pill = document.createElement('button');
+                    pill.type = 'button';
+                    pill.className = `smart-cat-pill ${catSelect.value === match.value ? 'active' : ''}`;
+                    pill.innerHTML = `<i class="fa-solid ${idx === 0 ? 'fa-bolt' : 'fa-tag'}"></i> ${match.cleanName}`;
+                    pill.addEventListener('click', function () {
+                        userManuallySelectedCategory = true;
+                        // Reset search filter if option was hidden
+                        if (catSearchInput && catSearchInput.value) {
+                            catSearchInput.value = '';
+                            catSearchInput.dispatchEvent(new Event('input'));
+                        }
+                        catSelect.value = match.value;
+                        catSelect.dispatchEvent(new Event('change')); // Triggers dynamic attributes AJAX!
+                        suggestionPills.querySelectorAll('.smart-cat-pill').forEach(p => p.classList.remove('active'));
+                        pill.classList.add('active');
+                    });
+                    suggestionPills.appendChild(pill);
+                });
+
+                suggestionBar.classList.remove('hidden-initial');
+                suggestionBar.style.display = 'flex';
+
+                // Auto-select top high-confidence category if user hasn't manually picked one yet
+                if (!userManuallySelectedCategory && topMatches[0].score >= 6 && catSelect.value !== topMatches[0].value) {
+                    catSelect.value = topMatches[0].value;
+                    catSelect.dispatchEvent(new Event('change'));
+                    const firstPill = suggestionPills.querySelector('.smart-cat-pill');
+                    if (firstPill) firstPill.classList.add('active');
+                }
+            });
+        }
+    } 

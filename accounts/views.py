@@ -1,18 +1,30 @@
+import re
+import secrets
+import datetime
 import requests
 from django.conf import settings
+from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
+from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse, NoReverseMatch
+from django.urls import NoReverseMatch
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from django.db.models import Avg, Count
+from django.core.exceptions import ValidationError
 
+from marketplace.validators import validate_product_image, validate_kyc_document
 from .forms import CustomerSignUpForm, UserUpdateForm
-from .models import ProviderProfile, VendorWallet
+from .models import ProviderProfile, VendorWallet, ContactOTP
 from orders.models import ShippingAddress
 from feedback.models import Feedback
+
+
+NG_PHONE_VALIDATOR = re.compile(r'^(?:\+?234|0)[789][01]\d{8}$')
 
 
 def _safe_redirect(namespaced_url, fallback_url):
@@ -21,6 +33,225 @@ def _safe_redirect(namespaced_url, fallback_url):
         return redirect(namespaced_url)
     except NoReverseMatch:
         return redirect(fallback_url)
+
+
+def _normalize_ng_phone(raw_phone):
+    """Normalizes Nigerian phone numbers (e.g. 08031234567 -> +2348031234567)."""
+    cleaned = re.sub(r'[\s\-().]', '', str(raw_phone or '').strip())
+    if cleaned.startswith('0') and len(cleaned) == 11:
+        return '+234' + cleaned[1:]
+    if cleaned.startswith('234') and len(cleaned) == 13:
+        return '+' + cleaned
+    return cleaned
+
+
+def _send_sms_otp(phone_e164, code):
+    """
+    Sends SMS OTP via Termii (if TERMII_API_KEY is configured in settings/.env).
+    Returns (sent_via_gateway: bool, error_or_info: str).
+    """
+    api_key = getattr(settings, 'TERMII_API_KEY', '')
+    sender_id = getattr(settings, 'TERMII_SENDER_ID', 'AllThings')
+
+    if not api_key:
+        return False, "SMS gateway key not configured; using development console."
+
+    try:
+        payload = {
+            "to": phone_e164.lstrip('+'),
+            "from": sender_id,
+            "sms": f"Your AllThings Provider verification code is {code}. Valid for 10 minutes. Do not share this code.",
+            "type": "plain",
+            "channel": "generic",
+            "api_key": api_key,
+        }
+        resp = requests.post("https://api.ng.termii.com/api/sms/send", json=payload, timeout=8)
+        if resp.status_code == 200:
+            return True, "Sent via SMS"
+        return False, f"Gateway returned {resp.status_code}"
+    except Exception as exc:
+        return False, str(exc)
+
+
+def sell_on_allthings(request):
+    """
+    Dedicated 'Sell on AllThings' landing page explaining how vendor sales,
+    service bookings, escrow protection, and instant payouts work.
+    """
+    return render(request, 'accounts/sell_on_allthings.html')
+
+
+@login_required
+@require_POST
+def send_verification_otp(request):
+    """
+    AJAX endpoint that generates and dispatches a 6-digit OTP to either
+    the user's Email Address or Primary Phone Number with a 60-second cooldown.
+    """
+    channel = request.POST.get('channel', '').upper().strip()
+    raw_target = request.POST.get('target', '').strip()
+
+    if channel not in ['EMAIL', 'PHONE']:
+        return JsonResponse({'status': 'error', 'message': 'Invalid verification channel.'}, status=400)
+
+    if channel == 'EMAIL':
+        target = (raw_target or request.user.email).strip().lower()
+        if not target or '@' not in target:
+            return JsonResponse({'status': 'error', 'message': 'Please enter a valid email address.'}, status=400)
+    else:
+        cleaned_digits = re.sub(r'[\s\-().]', '', raw_target)
+        if not NG_PHONE_VALIDATOR.match(cleaned_digits):
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Please enter a valid 11-digit Nigerian phone number (e.g. 08031234567).'
+            }, status=400)
+        target = _normalize_ng_phone(cleaned_digits)
+
+    # 1. Enforce 60-Second Rate-Limit Cooldown
+    recent_otp = ContactOTP.objects.filter(
+        user=request.user,
+        channel=channel,
+        target=target
+    ).first()
+
+    if recent_otp and not recent_otp.is_verified:
+        elapsed = (timezone.now() - recent_otp.created_at).total_seconds()
+        if elapsed < 55:
+            wait_secs = int(60 - elapsed)
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Please wait {wait_secs}s before requesting another code.'
+            }, status=429)
+
+    # 2. Generate Cryptographically Random 6-Digit Code
+    code = f"{secrets.randbelow(900000) + 100000}"
+    expires_at = timezone.now() + datetime.timedelta(minutes=10)
+
+    ContactOTP.objects.filter(
+        user=request.user,
+        channel=channel,
+        is_verified=False
+    ).delete()
+
+    ContactOTP.objects.create(
+        user=request.user,
+        channel=channel,
+        target=target,
+        code=code,
+        expires_at=expires_at
+    )
+
+    # 3. Dispatch via Email or SMS
+    dev_code_hint = None
+    if channel == 'EMAIL':
+        try:
+            send_mail(
+                subject=f"{code} is your AllThings Verification Code",
+                message=(
+                    f"Hi {request.user.first_name or request.user.username},\n\n"
+                    f"Your 6-digit verification code for your AllThings Provider Application is:\n\n"
+                    f"    {code}\n\n"
+                    f"This code expires in 10 minutes. Never share this code with anyone."
+                ),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@allthings.com'),
+                recipient_list=[target],
+                fail_silently=False,
+            )
+            delivery_msg = f"A 6-digit verification code has been sent to {target}."
+        except Exception:
+            delivery_msg = f"Verification code generated for {target}."
+            if settings.DEBUG:
+                dev_code_hint = code
+    else:
+        sent_ok, _ = _send_sms_otp(target, code)
+        if sent_ok:
+            delivery_msg = f"A 6-digit SMS code has been sent to {target}."
+        else:
+            delivery_msg = f"SMS verification code generated for {target}."
+            if settings.DEBUG:
+                dev_code_hint = code
+
+    if settings.DEBUG and not dev_code_hint:
+        # In local development, also return dev_code so testing is effortless
+        dev_code_hint = code
+
+    response_payload = {
+        'status': 'success',
+        'message': delivery_msg,
+        'target': target,
+        'cooldown': 60,
+    }
+    if dev_code_hint:
+        response_payload['dev_code'] = dev_code_hint
+
+    return JsonResponse(response_payload)
+
+
+@login_required
+@require_POST
+def verify_contact_otp(request):
+    """
+    AJAX endpoint that verifies a 6-digit OTP against the most recent active
+    ContactOTP record, enforcing a 5-attempt brute-force lockout and 10-minute expiry.
+    """
+    channel = request.POST.get('channel', '').upper().strip()
+    raw_target = request.POST.get('target', '').strip()
+    submitted_code = request.POST.get('code', '').strip()
+
+    if not submitted_code or len(submitted_code) != 6 or not submitted_code.isdigit():
+        return JsonResponse({'status': 'error', 'message': 'Please enter a valid 6-digit code.'}, status=400)
+
+    target = raw_target.lower() if channel == 'EMAIL' else _normalize_ng_phone(raw_target)
+
+    otp_record = ContactOTP.objects.filter(
+        user=request.user,
+        channel=channel,
+        target=target
+    ).first()
+
+    if not otp_record:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'No active verification code found. Please click Send Code first.'
+        }, status=400)
+
+    if otp_record.is_verified:
+        return JsonResponse({'status': 'success', 'message': 'Already verified!', 'target': target})
+
+    if otp_record.is_expired:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'This code has expired. Please request a new code.'
+        }, status=400)
+
+    if otp_record.attempts >= 5:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Too many incorrect attempts. Please request a new code.'
+        }, status=429)
+
+    if otp_record.code != submitted_code:
+        otp_record.attempts += 1
+        otp_record.save(update_fields=['attempts'])
+        remaining = max(0, 5 - otp_record.attempts)
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Incorrect code. You have {remaining} attempt(s) remaining.'
+        }, status=400)
+
+    otp_record.is_verified = True
+    otp_record.verified_at = timezone.now()
+    otp_record.save(update_fields=['is_verified', 'verified_at'])
+
+    if channel == 'PHONE':
+        request.user.phone_number = raw_target
+        request.user.save(update_fields=['phone_number'])
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'{otp_record.get_channel_display()} verified successfully!',
+        'target': target,
+    })
 
 
 @login_required(login_url='/accounts/login/')
@@ -166,6 +397,7 @@ def profile_view(request):
 
 
 def register_customer(request):
+    next_url = request.GET.get('next') or request.POST.get('next')
     if request.method == 'POST':
         form = CustomerSignUpForm(request.POST)
         if form.is_valid():
@@ -174,7 +406,9 @@ def register_customer(request):
                 user.role = 'CUSTOMER'
                 user.save()
 
-                login(request, user)
+                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                if next_url and next_url.startswith('/'):
+                    return redirect(next_url)
                 return redirect('marketplace:home')
 
             except IntegrityError:
@@ -186,7 +420,7 @@ def register_customer(request):
     else:
         form = CustomerSignUpForm()
 
-    return render(request, 'accounts/register.html', {'form': form})
+    return render(request, 'accounts/register.html', {'form': form, 'next': next_url})
 
 
 def custom_logout(request):
@@ -199,23 +433,84 @@ def apply_provider(request):
     if hasattr(request.user, 'provider_profile'):
         return _safe_redirect('accounts:provider_status', 'provider_status')
 
-    if request.method == 'POST':
-        request.user.first_name = request.POST.get('first_name', '').strip()
-        request.user.last_name = request.POST.get('last_name', '').strip()
-        request.user.save()
+    user_email = (request.user.email or '').strip().lower()
+    email_already_verified = ContactOTP.objects.filter(
+        user=request.user,
+        channel='EMAIL',
+        target=user_email,
+        is_verified=True
+    ).exists() if user_email else False
 
-        ProviderProfile.objects.create(
+    verified_phone_otp = ContactOTP.objects.filter(
+        user=request.user,
+        channel='PHONE',
+        is_verified=True
+    ).first()
+
+    if request.method == 'POST':
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        submitted_email = (request.POST.get('email') or request.user.email or '').strip().lower()
+        raw_phone = request.POST.get('phone', '').strip()
+        normalized_phone = _normalize_ng_phone(raw_phone)
+
+        # Server-Side Enforcement of Both Email & Phone OTP Verification
+        is_email_ok = ContactOTP.objects.filter(
             user=request.user,
-            phone=request.POST.get('phone'),
-            dob=request.POST.get('dob'),
-            residential_address=request.POST.get('residential_address'),
-            business_name=request.POST.get('business_name'),
-            provider_type=request.POST.get('provider_type'),
-            business_category=request.POST.get('business_category'),
-        )
+            channel='EMAIL',
+            target=submitted_email,
+            is_verified=True
+        ).exists()
+
+        is_phone_ok = ContactOTP.objects.filter(
+            user=request.user,
+            channel='PHONE',
+            target=normalized_phone,
+            is_verified=True
+        ).exists()
+
+        if not is_email_ok:
+            messages.error(request, "Please verify your email address using the 6-digit OTP code before continuing.")
+            return render(request, 'dashboard/provider_application.html', {
+                'email_already_verified': email_already_verified,
+                'verified_phone': verified_phone_otp.target if verified_phone_otp else '',
+            })
+
+        if not is_phone_ok:
+            messages.error(request, "Please verify your primary phone number via OTP before continuing.")
+            return render(request, 'dashboard/provider_application.html', {
+                'email_already_verified': is_email_ok,
+                'verified_phone': '',
+            })
+
+        with transaction.atomic():
+            request.user.first_name = first_name
+            request.user.last_name = last_name
+            if submitted_email and submitted_email != request.user.email:
+                request.user.email = submitted_email
+            request.user.phone_number = raw_phone
+            request.user.save()
+
+            ProviderProfile.objects.create(
+                user=request.user,
+                phone=raw_phone,
+                email_verified=True,
+                phone_verified=True,
+                dob=request.POST.get('dob'),
+                residential_address=request.POST.get('residential_address'),
+                business_name=request.POST.get('business_name'),
+                provider_type=request.POST.get('provider_type'),
+                business_category=request.POST.get('business_category'),
+            )
+
+        messages.success(request, "Stage 1 complete! Both your email and phone number are verified.")
         return _safe_redirect('accounts:provider_status', 'provider_status')
 
-    return render(request, 'dashboard/provider_application.html')
+    context = {
+        'email_already_verified': email_already_verified,
+        'verified_phone': verified_phone_otp.target if verified_phone_otp else '',
+    }
+    return render(request, 'dashboard/provider_application.html', context)
 
 
 @login_required
@@ -229,105 +524,167 @@ def provider_status(request):
         return redirect('dashboard:provider_dashboard')
 
     if request.method == 'POST':
-        if profile.verification_status == 'STAGE_1_BASIC':
-            profile.id_type = request.POST.get('id_type')
-            if 'id_document' in request.FILES:
-                profile.id_document = request.FILES['id_document']
-            if 'selfie_image' in request.FILES:
-                profile.selfie_image = request.FILES['selfie_image']
+        try:
+            # STAGE 2: Identity Verification (KYC)
+            if profile.verification_status == 'STAGE_1_BASIC':
+                id_type = request.POST.get('id_type', '').strip()
+                id_doc = request.FILES.get('id_document')
+                selfie_img = request.FILES.get('selfie_image')
 
-            profile.verification_status = 'STAGE_2_KYC'
-            profile.save()
-            messages.success(request, "Documents Submitted Successfully.")
+                if not id_type or not id_doc or not selfie_img:
+                    raise ValidationError("Please select an ID type and upload both your government ID and a live selfie.")
 
-        elif profile.verification_status == 'STAGE_2_KYC':
-            profile.business_description = request.POST.get('business_description')
-            profile.cac_registration_number = request.POST.get('cac_registration_number')
-            if 'business_certificate' in request.FILES:
-                profile.business_certificate = request.FILES['business_certificate']
+                validate_kyc_document(id_doc, allow_pdf=True)
+                validate_product_image(selfie_img)
 
-            profile.verification_status = 'STAGE_3_BUSINESS'
-            profile.save()
-            messages.success(request, "Business details recorded.")
+                profile.id_type = id_type
+                profile.id_document = id_doc
+                profile.selfie_image = selfie_img
+                profile.verification_status = 'STAGE_2_KYC'
+                profile.save()
+                messages.success(request, "Identity documents verified and submitted!")
 
-        elif profile.verification_status == 'STAGE_3_BUSINESS':
-            profile.region = request.POST.get('region')
-            profile.store_address = request.POST.get('store_address')
-            profile.latitude = request.POST.get('latitude') or None
-            profile.longitude = request.POST.get('longitude') or None
+            # STAGE 3: Business Verification
+            elif profile.verification_status == 'STAGE_2_KYC':
+                business_desc = request.POST.get('business_description', '').strip()
+                if not business_desc:
+                    raise ValidationError("Please provide a description of your store or technical expertise.")
 
-            if 'exterior_image' in request.FILES:
-                profile.exterior_image = request.FILES['exterior_image']
-            if 'interior_image' in request.FILES:
-                profile.interior_image = request.FILES['interior_image']
-            if 'signboard_image' in request.FILES:
-                profile.signboard_image = request.FILES['signboard_image']
+                cert_file = request.FILES.get('business_certificate')
+                if cert_file:
+                    validate_kyc_document(cert_file, allow_pdf=True)
+                    profile.business_certificate = cert_file
 
-            profile.verification_status = 'STAGE_4_LOCATION'
-            profile.save()
-            messages.success(request, "Location pinned! Your application is now under admin review.")
+                profile.business_description = business_desc
+                profile.cac_registration_number = request.POST.get('cac_registration_number', '').strip()
+                profile.verification_status = 'STAGE_3_BUSINESS'
+                profile.save()
+                messages.success(request, "Business details recorded.")
 
-        elif profile.verification_status == 'APPROVED':
-            bank_code = request.POST.get('bank_code')
-            bank_name = request.POST.get('bank_name')
-            account_number = request.POST.get('account_number')
+            # STAGE 4: Physical Store / Base Location Pinning
+            elif profile.verification_status == 'STAGE_3_BUSINESS':
+                ext_img = request.FILES.get('exterior_image')
+                int_img = request.FILES.get('interior_image')
+                sign_img = request.FILES.get('signboard_image')
 
-            headers = {
-                "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-                "Content-Type": "application/json"
-            }
-            verify_url = f"https://api.paystack.co/bank/resolve?account_number={account_number}&bank_code={bank_code}"
+                if not ext_img or not int_img:
+                    raise ValidationError("Please upload both exterior and interior photos of your shop or operating base.")
 
-            try:
-                response = requests.get(verify_url, headers=headers, timeout=10)
-                res_data = response.json()
+                validate_product_image(ext_img)
+                validate_product_image(int_img)
+                if sign_img:
+                    validate_product_image(sign_img)
+                    profile.signboard_image = sign_img
 
-                if res_data.get('status'):
-                    resolved_name = res_data['data']['account_name']
+                profile.region = request.POST.get('region', '').strip()
+                profile.store_address = request.POST.get('store_address', '').strip()
+                profile.latitude = request.POST.get('latitude') or None
+                profile.longitude = request.POST.get('longitude') or None
+                profile.exterior_image = ext_img
+                profile.interior_image = int_img
+                profile.verification_status = 'STAGE_4_LOCATION'
+                profile.save()
+                messages.success(request, "Location pinned! Your application is now under admin review.")
 
-                    account_name_clean = resolved_name.strip().lower()
-                    personal_first = request.user.first_name.strip().lower()
-                    personal_last = request.user.last_name.strip().lower()
-                    business_clean = profile.business_name.strip().lower()
+            # STAGE 5: Paystack Bank NUBAN Resolution & Account Activation
+            elif profile.verification_status == 'APPROVED':
+                bank_code = request.POST.get('bank_code', '').strip()
+                bank_name = request.POST.get('bank_name', '').strip()
+                account_number = request.POST.get('account_number', '').strip()
 
-                    has_personal_name = (personal_first and personal_last and personal_first in account_name_clean and personal_last in account_name_clean)
-                    has_business_name = (business_clean and business_clean in account_name_clean)
+                if not (bank_code and account_number):
+                    raise ValidationError("Please select your bank and enter your 10-digit account number.")
 
-                    if not (has_personal_name or has_business_name):
-                        messages.error(
-                            request,
-                            f"Bank Rejection: The account name returned by your bank is '{resolved_name}'. This does not match your registered identity or business name."
+                headers = {
+                    "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+                    "Content-Type": "application/json"
+                }
+                verify_url = f"https://api.paystack.co/bank/resolve?account_number={account_number}&bank_code={bank_code}"
+
+                try:
+                    response = requests.get(verify_url, headers=headers, timeout=10)
+                    res_data = response.json()
+
+                    if res_data.get('status'):
+                        resolved_name = res_data['data']['account_name']
+
+                        account_name_clean = resolved_name.strip().lower()
+                        personal_first = request.user.first_name.strip().lower()
+                        personal_last = request.user.last_name.strip().lower()
+                        business_clean = profile.business_name.strip().lower()
+
+                        has_personal_name = (
+                            personal_first and personal_last
+                            and personal_first in account_name_clean
+                            and personal_last in account_name_clean
                         )
+                        has_business_name = (business_clean and business_clean in account_name_clean)
+
+                        if not (has_personal_name or has_business_name):
+                            messages.error(
+                                request,
+                                f"Bank Rejection: The account name returned by your bank is '{resolved_name}'. "
+                                f"This does not match your registered identity ({request.user.get_full_name()}) "
+                                f"or business name ({profile.business_name})."
+                            )
+                            return _safe_redirect('accounts:provider_status', 'provider_status')
+
+                        with transaction.atomic():
+                            profile.bank_code = bank_code
+                            profile.bank_name = bank_name or profile.bank_name
+                            profile.account_number = account_number
+                            profile.account_name = resolved_name
+                            profile.verification_status = 'ACTIVE'
+                            if not profile.approved_at:
+                                profile.approved_at = timezone.now()
+                            profile.save()
+
+                            request.user.role = 'PROVIDER'
+                            request.user.is_verified = True
+                            request.user.save(update_fields=['role', 'is_verified'])
+
+                            VendorWallet.objects.get_or_create(provider=profile)
+
+                        messages.success(request, f"Bank verified successfully as {resolved_name}! Welcome to AllThings.")
+                        return redirect('dashboard:provider_dashboard')
+                    else:
+                        messages.error(request, "Invalid account number or bank selected. Please check and try again.")
                         return _safe_redirect('accounts:provider_status', 'provider_status')
 
-                    profile.bank_name = bank_name
-                    profile.account_number = account_number
-                    profile.account_name = resolved_name
-
-                    profile.verification_status = 'ACTIVE'
-                    profile.save()
-                    VendorWallet.objects.get_or_create(provider=profile)
-
-                    messages.success(request, f"Bank verified successfully as {resolved_name}! Welcome to All Things.")
-                    return redirect('dashboard:provider_dashboard')
-                else:
-                    messages.error(request, "Invalid account number or bank selected. Please check and try again.")
+                except Exception:
+                    messages.error(request, "Could not reach the banking network at this time. Please try again later.")
                     return _safe_redirect('accounts:provider_status', 'provider_status')
 
-            except Exception:
-                messages.error(request, "Could not reach the banking network at this time. Please try again later.")
-                return _safe_redirect('accounts:provider_status', 'provider_status')
+        except ValidationError as e:
+            error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
+            messages.error(request, error_msg)
+            return _safe_redirect('accounts:provider_status', 'provider_status')
 
         return _safe_redirect('accounts:provider_status', 'provider_status')
 
     context = {'profile': profile}
     if profile.verification_status == 'APPROVED':
+        banks = []
         try:
             headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
             banks_response = requests.get("https://api.paystack.co/bank?currency=NGN", headers=headers, timeout=8)
             if banks_response.status_code == 200:
-                context['banks'] = banks_response.json().get('data', [])
+                banks = banks_response.json().get('data', [])
         except requests.exceptions.RequestException:
-            context['banks'] = []
+            pass
+
+        if not banks:
+            banks = [
+                {'name': 'Access Bank', 'code': '044'},
+                {'name': 'First Bank of Nigeria', 'code': '011'},
+                {'name': 'Guaranty Trust Bank (GTB)', 'code': '058'},
+                {'name': 'Kuda Bank', 'code': '50211'},
+                {'name': 'Moniepoint MFB', 'code': '50515'},
+                {'name': 'OPay Digital Services', 'code': '999992'},
+                {'name': 'Stanbic IBTC Bank', 'code': '221'},
+                {'name': 'United Bank for Africa (UBA)', 'code': '033'},
+                {'name': 'Zenith Bank', 'code': '057'},
+            ]
+        context['banks'] = banks
 
     return render(request, 'dashboard/provider_status.html', context)

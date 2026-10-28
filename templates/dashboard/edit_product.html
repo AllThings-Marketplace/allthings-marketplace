@@ -2,60 +2,87 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-header flex-between align-center mb-40">
-    <div>
-        <h2 class="section-heading checkout-page-title mb-5">Edit Product</h2>
-        <p class="text-14-muted m-0">Updating: <strong>{{ product.name }}</strong></p>
+<div class="details-page-wrapper animate-fade-in">
+    <div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
+        <div>
+            <h2 class="section-heading checkout-page-title mb-5">Edit Product</h2>
+            <p class="text-14-muted m-0">Updating: <strong>{{ product.name }}</strong></p>
+        </div>
+        <div class="flex-align-center gap-10">
+            <a href="{% url 'dashboard:upload_product_images' product.id %}" class="action-btn btn-outline action-sm">
+                <i class="fa-solid fa-camera"></i> Manage Photos ({{ product.images.count }})
+            </a>
+            <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
+                <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
     </div>
-    <div class="flex-align-center gap-10">
-        <a href="{% url 'dashboard:upload_product_images' product.id %}" class="action-btn btn-outline action-sm">
-            <i class="fa-solid fa-camera"></i> Manage Photos
-        </a>
-        <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
-            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
-        </a>
-    </div>
-</div>
 
-<div class="summary-card">
-    <form method="POST" action="{% url 'dashboard:edit_product' product.id %}">
+    <form method="POST" action="{% url 'dashboard:edit_product' product.id %}" class="summary-card">
         {% csrf_token %}
         
+        <!-- 1. Product Identity & Smart Category Selector -->
+        <h3 class="checkout-section-title mt-0">
+            <i class="fa-solid fa-box icon-primary-spaced"></i> 1. Product Details
+        </h3>
+
         <div class="form-grid-2 mb-20">
             <div class="form-group">
                 <label class="form-label-dark">Product Name *</label>
-                <input type="text" name="name" class="form-control" value="{{ product.name }}" required>
+                <input type="text"
+                       name="name"
+                       id="listingTitleInput"
+                       class="form-control"
+                       value="{{ product.name }}"
+                       autocomplete="off"
+                       required>
+                <div id="smartCategorySuggestionBar" class="smart-cat-bar hidden-initial mt-8">
+                    <span class="smart-cat-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Suggested:</span>
+                    <div id="smartCategoryPills" class="smart-cat-pills"></div>
+                </div>
             </div>
 
             <div class="form-group">
-                <label class="form-label-dark">Category *</label>
-                <select name="category_id" class="form-control" required>
+                <div class="flex-between align-center mb-5">
+                    <label class="form-label-dark m-0">Product Category *</label>
+                    <span id="categoryMatchStatus" class="text-12-muted"></span>
+                </div>
+
+                <div class="cat-search-wrapper mb-8">
+                    <i class="fa-solid fa-magnifying-glass cat-search-icon"></i>
+                    <input type="text"
+                           id="categorySearchInput"
+                           class="form-control cat-search-input"
+                           placeholder="Type to filter product categories..."
+                           autocomplete="off">
+                </div>
+
+                <select name="category_id" class="form-control" id="category-selector" data-cat-type="PRODUCT" required>
+                    <option value="">Select a product category...</option>
                     {% for cat in parent_categories %}
-                        <option value="{{ cat.id }}" {% if cat.id == product.category_id %}selected{% endif %}>
+                        <option value="{{ cat.id }}"
+                                class="parent-category-option"
+                                data-keywords="{{ cat.search_keywords|default:''|lower }} {{ cat.name|lower }}"
+                                data-clean-name="{{ cat.name }}"
+                                {% if cat.id == product.category_id %}selected{% endif %}>
                             {{ cat.name }}
                         </option>
                         {% if cat.subcategories.all %}
-                            {% for sub in cat.subcategories.all %}
-                                <option value="{{ sub.id }}" {% if sub.id == product.category_id %}selected{% endif %}>
-                                    -- {{ sub.name }}
-                                </option>
-                                {% if sub.subcategories.all %}
-                                    {% for sub2 in sub.subcategories.all %}
-                                        <option value="{{ sub2.id }}" {% if sub2.id == product.category_id %}selected{% endif %}>
-                                            ---- {{ sub2.name }}
-                                        </option>
-                                    {% endfor %}
-                                {% endif %}
-                            {% endfor %}
+                            {% include 'partials/category_option_node.html' with current_categories=cat.subcategories.all prefix="--" selected_category_id=product.category_id %}
                         {% endif %}
                     {% endfor %}
                 </select>
             </div>
         </div>
+
+        <!-- 2. Pricing, Stock & Logistics Sizing -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-tags icon-primary-spaced"></i> 2. Pricing, Inventory &amp; Delivery Sizing
+        </h3>
 
         <div class="form-grid-2 mb-20">
             <div class="form-group">
@@ -65,8 +92,8 @@
 
             <div class="form-group">
                 <label class="form-label-dark">Available Stock *</label>
-                <input type="number" name="stock_count" class="form-control" value="{{ product.stock_count|default_if_none:'' }}" placeholder="0" required>
-                <small class="form-text-muted">Set to 0 to temporarily mark this item as out of stock.</small>
+                <input type="number" name="stock_count" class="form-control" value="{{ product.stock_count|default_if_none:'0' }}" min="0" placeholder="0" required>
+                <small class="text-12-muted">Set to 0 to temporarily mark this item as out of stock.</small>
             </div>
         </div>
 
@@ -84,7 +111,7 @@
                         Heavy / Bulky Cargo (&gt; 20kg — Inverters, Solar Panels, Batteries)
                     </option>
                 </select>
-                <small class="form-text-muted">Determines bike vs. cargo van dispatch pricing at checkout.</small>
+                <small class="text-12-muted">Determines bike vs. cargo van dispatch pricing at checkout.</small>
             </div>
 
             <div class="form-group">
@@ -98,18 +125,27 @@
                        max="9999"
                        value="{{ product.weight_kg|default:'1.00' }}"
                        required>
-                <small class="form-text-muted">Packaged weight in kilograms.</small>
+                <small class="text-12-muted">Packaged weight in kilograms.</small>
             </div>
         </div>
 
+        <!-- 3. Description -->
+        <h3 class="checkout-section-title mt-40">
+            <i class="fa-solid fa-align-left icon-primary-spaced"></i> 3. Product Description
+        </h3>
+
         <div class="form-group mb-30">
-            <label class="form-label-dark">Description *</label>
+            <label class="form-label-dark">Detailed Description *</label>
             <textarea name="description" class="form-control" rows="5" required>{{ product.description }}</textarea>
         </div>
 
         <button type="submit" class="action-btn btn-primary w-100 py-15 text-16 font-600-block">
-            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Changes
+            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Product Changes
         </button>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
 {% endblock %}

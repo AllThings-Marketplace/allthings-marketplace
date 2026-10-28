@@ -26,4 +26,11 @@ urlpatterns = [
     
     # Inbox APIs
     path('api/inquiry/<int:inquiry_id>/read/', views.mark_inquiry_read, name='mark_inquiry_read'),
+
+    # "Request What You Need" — Customer Sourcing & Provider Matching
+    path('requests/new/', views.create_customer_request, name='create_request'),
+    path('requests/my-requests/', views.my_customer_requests, name='my_requests'),
+    path('requests/<int:request_id>/', views.customer_request_detail, name='request_detail'),
+    path('requests/<int:request_id>/status/', views.update_customer_request_status, name='update_request_status'),
+    path('requests/<int:request_id>/match/', views.submit_provider_match, name='submit_provider_match'),
 ]

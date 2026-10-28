@@ -1,12 +1,14 @@
-<ul class="mobile-sub-list mobile-sub-list-nested">
-    {% for node in current_categories %}
-        <li class="mobile-niche-item">
-            <a href="{% url 'marketplace:home' %}?category={{ node.id }}" class="mobile-niche-link">
-                - {{ node.name }}
-            </a>
-            {% if node.subcategories.all %}
-                {% include 'partials/category_menu_node.html' with current_categories=node.subcategories.all %}
-            {% endif %}
-        </li>
+<ul class="mobile-submenu">
+    {% for sub in current_categories %}
+        {% if sub.is_active %}
+            <li>
+                <a href="{% url 'marketplace:home' %}?category={{ sub.id }}{% if item_type %}&item_type={{ item_type }}{% endif %}">
+                    - {{ sub.name }}
+                </a>
+                {% if sub.subcategories.all %}
+                    {% include 'partials/category_menu_node.html' with current_categories=sub.subcategories.all item_type=item_type %}
+                {% endif %}
+            </li>
+        {% endif %}
     {% endfor %}
 </ul>

@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+
 class Notification(models.Model):
     NOTIFICATION_TYPES = (
         ('ORDER', 'Order Update'),
@@ -38,7 +39,11 @@ class Notification(models.Model):
         """Dynamically resolves the destination URL for the navbar bell & email button."""
         if self.content_type and self.object_id:
             model_name = self.content_type.model
-            if model_name == 'supportticket' and self.content_object:
+            if model_name == 'customerrequest':
+                return reverse('marketplace:request_detail', args=[self.object_id])
+            elif model_name == 'requestmatch' and self.content_object:
+                return reverse('marketplace:request_detail', args=[self.content_object.customer_request_id])
+            elif model_name == 'supportticket' and self.content_object:
                 return reverse('orders:ticket_detail', args=[self.content_object.ticket_reference])
             elif model_name == 'serviceorder':
                 return reverse('orders:order_history')

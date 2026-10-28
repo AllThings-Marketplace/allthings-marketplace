@@ -3,27 +3,35 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}?v=3.0">
 {% endblock %}
 
 {% block content %}
-    <div class="premium-header-section flex-between align-center flex-wrap gap-15">
+<div class="animate-fade-in">
+    <div class="order-top-banner mb-30">
         <div>
-            <h2 class="section-heading m-0">My Bookings &amp; Orders</h2>
-            <p class="text-14-muted mt-5 mb-0">Track your physical deliveries, manage service contracts, and confirm escrow releases.</p>
+            <h2 class="section-heading m-0">
+                <i class="fa-solid fa-layer-group text-primary mr-5"></i> My Bookings &amp; Orders
+            </h2>
+            <p class="text-14-muted mt-5 mb-0">Track physical hardware deliveries, review custom engineer quotes, and manage escrow releases.</p>
         </div>
         <a href="{% url 'orders:support_center' %}" class="action-btn btn-outline action-sm">
-            <i class="fa-solid fa-headset"></i> Help &amp; Resolution Center
+            <i class="fa-solid fa-headset icon-spaced"></i> Help &amp; Resolution Center
         </a>
     </div>
 
     <!-- ========================================== -->
-    <!-- SERVICE CONTRACTS SECTION                  -->
+    <!-- 1. SERVICE CONTRACTS SECTION               -->
     <!-- ========================================== -->
-    <h3 class="premium-category-title mt-30">
-        <div class="icon-circle"><i class="fa-solid fa-briefcase"></i></div> 
-        Service Bookings ({{ service_bookings|length }})
-    </h3>
+    <div class="history-section-header">
+        <h3 class="premium-category-title m-0">
+            <span class="icon-circle"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+            <span>Service Bookings ({{ service_bookings|length }})</span>
+        </h3>
+        <a href="{% url 'marketplace:home' %}?item_type=services" class="text-13 text-primary font-600">
+            Book Another Professional &rarr;
+        </a>
+    </div>
     
     <div class="premium-grid">
         {% for booking in service_bookings %}
@@ -32,13 +40,13 @@
                 <div class="premium-card-header flex-between">
                     <div class="header-info">
                         <span class="ref-number">{{ booking.reference_code }}</span>
-                        <span class="date-text">{{ booking.preferred_date }} at {{ booking.preferred_time }}</span>
+                        <span class="date-text"><i class="fa-regular fa-calendar mr-5"></i> {{ booking.preferred_date }} at {{ booking.preferred_time }}</span>
                     </div>
                     <span class="soft-badge status-{{ booking.status|lower }}">
-                        {% if booking.status == 'PAID' %}<i class="fa-solid fa-check"></i> Paid &amp; Scheduled
-                        {% elif booking.status == 'IN_PROGRESS' %}<i class="fa-solid fa-person-digging"></i> In Progress
-                        {% elif booking.status == 'COMPLETED' %}<i class="fa-solid fa-clipboard-check"></i> Awaiting Your Confirmation
-                        {% elif booking.status == 'ACCEPTED' %}Awaiting Payment
+                        {% if booking.status == 'PAID' %}<i class="fa-solid fa-shield-halved"></i> Escrow Funded
+                        {% elif booking.status == 'IN_PROGRESS' %}<i class="fa-solid fa-screwdriver-wrench"></i> In Progress
+                        {% elif booking.status == 'COMPLETED' %}<i class="fa-solid fa-clipboard-check"></i> Confirm Job
+                        {% elif booking.status == 'ACCEPTED' %}<i class="fa-solid fa-credit-card"></i> Awaiting Payment
                         {% elif booking.status == 'QUOTE_SENT' %}<i class="fa-solid fa-file-invoice-dollar"></i> Quote Ready
                         {% elif booking.status == 'DISPUTED' %}<i class="fa-solid fa-lock"></i> Escrow Frozen
                         {% elif booking.status == 'CONFIRMED' %}<i class="fa-solid fa-check-double"></i> Completed
@@ -48,11 +56,17 @@
                 
                 <!-- Card Body -->
                 <div class="premium-card-body">
-                    <h3 class="service-title">{{ booking.service.name }}</h3>
+                    <h3 class="service-title">
+                        {% if booking.service %}
+                            <a href="{% url 'marketplace:service_detail' booking.service.slug %}" class="order-card-title-link">{{ booking.service.name }}</a>
+                        {% else %}
+                            Service Booking
+                        {% endif %}
+                    </h3>
                     <div class="service-meta">
                         <div class="meta-row">
-                            <i class="fa-solid fa-user-tie text-muted"></i>
-                            <span>{{ booking.provider.business_name }}</span>
+                            <i class="fa-solid fa-user-tie text-primary"></i>
+                            <strong>{{ booking.provider.business_name }}</strong>
                         </div>
                         <div class="meta-row">
                             <i class="fa-solid fa-location-dot text-muted"></i>
@@ -60,28 +74,28 @@
                         </div>
                     </div>
 
-                    <!-- Quote Review Box (FIXED: Uses POST form to service_checkout) -->
+                    <!-- Quote Review Box -->
                     {% if booking.status == 'QUOTE_SENT' and booking.quote %}
                         <div class="premium-quote-box mt-15">
-                            <h4 class="quote-title"><i class="fa-solid fa-file-invoice-dollar"></i> Custom Quote Breakdown</h4>
-                            <div class="quote-row"><span>Labor</span><span>NGN {{ booking.quote.labor_cost|floatformat:0|intcomma }}</span></div>
-                            <div class="quote-row"><span>Materials</span><span>NGN {{ booking.quote.materials_cost|floatformat:0|intcomma }}</span></div>
-                            <div class="quote-total-row"><span>Total Due</span><span class="text-blue">NGN {{ booking.quote.total_amount|floatformat:0|intcomma }}</span></div>
+                            <h4 class="quote-title"><i class="fa-solid fa-file-invoice-dollar text-primary"></i> Official Custom Quote</h4>
+                            <div class="quote-row"><span>Labor Charge</span><strong>NGN {{ booking.quote.labor_cost|floatformat:0|intcomma }}</strong></div>
+                            <div class="quote-row"><span>Materials / Parts</span><strong>NGN {{ booking.quote.materials_cost|floatformat:0|intcomma }}</strong></div>
+                            <div class="quote-total-row"><span>Total Escrow Amount</span><span class="text-primary">NGN {{ booking.quote.total_amount|floatformat:0|intcomma }}</span></div>
                             
                             {% if booking.quote.provider_notes %}
                                 <div class="quote-notes">
-                                    <strong>Provider Note:</strong> {{ booking.quote.provider_notes }}
+                                    <strong>Scope Breakdown:</strong> {{ booking.quote.provider_notes }}
                                 </div>
                             {% endif %}
                             
-                            <div class="quote-actions mt-10">
+                            <div class="quote-actions mt-12">
                                 <form action="{% url 'orders:reject_quote' booking.id %}" method="POST" class="flex-grow">
                                     {% csrf_token %}
-                                    <button type="submit" class="action-btn btn-outline btn-danger w-100">Decline</button>
+                                    <button type="submit" class="action-btn btn-outline btn-outline-danger action-sm w-100">Decline</button>
                                 </form>
                                 <form action="{% url 'orders:service_checkout' booking.id %}" method="POST" class="flex-grow">
                                     {% csrf_token %}
-                                    <button type="submit" class="action-btn btn-primary w-100">Accept &amp; Pay</button>
+                                    <button type="submit" class="action-btn btn-primary action-sm w-100">Accept &amp; Fund Escrow</button>
                                 </form>
                             </div>
                         </div>
@@ -91,20 +105,22 @@
                 <!-- Card Footer (Price & Actions) -->
                 <div class="premium-card-footer flex-between align-center flex-wrap gap-10">
                     <div class="price-block">
-                        <span class="price-label">Agreed Price</span>
+                        <span class="price-label">Agreed Escrow Rate</span>
                         <span class="price-value">
                             {% if booking.agreed_price > 0 %}NGN {{ booking.agreed_price|floatformat:0|intcomma }}{% else %}Pending Quote{% endif %}
                         </span>
                     </div>
                     <div class="action-buttons flex-gap-10">
                         <a href="{% url 'orders:order_chat' booking.id %}" class="btn-icon-only" title="Chat with Professional">
-                            <i class="fa-regular fa-message"></i>
+                            <i class="fa-regular fa-comments"></i>
                         </a>
                         
                         {% if booking.status == 'ACCEPTED' %}
                             <form method="POST" action="{% url 'orders:service_checkout' booking.id %}" class="m-0">
                                 {% csrf_token %}
-                                <button type="submit" class="action-btn action-sm btn-primary">Pay into Escrow</button>
+                                <button type="submit" class="action-btn action-sm btn-primary">
+                                    <i class="fa-solid fa-lock icon-spaced"></i> Pay into Escrow
+                                </button>
                             </form>
                         {% elif booking.status == 'COMPLETED' %}
                             <form method="POST" action="{% url 'orders:customer_confirm_service' booking.id %}" class="m-0">
@@ -113,12 +129,12 @@
                                     <i class="fa-solid fa-check"></i> Confirm Job
                                 </button>
                             </form>
-                            <a href="{% url 'orders:report_dispute' booking.id %}" class="action-btn action-sm btn-outline" title="Report an issue and freeze escrow">
-                                <i class="fa-solid fa-triangle-exclamation text-danger"></i> Dispute
+                            <a href="{% url 'orders:report_dispute' booking.id %}" class="action-btn action-sm btn-outline btn-outline-danger" title="Report an issue and freeze escrow">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Dispute
                             </a>
                         {% elif booking.status in 'PAID,IN_PROGRESS' %}
                             <a href="{% url 'orders:report_dispute' booking.id %}" class="action-btn action-sm btn-outline" title="Report an issue">
-                                <i class="fa-solid fa-flag"></i> Issue
+                                <i class="fa-solid fa-flag"></i> Report Issue
                             </a>
                         {% elif booking.status == 'DISPUTED' %}
                             <a href="{% url 'orders:support_center' %}" class="action-btn action-sm btn-outline">
@@ -126,7 +142,7 @@
                             </a>
                         {% elif booking.status == 'CONFIRMED' %}
                             <a href="{% url 'feedback:service_feedback' booking.id %}" class="action-btn action-sm btn-outline">
-                                <i class="fa-solid fa-star text-warning"></i> Rate
+                                <i class="fa-solid fa-star text-yellow"></i> Rate Service
                             </a>
                         {% endif %}
                     </div>
@@ -135,19 +151,25 @@
         {% empty %}
             <div class="premium-empty-state">
                 <div class="empty-icon"><i class="fa-solid fa-toolbox"></i></div>
-                <h3>No service bookings</h3>
-                <p>You haven't booked any certified electrical or technical professionals yet.</p>
+                <h3>No service bookings yet</h3>
+                <p>Book certified electricians, solar installers, and HVAC technicians protected by AllThings Escrow.</p>
+                <a href="{% url 'marketplace:home' %}?item_type=services" class="action-btn btn-outline action-sm mt-10">Explore Services</a>
             </div>
         {% endfor %}
     </div>
 
     <!-- ========================================== -->
-    <!-- PHYSICAL PRODUCT ORDERS SECTION            -->
+    <!-- 2. PHYSICAL PRODUCT ORDERS SECTION         -->
     <!-- ========================================== -->
-    <h3 class="premium-category-title mt-40">
-        <div class="icon-circle"><i class="fa-solid fa-box"></i></div> 
-        Physical Product Orders ({{ orders|length }})
-    </h3>
+    <div class="history-section-header mt-40">
+        <h3 class="premium-category-title m-0">
+            <span class="icon-circle"><i class="fa-solid fa-box"></i></span>
+            <span>Physical Hardware Orders ({{ orders|length }})</span>
+        </h3>
+        <a href="{% url 'marketplace:home' %}?item_type=products" class="text-13 text-primary font-600">
+            Shop Hardware &rarr;
+        </a>
+    </div>
     
     <div class="premium-grid mb-40">
         {% for order in orders %}
@@ -156,7 +178,7 @@
                 <div class="premium-card-header flex-between">
                     <div class="header-info">
                         <span class="ref-number">Order #{{ order.reference }}</span>
-                        <span class="date-text">{{ order.created_at|date:"M d, Y" }} &bull; {{ order.selected_courier }}</span>
+                        <span class="date-text">{{ order.created_at|date:"M d, Y" }} &bull; <i class="fa-solid fa-truck-fast text-primary"></i> {{ order.selected_courier }}</span>
                     </div>
                     <span class="soft-badge status-{{ order.status|lower }}">
                         {{ order.get_status_display }}
@@ -183,14 +205,14 @@
                 </div>
                 
                 <!-- Card Footer (Price & Actions) -->
-                <div class="premium-card-footer flex-between align-center">
+                <div class="premium-card-footer flex-between align-center flex-wrap gap-10">
                     <div class="price-block">
-                        <span class="price-label">Total Paid (incl. Delivery)</span>
+                        <span class="price-label">Total (incl. Delivery)</span>
                         <span class="price-value">NGN {{ order.total_amount|floatformat:0|intcomma }}</span>
                     </div>
                     <div class="action-buttons flex-gap-10">
                         <a href="{% url 'orders:order_details' order.id %}" class="action-btn action-sm btn-outline">
-                            Track / PIN
+                            <i class="fa-solid fa-key icon-spaced"></i> Track &amp; PIN
                         </a>
                         {% if order.status == 'unpaid' %}
                             <form method="POST" action="{% url 'orders:retry_payment' order.id %}" class="m-0">
@@ -204,10 +226,11 @@
         {% empty %}
             <div class="premium-empty-state">
                 <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
-                <h3>No physical orders</h3>
-                <p>You haven't placed any hardware or electrical product orders yet.</p>
-                <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-15">Browse Catalog</a>
+                <h3>No hardware orders yet</h3>
+                <p>You haven't placed any electrical hardware or component orders yet.</p>
+                <a href="{% url 'marketplace:home' %}?item_type=products" class="action-btn btn-primary action-sm mt-10">Browse Hardware</a>
             </div>
         {% endfor %}
     </div>
+</div>
 {% endblock %}

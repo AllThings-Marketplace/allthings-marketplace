@@ -3,13 +3,13 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/home.css' %}?v=3.2">
-    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.2">
+    <link rel="stylesheet" href="{% static 'css/pages/home.css' %}?v=3.6">
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.6">
 {% endblock %}
 
 {% block content %}
 <div class="animate-fade-in">
-    <!-- Dynamic Slider Section -->
+    <!-- 1. DYNAMIC PROMO SLIDER -->
     {% if banners %}
     <div class="promo-slider" id="homeSlider">
         <div class="slider-track" id="sliderTrack">
@@ -38,7 +38,50 @@
     </div>
     {% endif %}
 
-    <!-- Mobile Filter Bar Toggle (Visible on screens <= 768px) -->
+    <!-- 2. TRUST, ESCROW & VERIFICATION VALUE STRIP -->
+    <div class="trust-strip">
+        <div class="trust-item">
+            <div class="trust-icon-box trust-icon-blue">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div>
+                <h4 class="trust-item-title">100% Escrow Protected</h4>
+                <p class="trust-item-desc">Vendors are paid only after you confirm delivery</p>
+            </div>
+        </div>
+
+        <div class="trust-item">
+            <div class="trust-icon-box trust-icon-green">
+                <i class="fa-solid fa-user-check"></i>
+            </div>
+            <div>
+                <h4 class="trust-item-title">Verified Engineers</h4>
+                <p class="trust-item-desc">KYC-vetted electricians &amp; solar technicians</p>
+            </div>
+        </div>
+
+        <div class="trust-item">
+            <div class="trust-icon-box trust-icon-amber">
+                <i class="fa-solid fa-truck-fast"></i>
+            </div>
+            <div>
+                <h4 class="trust-item-title">Instant Dispatch Quotes</h4>
+                <p class="trust-item-desc">Live bike &amp; cargo van rates at checkout</p>
+            </div>
+        </div>
+
+        <div class="trust-item">
+            <div class="trust-icon-box trust-icon-purple">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <div>
+                <h4 class="trust-item-title">Genuine Specifications</h4>
+                <p class="trust-item-desc">Verified gauges, capacities &amp; warranties</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Filter Bar Toggle -->
     <div class="mobile-filter-bar">
         <button type="button" class="action-btn btn-outline w-100" id="mobileFilterToggleBtn">
             <i class="fa-solid fa-sliders"></i> Filters &amp; Categories
@@ -49,14 +92,14 @@
     </div>
 
     <div class="marketplace-layout">
-        <!-- Left Sidebar: Smart Faceted Filters FIRST + Categories SECOND -->
+        <!-- Left Sidebar: Smart Faceted Filters + Split Product/Service Categories -->
         <aside class="category-sidebar" id="marketplaceSidebar">
             <div class="sidebar-mobile-header">
                 <h3 class="sidebar-title m-0">Filter &amp; Browse</h3>
                 <button type="button" class="close-drawer-btn" id="closeSidebarBtn"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <!-- 1. FACETED FILTER ENGINE (Now at the top for instant access) -->
+            <!-- 1. FACETED FILTER ENGINE -->
             <form method="GET" action="{% url 'marketplace:home' %}" class="filter-form">
                 {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
                 {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
@@ -143,25 +186,57 @@
 
             <hr class="sidebar-divider">
 
-            <!-- 2. CATEGORIES TREE -->
-            <h3 class="sidebar-title"><i class="fa-solid fa-layer-group text-primary mr-5"></i> Categories</h3>
-            <ul class="sidebar-menu">
+            <!-- 2A. PRODUCT CATEGORIES TREE -->
+            <h3 class="sidebar-title"><i class="fa-solid fa-box text-primary mr-5"></i> Product Categories</h3>
+            <ul class="sidebar-menu mb-20">
                 <li>
-                    <a href="{% url 'marketplace:home' %}" class="sidebar-parent-link {% if not current_category %}active{% endif %}">
-                        All Categories
+                    <a href="{% url 'marketplace:home' %}?item_type=products" class="sidebar-parent-link {% if not current_category and item_type == 'products' %}active{% endif %}">
+                        All Hardware &amp; Products
                     </a>
                 </li>
                 {% for cat in categories %}
-                    {% if not cat.parent %}
+                    {% if not cat.parent and cat.category_type != 'SERVICE' %}
                         <li>
-                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}{% if query %}&q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
+                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=products{% if query %}&q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
                                 {{ cat.name }}
                             </a>
                             {% if cat.subcategories.all %}
                                 <ul class="sidebar-submenu">
                                     {% for sub in cat.subcategories.all %}
                                         <li>
-                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}{% if query %}&q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
+                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}&item_type=products{% if query %}&q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
+                                                {{ sub.name }}
+                                            </a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+
+            <hr class="sidebar-divider">
+
+            <!-- 2B. SERVICE CATEGORIES TREE -->
+            <h3 class="sidebar-title"><i class="fa-solid fa-screwdriver-wrench text-primary mr-5"></i> Service Categories</h3>
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="{% url 'marketplace:home' %}?item_type=services" class="sidebar-parent-link {% if not current_category and item_type == 'services' %}active{% endif %}">
+                        All Technical Services
+                    </a>
+                </li>
+                {% for cat in categories %}
+                    {% if not cat.parent and cat.category_type == 'SERVICE' %}
+                        <li>
+                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=services{% if query %}&q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
+                                {{ cat.name }}
+                            </a>
+                            {% if cat.subcategories.all %}
+                                <ul class="sidebar-submenu">
+                                    {% for sub in cat.subcategories.all %}
+                                        <li>
+                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}&item_type=services{% if query %}&q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
                                                 {{ sub.name }}
                                             </a>
                                         </li>
@@ -178,9 +253,13 @@
         <main class="marketplace-feed">
             {% if not user.is_authenticated %}
                 <div class="promo-banner">
-                    <h3>New to AllThings?</h3>
-                    <p>Create an account for escrow-protected orders, verified technicians, and instant delivery tracking.</p>
-                    <a href="{% url 'accounts:register' %}" class="promo-btn">Join for Free</a>
+                    <div>
+                        <h3>New to AllThings?</h3>
+                        <p>Create a free account for escrow-protected orders, verified technicians, and live delivery tracking.</p>
+                    </div>
+                    <a href="{% url 'accounts:register' %}" class="promo-btn">
+                        Join for Free <i class="fa-solid fa-arrow-right"></i>
+                    </a>
                 </div>
             {% endif %}
 
@@ -192,6 +271,8 @@
                     <div class="active-filters-summary">
                         {% if query %}
                             <span class="text-14-muted">Showing results for "<strong>{{ query }}</strong>"</span>
+                        {% elif selected_category_obj %}
+                            <span class="text-14-muted">Department: <strong>{{ selected_category_obj.name }}</strong></span>
                         {% else %}
                             <span class="text-14-muted"><strong>Filtered Catalog</strong></span>
                         {% endif %}
@@ -222,47 +303,67 @@
 
                 {% if services %}
                     <div class="feed-section-header">
-                        <h3 class="section-title-premium">Available Services ({{ services|length }})</h3>
+                        <h3 class="section-title-premium">
+                            <span class="section-icon-badge"><i class="fa-solid fa-screwdriver-wrench"></i></span>
+                            Available Services ({{ services|length }})
+                        </h3>
                     </div>
-                    <ul class="item-list">
+                    <div class="services-modern-grid mb-30">
                         {% for service in services %}
-                            <li>
-                                <div class="item-info">
+                            <div class="service-card-pro">
+                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="service-card-cover-box">
                                     {% if service.cover_image %}
-                                        <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="list-img">
+                                        <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="service-card-cover-img">
                                     {% else %}
-                                        <div class="list-img-fallback"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                                        <div class="service-card-fallback-thumb"><i class="fa-solid fa-screwdriver-wrench"></i></div>
                                     {% endif %}
-                                    <span>
-                                        <strong>{{ service.name }}</strong>
-                                        <span class="text-12-muted block mt-5">
-                                            <i class="fa-solid fa-user-tie"></i> {{ service.provider.business_name }}
-                                            {% if service.provider.region %} &bull; {{ service.provider.region }}{% endif %}
-                                        </span>
-                                        <span class="text-12-muted font-600-dark block mt-5">
-                                            {% if service.pricing_type == 'FIXED' and service.base_price %}
-                                                Fixed: NGN {{ service.base_price|floatformat:0|intcomma }}
-                                            {% elif service.pricing_type == 'STARTING' and service.base_price %}
-                                                Starting at NGN {{ service.base_price|floatformat:0|intcomma }}
-                                            {% elif service.pricing_type == 'HOURLY' and service.base_price %}
-                                                NGN {{ service.base_price|floatformat:0|intcomma }} / hr
-                                            {% elif service.pricing_type == 'PACKAGES' %}
-                                                Tiered Service Packages
-                                            {% else %}
-                                                Custom Quote Available
-                                            {% endif %}
-                                        </span>
+                                    <span class="service-mode-chip">{{ service.get_service_mode_display }}</span>
+                                    <span class="service-pricing-badge">
+                                        {% if service.pricing_type == 'FIXED' and service.base_price %}
+                                            NGN {{ service.base_price|floatformat:0|intcomma }}
+                                        {% elif service.pricing_type == 'STARTING' and service.base_price %}
+                                            From NGN {{ service.base_price|floatformat:0|intcomma }}
+                                        {% elif service.pricing_type == 'HOURLY' and service.base_price %}
+                                            NGN {{ service.base_price|floatformat:0|intcomma }}/hr
+                                        {% elif service.pricing_type == 'PACKAGES' %}
+                                            Tiered Packages
+                                        {% else %}
+                                            Custom Quote
+                                        {% endif %}
                                     </span>
+                                </a>
+                                <div class="service-card-content">
+                                    <span class="service-cat-indicator">{{ service.category.name }}</span>
+                                    <h4 class="service-card-title">
+                                        <a href="{% url 'marketplace:service_detail' service.slug %}">{{ service.name }}</a>
+                                    </h4>
+                                    <div class="service-provider-row">
+                                        <i class="fa-solid fa-circle-check text-primary"></i>
+                                        <strong>{{ service.provider.business_name }}</strong>
+                                        {% if service.provider.region %}&bull; {{ service.provider.region }}{% endif %}
+                                    </div>
+                                    <div class="service-card-action-bar">
+                                        <div class="service-rating-chip">
+                                            <i class="fa-solid fa-star text-yellow"></i>
+                                            <span>{% if service.avg_rating %}{{ service.avg_rating|floatformat:1 }}{% else %}New{% endif %}</span>
+                                            {% if service.review_count %}
+                                                <span class="text-12-muted">({{ service.review_count }})</span>
+                                            {% endif %}
+                                        </div>
+                                        <a href="{% url 'marketplace:service_detail' service.slug %}" class="btn-service-book">Book Service</a>
+                                    </div>
                                 </div>
-                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-book">Book Service</a>
-                            </li>
+                            </div>
                         {% endfor %}
-                    </ul>
+                    </div>
                 {% endif %}
 
                 {% if products %}
                     <div class="feed-section-header {% if services %}mt-40{% endif %}">
-                        <h3 class="section-title-premium">Products ({{ products|length }})</h3>
+                        <h3 class="section-title-premium">
+                            <span class="section-icon-badge"><i class="fa-solid fa-box"></i></span>
+                            Hardware &amp; Products ({{ products|length }})
+                        </h3>
                     </div>
                     <ul class="item-list">
                         {% for product in products %}
@@ -272,30 +373,81 @@
                 {% endif %}
 
                 {% if not services and not products %}
-                    <div class="empty-state-wrapper empty-state-lg">
-                        <i class="fa-solid fa-wand-magic-sparkles empty-state-icon text-yellow"></i>
-                        <h3 class="empty-state-title">No exact matches found</h3>
-                        <p class="empty-state-text">Try expanding your budget range, adjusting your search terms, or clearing some filters.</p>
-                        <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline mt-15">Reset All Filters</a>
+                    <!-- LOCATION 1A: ZERO-RESULTS SOURCING RESCUE CARD -->
+                    <div class="sourcing-rescue-card">
+                        <div class="sourcing-rescue-icon">
+                            <i class="fa-solid fa-bullhorn"></i>
+                        </div>
+                        <span class="sourcing-eyebrow">CAN'T FIND WHAT YOU NEED?</span>
+                        <h3 class="sourcing-rescue-title">
+                            {% if query %}
+                                No exact matches for "{{ query }}" yet — let us source it for you!
+                            {% else %}
+                                No exact matches found — tell us what you're looking for!
+                            {% endif %}
+                        </h3>
+                        <p class="sourcing-rescue-text">
+                            Don't leave empty-handed. Post what you need and our network of verified hardware vendors and certified engineers will respond with matching listings protected by AllThings Escrow.
+                        </p>
+                        <div class="sourcing-rescue-actions">
+                            <a href="{% url 'marketplace:create_request' %}?type=PRODUCT{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="action-btn btn-primary requires-auth">
+                                <i class="fa-solid fa-box-open icon-spaced"></i> Request a Product
+                            </a>
+                            <a href="{% url 'marketplace:create_request' %}?type=SERVICE{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="action-btn btn-outline requires-auth">
+                                <i class="fa-solid fa-screwdriver-wrench icon-spaced"></i> Find a Service Professional
+                            </a>
+                            <a href="{% url 'marketplace:home' %}" class="action-btn btn-secondary">
+                                Reset Filters
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- LOCATION 1B: SUBTLE SOURCING STRIP BELOW SEARCH RESULTS -->
+                    <div class="sourcing-inline-banner mt-40">
+                        <div>
+                            <h4 class="m-0 font-700-dark">Didn't see the exact model, specification, or technician you want?</h4>
+                            <p class="text-13-muted mt-5 mb-0">Submit a custom request and let our verified vendors and service professionals come to you.</p>
+                        </div>
+                        <div class="sourcing-inline-btns">
+                            <a href="{% url 'marketplace:create_request' %}?type=PRODUCT{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="action-btn btn-primary action-sm requires-auth">
+                                <i class="fa-solid fa-plus"></i> Request Product
+                            </a>
+                            <a href="{% url 'marketplace:create_request' %}?type=SERVICE{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="action-btn btn-outline action-sm requires-auth">
+                                <i class="fa-solid fa-user-gear"></i> Request Service
+                            </a>
+                        </div>
                     </div>
                 {% endif %}
 
             {% else %}
                 <!-- ==========================================
-                     THE SMART HOMEPAGE (V1)
+                     MULTI-SHELF SMART MARKETPLACE HOMEPAGE
                      ========================================== -->
-                {% if smart_feed.is_personalized %}
-                    
-                    <div class="feed-greeting-box">
-                        <h2 class="text-24 font-700-block mt-0 mb-5">
-                            <span class="dynamic-greeting">Welcome back</span>, {{ user.first_name|default:user.username }} 👋
+                <div class="feed-greeting-box">
+                    <div class="greeting-text-col">
+                        <h2>
+                            <span class="dynamic-greeting">Welcome</span>{% if user.is_authenticated %}, {{ user.first_name|default:user.username }}{% endif %} 👋
                         </h2>
-                        <p class="text-14-muted m-0">Here is what we picked for you based on your recent activity.</p>
+                        <p>Discover verified electrical hardware and certified professionals protected by escrow.</p>
                     </div>
+                    <div class="market-stats-pills">
+                        <span class="stat-chip stat-chip-primary">
+                            <i class="fa-solid fa-boxes-stacked"></i> {{ total_product_count }} Products Online
+                        </span>
+                        <span class="stat-chip stat-chip-success">
+                            <i class="fa-solid fa-screwdriver-wrench"></i> {{ total_service_count }} Verified Services
+                        </span>
+                    </div>
+                </div>
 
+                <!-- TIER 1: PERSONALIZED OR TRENDING SPOTLIGHT -->
+                {% if smart_feed.is_personalized %}
                     {% if smart_feed.continue_viewing %}
                         <div class="feed-section-header">
-                            <h3 class="section-title-premium">Continue where you left off</h3>
+                            <h3 class="section-title-premium">
+                                <span class="section-icon-badge"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                                Continue Where You Left Off
+                            </h3>
                         </div>
                         <ul class="item-list">
                             {% for product in smart_feed.continue_viewing %}
@@ -306,7 +458,10 @@
 
                     {% if smart_feed.recommended %}
                         <div class="feed-section-header mt-40">
-                            <h3 class="section-title-premium">Picked for you</h3>
+                            <h3 class="section-title-premium">
+                                <span class="section-icon-badge"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                                Picked For You
+                            </h3>
                             <span class="status-badge badge-warning inline-badge"><i class="fa-solid fa-bolt"></i> Personalized</span>
                         </div>
                         <ul class="item-list">
@@ -315,107 +470,138 @@
                             {% endfor %}
                         </ul>
                     {% endif %}
-
-                    {% if services %}
-                        <div class="feed-section-header mt-40">
-                            <h3 class="section-title-premium">Recommended Services</h3>
+                {% else %}
+                    {% if smart_feed.trending %}
+                        <div class="feed-section-header">
+                            <h3 class="section-title-premium">
+                                <span class="section-icon-badge"><i class="fa-solid fa-fire text-danger"></i></span>
+                                Trending Near You
+                            </h3>
+                            <span class="status-badge badge-danger inline-badge"><i class="fa-solid fa-fire"></i> Hot Today</span>
                         </div>
                         <ul class="item-list">
-                            {% for service in services|slice:":4" %}
-                                <li>
-                                    <div class="item-info">
-                                        {% if service.cover_image %}
-                                            <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="list-img">
-                                        {% else %}
-                                            <div class="list-img-fallback"><i class="fa-solid fa-screwdriver-wrench"></i></div>
-                                        {% endif %}
-                                        <span>
-                                            <strong>{{ service.name }}</strong>
-                                            <span class="text-12-muted block mt-5">
-                                                <i class="fa-solid fa-user-tie"></i> {{ service.provider.business_name }}
-                                                {% if service.provider.region %} &bull; {{ service.provider.region }}{% endif %}
-                                            </span>
-                                            <span class="text-12-muted font-600-dark block mt-5">
-                                                {% if service.pricing_type == 'FIXED' and service.base_price %}
-                                                    Fixed: NGN {{ service.base_price|floatformat:0|intcomma }}
-                                                {% elif service.pricing_type == 'STARTING' and service.base_price %}
-                                                    Starting at NGN {{ service.base_price|floatformat:0|intcomma }}
-                                                {% elif service.pricing_type == 'HOURLY' and service.base_price %}
-                                                    NGN {{ service.base_price|floatformat:0|intcomma }} / hr
-                                                {% elif service.pricing_type == 'PACKAGES' %}
-                                                    Tiered Service Packages
-                                                {% else %}
-                                                    Custom Quote Available
-                                                {% endif %}
-                                            </span>
-                                        </span>
-                                    </div>
-                                    <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-book">View Service</a>
-                                </li>
+                            {% for product in smart_feed.trending %}
+                                {% include 'partials/product_card.html' %}
                             {% endfor %}
                         </ul>
                     {% endif %}
+                {% endif %}
 
-                {% else %}
-                    
-                    <div class="feed-greeting-box">
-                        <h2 class="text-24 font-700-block mt-0 mb-5">
-                            <span class="dynamic-greeting">Good morning</span> 👋
-                        </h2>
-                        <p class="text-14-muted m-0">Discover verified electrical products and certified professionals near you.</p>
-                    </div>
-
-                    <div class="feed-section-header">
-                        <h3 class="section-title-premium">Trending near you</h3>
-                        <span class="status-badge badge-danger inline-badge"><i class="fa-solid fa-fire"></i> Hot Today</span>
+                <!-- TIER 2: FRESH HARDWARE ARRIVALS (Newest 8 Products) -->
+                {% if new_arrivals %}
+                    <div class="feed-section-header mt-40">
+                        <h3 class="section-title-premium">
+                            <span class="section-icon-badge"><i class="fa-solid fa-boxes-stacked"></i></span>
+                            Fresh Hardware Arrivals
+                        </h3>
+                        <a href="{% url 'marketplace:home' %}?item_type=products&amp;sort=newest" class="view-all-pill">
+                            View All ({{ total_product_count }}) <i class="fa-solid fa-arrow-right"></i>
+                        </a>
                     </div>
                     <ul class="item-list">
-                        {% for product in smart_feed.trending %}
+                        {% for product in new_arrivals %}
                             {% include 'partials/product_card.html' %}
                         {% endfor %}
                     </ul>
-
-                    {% if services %}
-                        <div class="feed-section-header mt-40">
-                            <h3 class="section-title-premium">Services people around you are booking</h3>
-                        </div>
-                        <ul class="item-list">
-                            {% for service in services|slice:":4" %}
-                                <li>
-                                    <div class="item-info">
-                                        {% if service.cover_image %}
-                                            <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="list-img">
-                                        {% else %}
-                                            <div class="list-img-fallback"><i class="fa-solid fa-screwdriver-wrench"></i></div>
-                                        {% endif %}
-                                        <span>
-                                            <strong>{{ service.name }}</strong>
-                                            <span class="text-12-muted block mt-5">
-                                                <i class="fa-solid fa-user-tie"></i> {{ service.provider.business_name }}
-                                                {% if service.provider.region %} &bull; {{ service.provider.region }}{% endif %}
-                                            </span>
-                                            <span class="text-12-muted font-600-dark block mt-5">
-                                                {% if service.pricing_type == 'FIXED' and service.base_price %}
-                                                    Fixed: NGN {{ service.base_price|floatformat:0|intcomma }}
-                                                {% elif service.pricing_type == 'STARTING' and service.base_price %}
-                                                    Starting at NGN {{ service.base_price|floatformat:0|intcomma }}
-                                                {% elif service.pricing_type == 'HOURLY' and service.base_price %}
-                                                    NGN {{ service.base_price|floatformat:0|intcomma }} / hr
-                                                {% elif service.pricing_type == 'PACKAGES' %}
-                                                    Tiered Service Packages
-                                                {% else %}
-                                                    Custom Quote Available
-                                                {% endif %}
-                                            </span>
-                                        </span>
-                                    </div>
-                                    <a href="{% url 'marketplace:service_detail' service.slug %}" class="action-btn btn-book">View Service</a>
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
-
                 {% endif %}
+
+                <!-- TIER 3: CERTIFIED PROFESSIONAL SERVICES (Modern Cards) -->
+                {% if services %}
+                    <div class="feed-section-header mt-40">
+                        <h3 class="section-title-premium">
+                            <span class="section-icon-badge"><i class="fa-solid fa-user-check"></i></span>
+                            Book Certified Professionals
+                        </h3>
+                        <a href="{% url 'marketplace:home' %}?item_type=services" class="view-all-pill">
+                            See All Services ({{ total_service_count }}) <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    <div class="services-modern-grid">
+                        {% for service in services|slice:":6" %}
+                            <div class="service-card-pro">
+                                <a href="{% url 'marketplace:service_detail' service.slug %}" class="service-card-cover-box">
+                                    {% if service.cover_image %}
+                                        <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="service-card-cover-img">
+                                    {% else %}
+                                        <div class="service-card-fallback-thumb"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                                    {% endif %}
+                                    <span class="service-mode-chip">{{ service.get_service_mode_display }}</span>
+                                    <span class="service-pricing-badge">
+                                        {% if service.pricing_type == 'FIXED' and service.base_price %}
+                                            NGN {{ service.base_price|floatformat:0|intcomma }}
+                                        {% elif service.pricing_type == 'STARTING' and service.base_price %}
+                                            From NGN {{ service.base_price|floatformat:0|intcomma }}
+                                        {% elif service.pricing_type == 'HOURLY' and service.base_price %}
+                                            NGN {{ service.base_price|floatformat:0|intcomma }}/hr
+                                        {% elif service.pricing_type == 'PACKAGES' %}
+                                            Tiered Packages
+                                        {% else %}
+                                            Custom Quote
+                                        {% endif %}
+                                    </span>
+                                </a>
+                                <div class="service-card-content">
+                                    <span class="service-cat-indicator">{{ service.category.name }}</span>
+                                    <h4 class="service-card-title">
+                                        <a href="{% url 'marketplace:service_detail' service.slug %}">{{ service.name }}</a>
+                                    </h4>
+                                    <div class="service-provider-row">
+                                        <i class="fa-solid fa-circle-check text-primary"></i>
+                                        <strong>{{ service.provider.business_name }}</strong>
+                                        {% if service.provider.region %}&bull; {{ service.provider.region }}{% endif %}
+                                    </div>
+                                    <div class="service-card-action-bar">
+                                        <div class="service-rating-chip">
+                                            <i class="fa-solid fa-star text-yellow"></i>
+                                            <span>{% if service.avg_rating %}{{ service.avg_rating|floatformat:1 }}{% else %}New{% endif %}</span>
+                                            {% if service.review_count %}
+                                                <span class="text-12-muted">({{ service.review_count }})</span>
+                                            {% endif %}
+                                        </div>
+                                        <a href="{% url 'marketplace:service_detail' service.slug %}" class="btn-service-book">Book Service</a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- TIER 4: DYNAMIC DEPARTMENT SHELVES -->
+                {% for section in category_sections %}
+                    <div class="feed-section-header mt-40">
+                        <h3 class="section-title-premium">
+                            <span class="section-icon-badge"><i class="fa-solid fa-layer-group"></i></span>
+                            {{ section.category.name }}
+                        </h3>
+                        <a href="{% url 'marketplace:home' %}?category={{ section.category.id }}&amp;item_type=products" class="view-all-pill">
+                            Explore Department <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    <ul class="item-list">
+                        {% for product in section.products %}
+                            {% include 'partials/product_card.html' %}
+                        {% endfor %}
+                    </ul>
+                {% endfor %}
+
+                <!-- LOCATION 2: HOMEPAGE "LOOKING FOR SOMETHING SPECIFIC?" SOURCING CALLOUT -->
+                <div class="sourcing-home-callout mt-40">
+                    <div class="sourcing-home-left">
+                        <span class="sourcing-eyebrow">CUSTOM SOURCING &amp; ENGINEER MATCHING</span>
+                        <h3>Looking for something specific?</h3>
+                        <p>Can't find an exact hardware model or need a certified technician in your area? Tell us what you need and our verified partners will respond with offers.</p>
+                    </div>
+                    <div class="sourcing-home-actions">
+                        <a href="{% url 'marketplace:create_request' %}?type=PRODUCT" class="action-btn btn-primary requires-auth">
+                            <i class="fa-solid fa-bullhorn icon-spaced"></i> Make a Request
+                        </a>
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'marketplace:my_requests' %}" class="action-btn btn-outline">
+                                <i class="fa-solid fa-list-check icon-spaced"></i> My Requests
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
             {% endif %}
         </main>
     </div>

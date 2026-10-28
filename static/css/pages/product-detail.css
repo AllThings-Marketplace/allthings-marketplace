@@ -1,362 +1,571 @@
-/* --- Core Layout --- */
+/* ==========================================================================
+   PRODUCT DETAIL PAGE STYLESHEET (product-detail.css v4.6)
+   ========================================================================== */
+
+/* --- 1. Breadcrumb Trail --- */
 .breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
     font-size: 13px;
-    color: #6b7280;
-    margin-bottom: 20px;
+    color: #64748b;
+    margin-bottom: 10px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 10px 16px;
+    border-radius: 10px;
 }
 
 .breadcrumb a {
     color: #2563eb;
     text-decoration: none;
+    font-weight: 600;
+    transition: color 0.15s ease;
 }
 
+.breadcrumb a:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.breadcrumb-sep {
+    font-size: 10px;
+    color: #94a3b8;
+}
+
+.breadcrumb-current {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+/* --- 2. Core Two-Column Layout --- */
 .product-detail-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 50px;
-    max-width: 1100px;
-    margin: 40px auto 80px auto;
-    padding: 0 5%;
+    grid-template-columns: 48% 1fr;
+    gap: 44px;
+    max-width: 1180px;
+    margin: 20px auto 60px auto;
+    padding: 0 20px;
     align-items: start;
 }
 
-/* --- Left Column: Image Gallery --- */
+.grid-full-width {
+    grid-column: 1 / -1;
+}
+
+/* --- 3. Left Column: Touch-Swipeable Studio Image Gallery --- */
 .product-gallery {
     position: sticky;
-    top: 100px; /* Locks gallery in place while the user reads info */
+    top: 95px;
+    min-width: 0;
 }
 
 .main-image-container {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    position: relative;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
     overflow: hidden;
     background-color: #ffffff;
-    margin-bottom: 15px;
-    text-align: center;
+    margin-bottom: 14px;
+    height: 460px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.05);
+}
+
+/* Native Touch & Drag Scroll-Snap Track */
+.gallery-slider-track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    cursor: grab;
+    user-select: none;
+}
+
+.gallery-slider-track.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+}
+
+.gallery-slider-track::-webkit-scrollbar {
+    display: none;
+}
+
+.gallery-slide {
+    flex: 0 0 100%;
+    min-width: 100%;
+    height: 100%;
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .main-image {
     width: 100%;
-    max-height: 500px;
+    height: 100%;
     object-fit: contain;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    pointer-events: none;
+    transition: transform 0.35s ease;
+}
+
+/* Floating Prev / Next Arrows */
+.gallery-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+    transition: all 0.2s ease;
+}
+
+.gallery-nav-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+}
+
+.gallery-prev-btn {
+    left: 12px;
+}
+
+.gallery-next-btn {
+    right: 12px;
+}
+
+/* Floating Photo Counter Badge (e.g. 1 / 4) */
+.gallery-counter-badge {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 5;
+    pointer-events: none;
 }
 
 .fallback-image {
-    width: 100%; 
-    height: 400px; 
-    background-color: #f3f4f6; 
-    border-radius: 12px; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    font-size: 64px; 
-    color: #d1d5db;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 64px;
+    color: #cbd5e1;
 }
 
 .thumbnail-row {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     overflow-x: auto;
-    max-width: 100%; /* Forces the row to stay inside the screen boundaries */
-    padding-bottom: 8px; /* Adds breathing room so the scrollbar doesn't overlap images */
+    max-width: 100%;
+    padding-bottom: 8px;
     scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch; /* Enables smooth, native swipe feeling on iOS/Android */
+    -webkit-overflow-scrolling: touch;
 }
 
-/* Optional: Slim down the horizontal scrollbar for a much cleaner mobile UI */
 .thumbnail-row::-webkit-scrollbar {
     height: 4px;
 }
-.thumbnail-row::-webkit-scrollbar-track {
-    background: transparent;
-}
+
 .thumbnail-row::-webkit-scrollbar-thumb {
     background-color: #cbd5e1;
     border-radius: 10px;
 }
 
 .thumbnail {
-    width: 70px;
-    height: 70px;
+    width: 76px;
+    height: 76px;
     flex-shrink: 0;
-    object-fit: cover;
-    border: 2px solid transparent;
-    border-radius: 6px;
+    object-fit: contain;
+    background: #ffffff;
+    padding: 4px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
     cursor: pointer;
-    opacity: 0.6;
-    transition: 0.2s;
+    opacity: 0.7;
+    transition: all 0.2s ease;
 }
 
-.thumbnail:hover, .active-thumb {
+.thumbnail:hover,
+.active-thumb {
     opacity: 1;
     border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-/* --- Right Column: Product Info --- */
-.product-title {
-    font-size: 36px;
-    font-weight: 800;
-    color: #1f2937;
-    margin-top: 0;
-    margin-bottom: 10px;
-    letter-spacing: -0.5px;
-    line-height: 1.2;
-}
-
-.product-meta {
+/* --- 4. Right Column: Product Header & Pricing --- */
+.product-cat-pill-row {
     display: flex;
-    gap: 20px;
-    font-size: 14px;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid #e5e7eb;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
-.store-name {
-    color: #4b5563;
-    font-weight: 600;
-}
-
-.product-price {
-    font-size: 32px;
+.product-dept-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
     color: #2563eb;
-    margin-bottom: 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 4px 11px;
+    border-radius: 999px;
 }
 
-.stock-status {
-    font-size: 14px;
-    font-weight: 600;
-    display: block;
-    margin-bottom: 25px;
-}
-
-.in-stock { color: #059669; }
-.out-of-stock { color: #dc2626; }
-
-.product-description {
-    font-size: 16px;
-    color: #4b5563;
-    line-height: 1.7;
-    margin-bottom: 35px;
-    padding-bottom: 35px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-/* --- Purchase Actions & Trust --- */
-.purchase-actions {
-    display: flex;
-    gap: 15px;
+.rating-highlight-pill {
+    display: inline-flex;
     align-items: center;
-    background-color: #f8fafc;
-    padding: 20px;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    margin-bottom: 35px;
+    gap: 5px;
+    font-size: 13px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    padding: 4px 11px;
+    border-radius: 999px;
 }
 
-.btn-add-cart {
-    width: 100%;
-    text-align: center;
-    padding: 18px 0;
-    font-size: 18px;
-    flex: 1;
+.rating-count {
+    color: #64748b;
+    font-weight: 500;
 }
 
-.trust-badges {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
+.text-yellow {
+    color: #f59e0b;
 }
 
-.trust-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    font-size: 12px;
-    color: #4b5563;
-    gap: 8px;
-}
-
-.trust-item i {
-    font-size: 24px;
-    color: #d97706;
-}
-
-/* 📱 Mobile Overrides */
-@media (max-width: 768px) {
-    .product-detail-container {
-        grid-template-columns: 1fr;
-        gap: 30px;
-        margin-top: 20px;
-        padding-bottom: 100px; /* Prevents footer overlap with sticky bar */
-    }
-    
-    .product-gallery {
-        position: relative;
-        top: 0;
-    }
-    
-    .product-title {
-        font-size: 28px;
-    }
-
-    .purchase-actions {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        border-radius: 0;
-        margin: 0;
-        box-shadow: 0 -4px 15px rgba(0,0,0,0.1);
-        z-index: 1000;
-        background-color: #ffffff;
-        box-sizing: border-box;
-        
-        /* Bulletproof iOS Support: Adds padding for the iPhone Home Bar */
-        padding: 15px 20px;
-        padding-bottom: calc(15px + env(safe-area-inset-bottom)); 
-    }
-}
-
-/* --- Variant Selector --- */
-.variant-group {
-    margin-bottom: 20px;
-}
-.variant-label {
-    font-weight: 600;
-    display: block;
-    margin-bottom: 8px;
-    color: #374151;
-}
-
-/* --- Utilities & Dynamic Form Layout --- */
-.grid-full-width { 
-    grid-column: 1 / -1; 
-}
-
-.rating-highlight { 
-    color: #d97706; 
-    font-weight: 600; 
-}
-
-.rating-count { 
-    color: #6b7280; 
-    font-weight: 400; 
-}
-
-.purchase-actions.form-mode { 
-    flex-direction: column; 
-    align-items: stretch; 
-}
-
-.purchase-controls { 
-    display: flex; 
-    gap: 15px; 
-    width: 100%; 
-}
-
-.qty-group { 
-    display: flex; 
-    align-items: center; 
-    gap: 10px; 
-    font-weight: 600; 
-}
-
-.qty-input { 
-    width: 80px; 
-}
-
-/* --- Social Proof & Discovery --- */
-.product-extensions {
-    margin-top: 60px;
-    border-top: 1px solid #e5e7eb;
-    padding-top: 40px;
-    max-width: 1100px;
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 5%;
-    padding-right: 5%;
-}
-
-.reviews-container, .recommendations-container {
-    margin-bottom: 50px;
-}
-
-.review-card {
-    background-color: #f8fafc;
-    border: 1px solid #e5e7eb;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-}
-
-.review-header {
+.product-title-wrapper {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
-    color: #4b5563;
-    font-size: 14px;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
 }
 
-.related-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+.product-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.5px;
+    line-height: 1.25;
 }
 
-.related-img {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-    border-radius: 8px;
-}
-
-.related-fallback {
-    height: 150px;
-    font-size: 24px;
+.detail-wishlist-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f3f4f6;
-    color: #d1d5db;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.detail-wishlist-btn:hover {
+    transform: scale(1.1);
+    border-color: #cbd5e1;
+}
+
+/* Merchant Store Strip */
+.merchant-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+}
+
+.merchant-strip-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.merchant-icon-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.provider-profile-link {
+    color: #0f172a;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 14.5px;
+    transition: color 0.15s ease;
+}
+
+.provider-profile-link:hover {
+    color: #2563eb;
+}
+
+.merchant-visit-btn {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 6px 12px;
     border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
-/* Mobile Overrides */
-@media (max-width: 768px) {
-    .related-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+.merchant-visit-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
 }
 
-/* --- Clean Product Title & Heart Button Layout --- */
-.product-title-wrapper {
-    display: flex; 
-    justify-content: space-between; 
-    align-items: flex-start; /* Aligns both to the top */
-    gap: 15px;
-    margin-bottom: 10px;
+/* Price & Stock Banner */
+.price-stock-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
 }
 
-/* --- Specifications Table --- */
+.price-caption {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.product-price {
+    font-size: 30px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.5px;
+}
+
+.stock-status {
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.in-stock {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.low-stock {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+.out-of-stock {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+/* --- 5. Purchase Controls & Variants --- */
+.purchase-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1.5px solid #dbeafe;
+    margin-bottom: 22px;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.05);
+}
+
+.variant-group {
+    margin-bottom: 4px;
+}
+
+.variant-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    display: block;
+    margin-bottom: 8px;
+    color: #334155;
+}
+
+.purchase-controls {
+    display: flex;
+    gap: 14px;
+    width: 100%;
+    align-items: center;
+}
+
+.qty-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 13.5px;
+    color: #334155;
+}
+
+.qty-input {
+    width: 76px;
+    text-align: center;
+    font-weight: 700;
+    height: 48px;
+}
+
+.btn-add-cart {
+    flex: 1;
+    height: 48px;
+    font-size: 15.5px;
+    font-weight: 700;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* --- 6. Logistics & Escrow Transparency Card --- */
+.logistics-preview-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.logistics-preview-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.45;
+}
+
+.logistics-row-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.logistics-row-icon.icon-green {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+/* --- 7. Description & Technical Specs Table --- */
+.detail-section-subtitle {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 12px 0;
+    letter-spacing: -0.2px;
+}
+
+.product-description {
+    font-size: 15px;
+    color: #475569;
+    line-height: 1.7;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
 .product-specifications {
-    margin: 25px 0;
-    border-top: 1px solid #e5e7eb;
-    padding-top: 15px;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .specs-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
-    margin-top: 10px;
+    font-size: 13.5px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 .specs-table tr {
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .specs-table tr:last-child {
@@ -366,96 +575,280 @@
 .spec-key {
     width: 40%;
     text-align: left;
-    padding: 10px 10px;
-    color: #4b5563;
-    font-weight: 600;
-    background-color: #f9fafb;
+    padding: 11px 14px;
+    color: #475569;
+    font-weight: 700;
+    background-color: #f8fafc;
 }
 
 .spec-value {
     width: 60%;
-    padding: 10px 15px;
-    color: #111827;
+    padding: 11px 16px;
+    color: #0f172a;
+    font-weight: 500;
+    background-color: #ffffff;
 }
 
-/* Customer Reviews Section */
-.review-card-item {
-    padding: 15px;
-    border: 1px solid var(--border-light, #e2e8f0);
-    border-radius: 8px;
+/* Trust Badges Bar */
+.trust-badges {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.trust-badge-box {
     background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    gap: 6px;
+}
+
+.trust-badge-box i {
+    font-size: 18px;
+    color: #2563eb;
+}
+
+/* --- 8. Extensions: Verified Buyer Reviews & Related Hardware --- */
+.product-extensions {
+    margin-top: 40px;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 40px;
+    max-width: 1180px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.extension-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.reviews-container,
+.recommendations-container {
+    margin-bottom: 50px;
+}
+
+.reviews-grid-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 18px;
+}
+
+.review-card-item {
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.reviewer-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #eff6ff;
+    color: #2563eb;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.review-star-pill {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    font-weight: 700;
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
 }
 
 .review-attr-tag {
-    background: var(--bg-light, #f8fafc);
-    padding: 4px 8px;
-    border-radius: 4px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 4px 9px;
+    border-radius: 6px;
 }
 
 .review-photo-thumb {
-    width: 80px;
-    height: 80px;
+    width: 72px;
+    height: 72px;
     object-fit: cover;
     border-radius: 8px;
-    border: 1px solid var(--border-light, #dddddd);
-    transition: opacity 0.2s ease;
+    border: 1px solid #cbd5e1;
+    transition: transform 0.2s ease;
 }
 
 .review-photo-thumb:hover {
-    opacity: 0.85;
+    transform: scale(1.05);
 }
 
 .reviews-empty-box {
-    padding: 20px;
+    padding: 32px 20px;
     text-align: center;
-    background: var(--bg-light, #f8fafc);
-    border-radius: 8px;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
 }
 
 .reviews-empty-icon {
-    font-size: 24px;
+    font-size: 28px;
     margin-bottom: 10px;
+    display: block;
 }
 
-/* Product Page Provider Link */
-.provider-profile-link {
-    color: #2563eb;
-    text-decoration: none;
-    font-weight: 600;
-    transition: color 0.2s ease;
-}
-.provider-profile-link:hover {
-    color: #1e40af;
-    text-decoration: underline;
+/* Related Products Grid */
+.related-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
 }
 
-/* --- Logistics & Escrow Transparency Card --- */
-.logistics-preview-card {
-    background: #f8fafc;
+.related-card {
+    background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin: 18px 0;
+    border-radius: 14px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
-.logistics-preview-row {
+.related-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.12);
+    border-color: #cbd5e1;
+}
+
+.related-img-box {
+    height: 170px;
+    background: #ffffff;
+    padding: 12px;
+    border-bottom: 1px solid #f1f5f9;
     display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-size: 13px;
-    color: #334155;
-    line-height: 1.4;
+    align-items: center;
+    justify-content: center;
 }
 
-.logistics-preview-row i {
-    margin-top: 3px;
+.related-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.related-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    color: #cbd5e1;
+    font-size: 28px;
+    border-radius: 8px;
+}
+
+.related-card-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.related-cat-name {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #2563eb;
+    margin-bottom: 4px;
+}
+
+.related-product-title {
     font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 8px 0;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 38px;
 }
 
-.stock-status.low-stock {
-    color: #d97706;
-    font-weight: 600;
+.related-price {
+    margin-top: auto;
+    font-size: 15.5px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+/* --- 9. Mobile Responsive Overrides --- */
+@media (max-width: 860px) {
+    .product-detail-container {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        margin-top: 12px;
+        padding-bottom: 90px;
+    }
+
+    .product-gallery {
+        position: relative;
+        top: 0;
+    }
+
+    .main-image-container {
+        height: 340px;
+    }
+
+    .gallery-nav-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 13px;
+    }
+
+    .product-title {
+        font-size: 23px;
+    }
+
+    .related-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .reviews-grid-list {
+        grid-template-columns: 1fr;
+    }
+
+    .purchase-actions {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 16px 16px 0 0;
+        margin: 0;
+        box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.12);
+        z-index: 1000;
+        background-color: #ffffff;
+        box-sizing: border-box;
+        padding: 14px 18px;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    }
 }

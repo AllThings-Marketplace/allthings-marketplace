@@ -817,3 +817,46 @@ body {
     justify-content: center;
     line-height: 1;
 }
+
+/* ==========================================================================
+   BRAND EMBLEM LOGO & INITIAL VISIBILITY HELPERS
+   ========================================================================== */
+.hidden-initial {
+    display: none;
+}
+
+.brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    text-decoration: none;
+    font-weight: 800;
+    vertical-align: middle;
+}
+
+.brand-logo-icon {
+    height: 32px;
+    width: auto;
+    object-fit: contain;
+    margin-right: -1px;
+    display: inline-block;
+}
+
+.mobile-drawer .drawer-header .brand-logo-icon {
+    height: 28px;
+}
+
+.footer-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    text-decoration: none;
+    margin-bottom: 12px;
+}
+
+.footer-logo-icon {
+    height: 42px;
+    width: auto;
+    object-fit: contain;
+    margin-right: -1px;
+}

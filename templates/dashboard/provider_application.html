@@ -2,95 +2,370 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.0">
 {% endblock %}
 
 {% block content %}
-<div class="onboarding-header">
-    <h2 class="section-heading checkout-page-title">Become a Provider</h2>
-    <p class="section-subtitle">Join thousands of vendors and service professionals growing their business on All Things.</p>
-</div>
-
-<form method="POST" action="{% url 'apply_provider' %}" class="onboarding-form-wrapper">
-    {% csrf_token %}
-    
-    <div class="summary-card checkout-form-card">
-        
-        <!-- 1. Personal Details -->
-        <h3 class="checkout-section-title">
-            <i class="fa-solid fa-user icon-primary-spaced"></i> Personal Information
-        </h3>
-        
-        <div class="form-grid-2">
-            <div class="form-group">
-                <label>First Name *</label>
-                <!-- Pre-fills if the user has already set their name -->
-                <input type="text" name="first_name" class="form-control" value="{{ request.user.first_name }}" required>
-            </div>
-            <div class="form-group">
-                <label>Last Name *</label>
-                <input type="text" name="last_name" class="form-control" value="{{ request.user.last_name }}" required>
-            </div>
-        </div>
-
-        <div class="form-grid-2">
-            <div class="form-group">
-                <label>Email Address *</label>
-                <input type="email" name="email" class="form-control" value="{{ request.user.email }}" readonly>
-                <small class="form-text-muted">Your account email is locked for security.</small>
-            </div>
-            <div class="form-group">
-                <label>Primary Phone *</label>
-                <input type="tel" name="phone" class="form-control" required>
-            </div>
-        </div>
-
-        <div class="form-grid-2">
-            <div class="form-group">
-                <label>Date of Birth *</label>
-                <input type="date" name="dob" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label>Residential Address *</label>
-                <input type="text" name="residential_address" class="form-control" placeholder="Your home address" required>
-            </div>
-        </div>
-
-        <!-- 2. Business Details -->
-        <h3 class="checkout-section-title mt-30">
-            <i class="fa-solid fa-briefcase icon-primary-spaced"></i> Business Profile
-        </h3>
-
-        <div class="form-group">
-            <label>Store / Business Name *</label>
-            <input type="text" name="business_name" class="form-control" placeholder="E.g., Pioneer Global Logistics" required>
-        </div>
-
-        <div class="form-grid-2">
-            <div class="form-group">
-                <label>Provider Type *</label>
-                <select name="provider_type" class="form-control" required>
-                    <option value="">Select your business type...</option>
-                    <option value="VENDOR">Retail Vendor (Selling Products)</option>
-                    <option value="SERVICE">Service Professional (Electrician, etc.)</option>
-                    <option value="BOTH">Both (Products & Services)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Business Category *</label>
-                <input type="text" name="business_category" class="form-control" placeholder="E.g., Electrical Parts, HVAC, Interior Design" required>
-            </div>
-        </div>
-
-        <button type="submit" class="action-btn btn-primary w-100 mt-20 text-16">
-            Start Application
-        </button>
-        
-        <div class="security-notice notice-center mt-15">
-             <i class="fa-solid fa-shield-halved security-icon"></i>
-             <p>After this step, you will be directed to securely verify your identity and location.</p>
-        </div>
-        
+<div class="animate-fade-in">
+    <div class="onboarding-header">
+        <span class="sell-eyebrow">STAGE 1 OF 4 &bull; ACCOUNT &amp; CONTACT VERIFICATION</span>
+        <h2 class="section-heading checkout-page-title mt-5">Provider Application</h2>
+        <p class="section-subtitle">Verify your contact credentials and tell us about your business to begin onboarding.</p>
     </div>
-</form>
+
+    <form method="POST"
+          action="{% url 'accounts:apply_provider' %}"
+          class="onboarding-form-wrapper"
+          id="providerApplicationForm"
+          data-send-otp-url="{% url 'accounts:send_otp' %}"
+          data-verify-otp-url="{% url 'accounts:verify_otp' %}">
+        {% csrf_token %}
+        
+        <div class="summary-card checkout-form-card">
+            
+            <!-- 1. Personal Details & Immediate Inline OTP Verification -->
+            <h3 class="checkout-section-title">
+                <i class="fa-solid fa-user-shield icon-primary-spaced"></i> 1. Personal &amp; Verified Contact Details
+            </h3>
+            
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Legal First Name *</label>
+                    <input type="text" name="first_name" class="form-control" value="{{ request.user.first_name }}" placeholder="Must match your ID &amp; Bank" required>
+                </div>
+                <div class="form-group">
+                    <label>Legal Last Name (Surname) *</label>
+                    <input type="text" name="last_name" class="form-control" value="{{ request.user.last_name }}" placeholder="Must match your ID &amp; Bank" required>
+                </div>
+            </div>
+
+            <!-- INLINE EMAIL OTP VERIFICATION BLOCK -->
+            <div class="otp-verification-card mb-20" id="emailOtpCard">
+                <div class="flex-between align-center flex-wrap gap-10 mb-8">
+                    <label class="m-0 font-700-dark text-14">
+                        <i class="fa-regular fa-envelope text-primary mr-5"></i> Official Email Address *
+                    </label>
+                    <span id="emailVerifiedBadge" class="otp-status-pill {% if email_already_verified %}pill-verified{% else %}pill-unverified{% endif %}">
+                        {% if email_already_verified %}
+                            <i class="fa-solid fa-circle-check"></i> Email Verified
+                        {% else %}
+                            <i class="fa-solid fa-clock"></i> Verification Required
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="otp-input-row">
+                    <input type="email"
+                           name="email"
+                           id="appEmailInput"
+                           class="form-control"
+                           value="{{ request.user.email }}"
+                           {% if email_already_verified %}readonly{% endif %}
+                           required>
+                    {% if not email_already_verified %}
+                        <button type="button" class="action-btn btn-outline otp-trigger-btn" id="sendEmailOtpBtn">
+                            <i class="fa-solid fa-paper-plane"></i> Send OTP
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Drawer that opens when Email OTP is sent -->
+                <div class="otp-code-drawer hidden-initial" id="emailOtpDrawer">
+                    <p class="otp-helper-msg" id="emailOtpMsg">Enter the 6-digit code sent to your email:</p>
+                    <div class="otp-verify-controls">
+                        <input type="text"
+                               id="emailOtpCodeInput"
+                               class="form-control otp-digit-input"
+                               placeholder="000000"
+                               maxlength="6"
+                               inputmode="numeric">
+                        <button type="button" class="action-btn btn-primary otp-confirm-btn" id="verifyEmailOtpBtn">
+                            Verify Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INLINE PHONE NUMBER OTP VERIFICATION BLOCK -->
+            <div class="otp-verification-card mb-20" id="phoneOtpCard">
+                <div class="flex-between align-center flex-wrap gap-10 mb-8">
+                    <label class="m-0 font-700-dark text-14">
+                        <i class="fa-solid fa-mobile-screen-button text-primary mr-5"></i> Primary Business Phone (Nigeria) *
+                    </label>
+                    <span id="phoneVerifiedBadge" class="otp-status-pill {% if verified_phone %}pill-verified{% else %}pill-unverified{% endif %}">
+                        {% if verified_phone %}
+                            <i class="fa-solid fa-circle-check"></i> Phone Verified
+                        {% else %}
+                            <i class="fa-solid fa-clock"></i> SMS OTP Required
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="otp-input-row">
+                    <input type="tel"
+                           name="phone"
+                           id="appPhoneInput"
+                           class="form-control"
+                           value="{{ verified_phone|default:request.user.phone_number|default:'' }}"
+                           placeholder="E.g., 08031234567"
+                           {% if verified_phone %}readonly{% endif %}
+                           required>
+                    {% if not verified_phone %}
+                        <button type="button" class="action-btn btn-outline otp-trigger-btn" id="sendPhoneOtpBtn">
+                            <i class="fa-solid fa-comment-sms"></i> Send OTP
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Drawer that opens when Phone OTP is sent -->
+                <div class="otp-code-drawer hidden-initial" id="phoneOtpDrawer">
+                    <p class="otp-helper-msg" id="phoneOtpMsg">Enter the 6-digit SMS code sent to your phone:</p>
+                    <div class="otp-verify-controls">
+                        <input type="text"
+                               id="phoneOtpCodeInput"
+                               class="form-control otp-digit-input"
+                               placeholder="000000"
+                               maxlength="6"
+                               inputmode="numeric">
+                        <button type="button" class="action-btn btn-primary otp-confirm-btn" id="verifyPhoneOtpBtn">
+                            Verify Phone
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Date of Birth *</label>
+                    <input type="date" name="dob" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Residential Address *</label>
+                    <input type="text" name="residential_address" class="form-control" placeholder="Your current home address" required>
+                </div>
+            </div>
+
+            <!-- 2. Business Details -->
+            <h3 class="checkout-section-title mt-30">
+                <i class="fa-solid fa-briefcase icon-primary-spaced"></i> 2. Store &amp; Business Profile
+            </h3>
+
+            <div class="form-group">
+                <label>Store / Business Name *</label>
+                <input type="text" name="business_name" class="form-control" placeholder="E.g., VoltEdge Electricals &amp; Solar" required>
+            </div>
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Provider Type *</label>
+                    <select name="provider_type" class="form-control" required>
+                        <option value="">Select how you want to operate...</option>
+                        <option value="VENDOR">Retail Vendor (Selling Physical Products)</option>
+                        <option value="SERVICE">Service Professional (Electrician, Solar, HVAC)</option>
+                        <option value="BOTH">Both (Physical Products &amp; Engineering Services)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Primary Specialty / Category *</label>
+                    <input type="text" name="business_category" class="form-control" placeholder="E.g., Solar &amp; Inverters, Industrial Wiring, HVAC" required>
+                </div>
+            </div>
+
+            <input type="hidden" id="isEmailVerifiedFlag" value="{{ email_already_verified|yesno:'true,false' }}">
+            <input type="hidden" id="isPhoneVerifiedFlag" value="{% if verified_phone %}true{% else %}false{% endif %}">
+
+            <button type="submit"
+                    id="submitProviderAppBtn"
+                    class="action-btn btn-primary w-100 mt-20 py-15 text-16 font-700-block"
+                    {% if not email_already_verified or not verified_phone %}disabled{% endif %}>
+                <i class="fa-solid fa-shield-check icon-spaced"></i>
+                <span id="submitProviderAppText">
+                    {% if email_already_verified and verified_phone %}
+                        Continue to Stage 2 (Identity Verification) &rarr;
+                    {% else %}
+                        Verify Email &amp; Phone Above to Continue
+                    {% endif %}
+                </span>
+            </button>
+            
+            <div class="security-notice notice-center mt-15">
+                <i class="fa-solid fa-lock security-icon"></i>
+                <p>Your legal name, verified email, and phone number are protected and used for Paystack escrow settlement.</p>
+            </div>
+            
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("providerApplicationForm");
+    if (!form) return;
+
+    const sendUrl = form.dataset.sendOtpUrl;
+    const verifyUrl = form.dataset.verifyOtpUrl;
+    const csrfToken = form.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+    const emailFlag = document.getElementById("isEmailVerifiedFlag");
+    const phoneFlag = document.getElementById("isPhoneVerifiedFlag");
+    const submitBtn = document.getElementById("submitProviderAppBtn");
+    const submitText = document.getElementById("submitProviderAppText");
+
+    function updateSubmitState() {
+        const bothVerified = emailFlag.value === "true" && phoneFlag.value === "true";
+        submitBtn.disabled = !bothVerified;
+        if (bothVerified) {
+            submitText.innerHTML = 'Continue to Stage 2 (Identity Verification) &rarr;';
+        } else {
+            submitText.textContent = "Verify Email & Phone Above to Continue";
+        }
+    }
+
+    function startCooldown(button, seconds, defaultHtml) {
+        let remaining = seconds;
+        button.disabled = true;
+        const interval = setInterval(function () {
+            button.textContent = `Resend in ${remaining}s`;
+            remaining -= 1;
+            if (remaining < 0) {
+                clearInterval(interval);
+                button.disabled = false;
+                button.innerHTML = defaultHtml;
+            }
+        }, 1000);
+    }
+
+    function setupOtpChannel(config) {
+        const inputEl = document.getElementById(config.inputId);
+        const sendBtn = document.getElementById(config.sendBtnId);
+        const drawerEl = document.getElementById(config.drawerId);
+        const msgEl = document.getElementById(config.msgId);
+        const codeInput = document.getElementById(config.codeInputId);
+        const verifyBtn = document.getElementById(config.verifyBtnId);
+        const badgeEl = document.getElementById(config.badgeId);
+        const flagEl = document.getElementById(config.flagId);
+
+        if (!sendBtn || !inputEl) return;
+        const defaultBtnHtml = sendBtn.innerHTML;
+
+        sendBtn.addEventListener("click", function () {
+            const targetVal = inputEl.value.trim();
+            if (!targetVal) {
+                inputEl.focus();
+                return;
+            }
+
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+
+            const fd = new FormData();
+            fd.append("channel", config.channel);
+            fd.append("target", targetVal);
+
+            fetch(sendUrl, {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken },
+                body: fd
+            })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                drawerEl.classList.remove("hidden-initial");
+                drawerEl.style.display = "block";
+
+                if (ok && data.status === "success") {
+                    let msgHtml = `<span class="text-success font-600"><i class="fa-solid fa-circle-check"></i> ${data.message}</span>`;
+                    if (data.dev_code) {
+                        msgHtml += ` <span class="dev-otp-chip">Dev OTP: <strong>${data.dev_code}</strong></span>`;
+                    }
+                    msgEl.innerHTML = msgHtml;
+                    codeInput.focus();
+                    startCooldown(sendBtn, data.cooldown || 60, defaultBtnHtml);
+                } else {
+                    msgEl.innerHTML = `<span class="text-danger font-600"><i class="fa-solid fa-circle-exclamation"></i> ${data.message || 'Could not send code.'}</span>`;
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = defaultBtnHtml;
+                }
+            })
+            .catch(() => {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = defaultBtnHtml;
+            });
+        });
+
+        verifyBtn.addEventListener("click", function () {
+            const codeVal = codeInput.value.trim();
+            const targetVal = inputEl.value.trim();
+            if (codeVal.length !== 6) {
+                msgEl.innerHTML = '<span class="text-danger font-600">Please enter all 6 digits.</span>';
+                codeInput.focus();
+                return;
+            }
+
+            verifyBtn.disabled = true;
+            verifyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
+
+            const fd = new FormData();
+            fd.append("channel", config.channel);
+            fd.append("target", targetVal);
+            fd.append("code", codeVal);
+
+            fetch(verifyUrl, {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken },
+                body: fd
+            })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data.status === "success") {
+                    flagEl.value = "true";
+                    inputEl.readOnly = true;
+                    drawerEl.style.display = "none";
+                    sendBtn.style.display = "none";
+                    badgeEl.className = "otp-status-pill pill-verified";
+                    badgeEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${config.verifiedLabel}`;
+                    updateSubmitState();
+                } else {
+                    msgEl.innerHTML = `<span class="text-danger font-600"><i class="fa-solid fa-circle-exclamation"></i> ${data.message}</span>`;
+                    verifyBtn.disabled = false;
+                    verifyBtn.textContent = config.verifyBtnText;
+                }
+            })
+            .catch(() => {
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = config.verifyBtnText;
+            });
+        });
+    }
+
+    setupOtpChannel({
+        channel: "EMAIL",
+        inputId: "appEmailInput",
+        sendBtnId: "sendEmailOtpBtn",
+        drawerId: "emailOtpDrawer",
+        msgId: "emailOtpMsg",
+        codeInputId: "emailOtpCodeInput",
+        verifyBtnId: "verifyEmailOtpBtn",
+        verifyBtnText: "Verify Email",
+        badgeId: "emailVerifiedBadge",
+        flagId: "isEmailVerifiedFlag",
+        verifiedLabel: "Email Verified"
+    });
+
+    setupOtpChannel({
+        channel: "PHONE",
+        inputId: "appPhoneInput",
+        sendBtnId: "sendPhoneOtpBtn",
+        drawerId: "phoneOtpDrawer",
+        msgId: "phoneOtpMsg",
+        codeInputId: "phoneOtpCodeInput",
+        verifyBtnId: "verifyPhoneOtpBtn",
+        verifyBtnText: "Verify Phone",
+        badgeId: "phoneVerifiedBadge",
+        flagId: "isPhoneVerifiedFlag",
+        verifiedLabel: "Phone Verified"
+    });
+});
+</script>
 {% endblock %}

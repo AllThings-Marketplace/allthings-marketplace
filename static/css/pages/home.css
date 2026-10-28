@@ -1,113 +1,22 @@
-/* --- Hero Section --- */
-.hero-section {
-    background: linear-gradient(135deg, #1f2937 0%, #0f172a 100%); 
-    color: #ffffff;
-    padding: 70px 5%;
-    border-radius: 12px;
-    margin-bottom: 40px;
-    text-align: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
+/* ==========================================================================
+   ALLTHINGS MARKETPLACE - PREMIUM HOMEPAGE UI (home.css v3.5)
+   ========================================================================== */
 
-.hero-title {
-    font-size: 42px;
-    font-weight: 800;
-    margin: 0 0 15px 0;
-    letter-spacing: -1px; 
-}
-
-.hero-subtitle {
-    font-size: 18px;
-    color: #9ca3af; 
-    margin: 0 0 25px 0;
-    max-width: 600px;
-    line-height: 1.6;
-}
-
-/* 📱 Mobile Hero Overrides */
-@media (max-width: 768px) {
-    .hero-section { padding: 40px 5%; }
-    .hero-title { font-size: 32px; }
-}
-
-/* --- Trust Banner --- */
-.trust-banner {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-    margin-bottom: 40px;
-}
-
-.trust-card {
-    background-color: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-}
-
-.trust-icon {
-    font-size: 28px;
-    color: #2563eb;
-}
-
-.trust-text h4 {
-    margin: 0 0 4px 0;
-    font-size: 15px;
-    color: #1f2937;
-}
-
-.trust-text p {
-    margin: 0;
-    font-size: 13px;
-    color: #6b7280;
-}
-
-/* --- Promo Banner (For non-logged in users) --- */
-.promo-banner {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    color: white;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 30px;
-    text-align: center;
-}
-
-.promo-banner h3 { margin: 0 0 10px 0; font-size: 18px; }
-.promo-banner p { margin: 0 0 15px 0; font-size: 14px; opacity: 0.9; }
-.promo-btn {
-    background-color: #ffffff;
-    color: #2563eb;
-    padding: 8px 20px;
-    border-radius: 20px;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 14px;
-    display: inline-block;
-}
-
-/* =========================================
-   DYNAMIC SLIDER (Interactive & Hover-Aware)
-   ========================================= */
+/* --- 1. DYNAMIC PROMO SLIDER (Glassmorphic & Hover-Aware) --- */
 .promo-slider {
     position: relative;
     overflow: hidden;
-    border-radius: 12px;
-    margin-bottom: 30px;
+    border-radius: 16px;
+    margin-bottom: 22px;
     background: #0f172a;
-    height: 350px;
+    height: 370px;
+    box-shadow: 0 12px 32px -10px rgba(15, 23, 42, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .slider-track {
     display: flex;
-    transition: transform 0.5s ease-in-out;
+    transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
     width: 100%;
     height: 100%;
 }
@@ -117,7 +26,7 @@
     min-width: 100%;
     height: 100%;
     position: relative;
-    display: block; 
+    display: block;
 }
 
 .slide-bg-img {
@@ -127,94 +36,470 @@
     display: block;
 }
 
-/* Navigation Arrows */
+/* Glassmorphic Navigation Arrows */
 .slider-btn {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.9);
-    color: #333;
-    border: none;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.5);
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    opacity: 0; /* Hidden initially */
-    transition: all 0.3s ease;
+    opacity: 0;
+    transition: all 0.25s ease;
     z-index: 10;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
 }
 
-/* Reveal arrows only when the user's mouse enters the slider area */
 .promo-slider:hover .slider-btn {
-    opacity: 1; 
+    opacity: 1;
 }
 
 .slider-btn:hover {
     background: #2563eb;
-    color: white;
+    color: #ffffff;
+    border-color: #2563eb;
+    transform: translateY(-50%) scale(1.08);
 }
 
-.prev-btn { left: 15px; }
-.next-btn { right: 15px; }
+.prev-btn { left: 16px; }
+.next-btn { right: 16px; }
 
-/* Interactive Dots */
+/* Interactive Pill Dots */
 .slider-dots {
     position: absolute;
-    bottom: 15px;
+    bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
+    align-items: center;
     gap: 8px;
     z-index: 10;
+    background: rgba(15, 23, 42, 0.45);
+    padding: 6px 12px;
+    border-radius: 999px;
+    backdrop-filter: blur(6px);
 }
 
 .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.4);
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.5);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .dot.active {
+    width: 24px;
     background: #ffffff;
-    transform: scale(1.2);
 }
 
-/* --- NEW: Mobile Responsiveness --- */
-@media (max-width: 768px) {
-    .promo-slider {
-        height: 160px; /* Proportionally shorter height for mobile screens */
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-    
-    .slider-btn {
-        width: 32px;
-        height: 32px;
-        font-size: 12px;
-        opacity: 1; /* Always show arrows on mobile (phones don't have hover) */
-    }
-    
-    .prev-btn { left: 5px; }
-    .next-btn { right: 5px; }
-    
-    .slider-dots {
-        bottom: 8px;
-    }
-    
-    .dot {
-        width: 8px;
-        height: 8px;
-    }
+/* --- 2. TRUST, ESCROW & VERIFICATION VALUE STRIP --- */
+.trust-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 30px;
 }
 
-/* --- Premium Product Card Layout --- */
+.trust-item {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 15px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.trust-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px -4px rgba(15, 23, 42, 0.08);
+    border-color: #cbd5e1;
+}
+
+.trust-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.trust-icon-blue { background: #eff6ff; color: #2563eb; }
+.trust-icon-green { background: #ecfdf5; color: #059669; }
+.trust-icon-amber { background: #fffbeb; color: #d97706; }
+.trust-icon-purple { background: #f5f3ff; color: #7c3aed; }
+
+.trust-item-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 2px 0;
+}
+
+.trust-item-desc {
+    font-size: 11.5px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.35;
+}
+
+/* --- 3. GUEST PROMO BANNER --- */
+.promo-banner {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #2563eb 100%);
+    color: #ffffff;
+    padding: 22px 28px;
+    border-radius: 14px;
+    margin-bottom: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    box-shadow: 0 10px 25px -6px rgba(37, 99, 235, 0.28);
+}
+
+.promo-banner h3 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+}
+
+.promo-banner p {
+    margin: 0;
+    font-size: 13.5px;
+    opacity: 0.9;
+    max-width: 560px;
+}
+
+.promo-btn {
+    background-color: #ffffff;
+    color: #1e40af;
+    padding: 10px 22px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 13.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.promo-btn:hover {
+    transform: translateY(-2px);
+    background-color: #f8fafc;
+}
+
+/* --- 4. GREETING HEADER & LIVE MARKET STATS --- */
+.feed-greeting-box {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.greeting-text-col h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.4px;
+}
+
+.greeting-text-col p {
+    font-size: 13.5px;
+    color: #64748b;
+    margin: 0;
+}
+
+.market-stats-pills {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.stat-chip-primary {
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
+.stat-chip-success {
+    color: #047857;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+}
+
+/* --- 5. SECTION HEADERS & PILL LINKS --- */
+.feed-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1.5px solid #e2e8f0;
+}
+
+.section-title-premium {
+    font-size: 18px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    letter-spacing: -0.3px;
+}
+
+.section-icon-badge {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.view-all-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 6px 14px;
+    border-radius: 999px;
+    text-decoration: none;
+    border: 1px solid #dbeafe;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.view-all-pill:hover {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    transform: translateX(2px);
+}
+
+/* --- 6. MODERN PROFESSIONAL SERVICE CARDS GRID --- */
+.services-modern-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 20px;
+}
+
+.service-card-pro {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.service-card-pro:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px -8px rgba(15, 23, 42, 0.12);
+    border-color: #cbd5e1;
+}
+
+.service-card-cover-box {
+    position: relative;
+    width: 100%;
+    height: 165px;
+    background: #0f172a;
+    overflow: hidden;
+    display: block;
+}
+
+.service-card-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+}
+
+.service-card-pro:hover .service-card-cover-img {
+    transform: scale(1.05);
+}
+
+.service-card-fallback-thumb {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #64748b;
+    font-size: 36px;
+}
+
+.service-mode-chip {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(4px);
+    color: #ffffff;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 6px;
+    letter-spacing: 0.3px;
+}
+
+.service-pricing-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.service-card-content {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.service-cat-indicator {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #2563eb;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.service-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 42px;
+}
+
+.service-card-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.service-card-title a:hover {
+    color: #2563eb;
+}
+
+.service-provider-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #475569;
+    margin-bottom: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.service-card-action-bar {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.service-rating-chip {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-service-book {
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-service-book:hover {
+    background: #2563eb;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* --- 7. PRODUCT CARD REFINEMENTS --- */
 .product-card-wrapper {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
 
 .card-info-layout {
@@ -231,32 +516,31 @@
 
 .card-price {
     font-size: 16px;
-    color: #1f2937;
+    font-weight: 800;
+    color: #0f172a;
 }
 
 .card-action-col {
     flex-shrink: 0;
 }
 
-/* Icon Button (Heart) */
 .btn-icon-only {
     background: transparent;
     border: none;
     padding: 5px;
     font-size: 18px;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s ease;
 }
 
 .btn-icon-only:hover {
-    transform: scale(1.1);
+    transform: scale(1.15);
 }
 
 .btn-icon-only .text-muted {
-    color: #9ca3af;
+    color: #94a3b8;
 }
 
-/* Rating Row */
 .card-rating-row {
     display: flex;
     align-items: center;
@@ -269,5 +553,70 @@
 }
 
 .text-yellow {
-    color: #f59e0b; /* A nice premium gold color */
+    color: #f59e0b;
+}
+
+/* --- 8. RESPONSIVE BREAKPOINTS --- */
+@media (max-width: 1024px) {
+    .trust-strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .promo-slider {
+        height: 175px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+
+    .slider-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+        opacity: 1;
+    }
+
+    .prev-btn { left: 8px; }
+    .next-btn { right: 8px; }
+    .slider-dots { bottom: 8px; padding: 4px 8px; }
+    .dot { width: 6px; height: 6px; }
+    .dot.active { width: 16px; }
+
+    .trust-strip {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .trust-item {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .trust-icon-box {
+        width: 36px;
+        height: 36px;
+        font-size: 15px;
+    }
+
+    .trust-item-title {
+        font-size: 12.5px;
+    }
+
+    .trust-item-desc {
+        display: none;
+    }
+
+    .feed-greeting-box {
+        padding: 16px;
+    }
+
+    .greeting-text-col h2 {
+        font-size: 19px;
+    }
+
+    .services-modern-grid {
+        grid-template-columns: 1fr;
+    }
 }

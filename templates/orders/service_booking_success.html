@@ -1,49 +1,106 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}?v=2.5">
+{% endblock %}
 
 {% block content %}
-<div class="feedback-wrapper text-center pt-20 mt-40 mb-40">
-    
-    <div class="text-green mb-20 text-24">
-        <i class="fa-solid fa-circle-check icon-64"></i>
+<div class="booking-success-shell animate-fade-in">
+    <div class="booking-success-card">
+        
+        <div class="booking-success-badge">
+            <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        
+        <span class="booking-ref-pill">Booking Ref: {{ order.reference_code }}</span>
+        <h1 class="booking-success-title">Booking Request Sent!</h1>
+        <p class="booking-success-subtitle">
+            Your service request for <strong>{{ order.service.name }}</strong> has been dispatched to <strong>{{ order.provider.business_name }}</strong>.
+        </p>
+
+        <!-- 3-Step Escrow Handshake Timeline -->
+        <div class="booking-step-tracker">
+            <div class="booking-step active">
+                <div class="step-dot"><i class="fa-solid fa-check"></i></div>
+                <span>1. Request Sent</span>
+            </div>
+            <div class="booking-step-line"></div>
+            <div class="booking-step">
+                <div class="step-dot">2</div>
+                <span>2. Engineer Confirms</span>
+            </div>
+            <div class="booking-step-line"></div>
+            <div class="booking-step">
+                <div class="step-dot">3</div>
+                <span>3. Fund Escrow</span>
+            </div>
+        </div>
+
+        <!-- Structured Booking Dossier -->
+        <div class="booking-dossier-box">
+            <div class="dossier-row">
+                <span class="dossier-label">Service Requested</span>
+                <strong class="dossier-value">{{ order.service.name }}</strong>
+            </div>
+            <div class="dossier-row">
+                <span class="dossier-label">Assigned Professional</span>
+                <strong class="dossier-value">
+                    <i class="fa-solid fa-circle-check text-primary"></i> {{ order.provider.business_name }}
+                </strong>
+            </div>
+            <div class="dossier-row">
+                <span class="dossier-label">Requested Schedule</span>
+                <strong class="dossier-value">
+                    <i class="fa-regular fa-calendar text-primary"></i> {{ order.preferred_date }} at {{ order.preferred_time }}
+                </strong>
+            </div>
+            {% if order.service_location %}
+            <div class="dossier-row">
+                <span class="dossier-label">Site Location</span>
+                <strong class="dossier-value">{{ order.service_location }}</strong>
+            </div>
+            {% endif %}
+            <div class="dossier-row">
+                <span class="dossier-label">Current Status</span>
+                <span class="status-badge badge-pending badge-sm">
+                    <i class="fa-solid fa-clock"></i> Awaiting Provider Response
+                </span>
+            </div>
+            <div class="dossier-row dossier-total-row">
+                <span class="dossier-label">Estimated Rate</span>
+                <strong class="dossier-price">
+                    {% if order.agreed_price > 0 %}
+                        NGN {{ order.agreed_price|floatformat:0|intcomma }}
+                    {% else %}
+                        Custom Quote Upon Assessment
+                    {% endif %}
+                </strong>
+            </div>
+        </div>
+
+        <div class="booking-escrow-assurance">
+            <i class="fa-solid fa-shield-halved text-primary"></i>
+            <p>
+                <strong>Zero Upfront Charge:</strong> You have not been billed yet. Once {{ order.provider.business_name }} confirms availability (or sends your official quote), you will be notified to fund escrow securely.
+            </p>
+        </div>
+
+        <div class="booking-success-actions">
+            <a href="{% url 'orders:order_chat' order.id %}" class="action-btn btn-outline">
+                <i class="fa-regular fa-comments icon-spaced"></i> Message Professional
+            </a>
+            <a href="{% url 'orders:order_history' %}" class="action-btn btn-primary">
+                <i class="fa-solid fa-list-check icon-spaced"></i> Track My Bookings
+            </a>
+        </div>
+
+        <div class="mt-15">
+            <a href="{% url 'marketplace:home' %}" class="text-13 text-primary font-600">
+                &larr; Return to AllThings Marketplace
+            </a>
+        </div>
     </div>
-    
-    <h1 class="font-700-dark mb-10">Request Sent Successfully!</h1>
-    <p class="text-14-muted mb-30">
-        Your booking request for <strong>{{ order.service.name }}</strong> has been sent to {{ order.provider.business_name }}. 
-    </p>
-
-    <div class="summary-card text-left mb-30 border-light-all bg-light-gray">
-        <div class="flex-between mb-15">
-            <span class="text-12-muted">Reference Code</span>
-            <strong class="text-primary-blue">{{ order.reference_code }}</strong>
-        </div>
-        <div class="flex-between mb-15">
-            <span class="text-12-muted">Status</span>
-            <span class="text-yellow font-700-block"><i class="fa-solid fa-clock"></i> Awaiting Provider</span>
-        </div>
-        <div class="flex-between mb-15">
-            <span class="text-12-muted">Scheduled For</span>
-            <strong>{{ order.preferred_date }} at {{ order.preferred_time }}</strong>
-        </div>
-        <div class="flex-between">
-            <span class="text-12-muted">Estimated Price</span>
-            <strong>
-                {% if order.agreed_price > 0 %}
-                    NGN {{ order.agreed_price }}
-                {% else %}
-                    Pending Quote
-                {% endif %}
-            </strong>
-        </div>
-    </div>
-
-    <p class="text-14-muted mb-30">
-        You have not been charged. You will receive a notification to securely pay and lock in your appointment once the provider accepts the job.
-    </p>
-
-    <a href="{% url 'orders:order_history' %}" class="action-btn btn-primary w-100 py-15 text-16">View My Bookings</a>
-    <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline w-100 py-15 text-16 mt-15">Return to Home</a>
-
 </div>
 {% endblock %}

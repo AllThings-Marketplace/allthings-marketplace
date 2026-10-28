@@ -3,128 +3,155 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}?v=2.0">
+    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}?v=2.5">
 {% endblock %}
 
 {% block content %}
-<div class="checkout-header flex-between align-center flex-wrap gap-10">
-    <div>
-        <h2 class="section-heading cart-heading m-0">Your Shopping Cart</h2>
-        <p class="text-14-muted mt-5 mb-0">Select the items you want to purchase now. Unchecked items stay saved in your cart.</p>
+<div class="animate-fade-in">
+    <div class="checkout-header-card mb-30">
+        <div>
+            <h2 class="section-heading cart-heading m-0">
+                <i class="fa-solid fa-cart-shopping text-primary mr-5"></i> Your Shopping Cart
+            </h2>
+            <p class="text-14-muted mt-5 mb-0">Select the items you want to purchase now. Unchecked items stay saved in your cart.</p>
+        </div>
+        <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">
+            <i class="fa-solid fa-arrow-left icon-spaced"></i> Continue Shopping
+        </a>
     </div>
-    <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">
-        <i class="fa-solid fa-arrow-left"></i> Continue Shopping
-    </a>
-</div>
 
-{% if cart and cart.items.exists %}
-    <form method="GET" action="{% url 'orders:checkout' %}" id="cartForm">
-        <div class="checkout-container">
-            
-            <div class="cart-items">
-                <div class="cart-controls">
-                    <label class="select-all-label">
-                        <input type="checkbox" id="selectAllItems" checked>
-                        <span>Select All ({{ cart.items.count }} Item{{ cart.items.count|pluralize }})</span>
-                    </label>
-                    <a href="{% url 'orders:clear_cart' %}" class="btn-clear-cart">
-                        <i class="fa-solid fa-trash-can"></i> Clear Cart
-                    </a>
-                </div>
+    {% if cart and cart.items.exists %}
+        <form method="GET" action="{% url 'orders:checkout' %}" id="cartForm">
+            <div class="checkout-container">
+                
+                <!-- Left Column: Cart Line Items -->
+                <div class="cart-items">
+                    <div class="cart-controls">
+                        <label class="select-all-label">
+                            <input type="checkbox" id="selectAllItems" checked>
+                            <span>Select All ({{ cart.items.count }} Line Item{{ cart.items.count|pluralize }})</span>
+                        </label>
+                        <a href="{% url 'orders:clear_cart' %}" class="btn-clear-cart">
+                            <i class="fa-solid fa-trash-can"></i> Clear Entire Cart
+                        </a>
+                    </div>
 
-                {% for item in cart.items.all %}
-                    <div class="cart-item-row">
-                        <div class="item-info cart-item-flex">
-                            <input type="checkbox"
-                                   name="selected_products"
-                                   value="{{ item.id }}"
-                                   class="item-checkbox"
-                                   data-price="{{ item.get_total }}"
-                                   checked>
-                            
-                            <!-- Crash-Proof Thumbnail Fallback -->
-                            {% with first_img=item.product.images.first %}
-                                {% if first_img and first_img.processed_image %}
-                                    <img src="{{ first_img.processed_image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
-                                {% elif first_img and first_img.original_image %}
-                                    <img src="{{ first_img.original_image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
-                                {% elif item.product.image %}
-                                    <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
-                                {% else %}
-                                    <div class="cart-thumbnail-fallback"><i class="fa-solid fa-box"></i></div>
-                                {% endif %}
-                            {% endwith %}
-
-                            <div class="cart-item-title-group">
-                                <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="cart-item-link">
-                                    <strong>{{ item.product.name }}</strong>
-                                </a>
-                                {% if item.variant %}
-                                    <span class="text-variant-muted block">
-                                        Option: {{ item.variant.attribute_name }} — {{ item.variant.attribute_value }}
-                                    </span>
-                                {% endif %}
-                                <span class="text-12-muted block mt-5">
-                                    <i class="fa-solid fa-store text-primary"></i> {{ item.product.provider.business_name|default:"AllThings Vendor" }}
-                                    {% if item.product.provider.region %} ({{ item.product.provider.region }}){% endif %}
-                                </span>
+                    {% for item in cart.items.all %}
+                        <div class="cart-item-row">
+                            <div class="item-info cart-item-flex">
+                                <input type="checkbox"
+                                       name="selected_products"
+                                       value="{{ item.id }}"
+                                       class="item-checkbox"
+                                       data-price="{{ item.get_total }}"
+                                       checked>
                                 
-                                <div class="quantity-control mt-10">
-                                    <a href="{% url 'orders:decrease_quantity' item.id %}" class="qty-btn" title="Decrease Quantity">-</a>
-                                    <span class="qty-display">{{ item.quantity }}</span>
-                                    <a href="{% url 'orders:increase_quantity' item.id %}" class="qty-btn" title="Increase Quantity">+</a>
+                                <!-- Studio Thumbnail Box -->
+                                <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="cart-thumb-box">
+                                    {% with first_img=item.product.images.first %}
+                                        {% if first_img and first_img.processed_image %}
+                                            <img src="{{ first_img.processed_image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
+                                        {% elif first_img and first_img.original_image %}
+                                            <img src="{{ first_img.original_image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
+                                        {% elif item.product.image %}
+                                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
+                                        {% else %}
+                                            <div class="cart-thumbnail-fallback"><i class="fa-solid fa-bolt"></i></div>
+                                        {% endif %}
+                                    {% endwith %}
+                                </a>
+
+                                <!-- Clean Vertical Metadata Stack -->
+                                <div class="cart-item-title-group">
+                                    <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="cart-item-link">
+                                        <strong>{{ item.product.name }}</strong>
+                                    </a>
+
+                                    {% if item.variant %}
+                                        <span class="cart-variant-pill">
+                                            {{ item.variant.attribute_name }}: {{ item.variant.attribute_value }}
+                                        </span>
+                                    {% endif %}
+
+                                    <div class="cart-vendor-meta">
+                                        <span>
+                                            <i class="fa-solid fa-store text-primary"></i>
+                                            {{ item.product.provider.business_name|default:"AllThings Vendor" }}
+                                            {% if item.product.provider.region %} ({{ item.product.provider.region }}){% endif %}
+                                        </span>
+                                        <span class="cart-unit-price-tag">
+                                            &bull; Unit: NGN {% if item.variant and item.variant.price_override %}{{ item.variant.price_override|floatformat:0|intcomma }}{% else %}{{ item.product.price|floatformat:0|intcomma }}{% endif %}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="quantity-control mt-8">
+                                        <a href="{% url 'orders:decrease_quantity' item.id %}" class="qty-btn" title="Decrease Quantity">
+                                            <i class="fa-solid fa-minus"></i>
+                                        </a>
+                                        <span class="qty-display">{{ item.quantity }}</span>
+                                        <a href="{% url 'orders:increase_quantity' item.id %}" class="qty-btn" title="Increase Quantity">
+                                            <i class="fa-solid fa-plus"></i>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="cart-item-actions">
-                            <strong class="cart-line-total">NGN {{ item.get_total|floatformat:0|intcomma }}</strong>
-                            <a href="{% url 'orders:remove_item' item.id %}" class="btn-delete" title="Remove Item">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </a>
+                            <div class="cart-item-actions">
+                                <div class="cart-line-price-col">
+                                    <span class="cart-line-caption">Line Subtotal</span>
+                                    <strong class="cart-line-total">NGN {{ item.get_total|floatformat:0|intcomma }}</strong>
+                                </div>
+                                <a href="{% url 'orders:remove_item' item.id %}" class="btn-delete" title="Remove Item">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Right Column: Sticky Order Summary -->
+                <div class="summary-card checkout-summary-sticky">
+                    <h3 class="summary-heading">Order Summary</h3>
+
+                    <div class="checkout-cost-breakdown">
+                        <div class="cost-row">
+                            <span>Selected Hardware</span>
+                            <strong id="cartTotalDisplay" class="summary-subtotal-val">NGN {{ cart.get_cart_total|floatformat:0|intcomma }}</strong>
+                        </div>
+                        <div class="cost-row">
+                            <span>Courier Dispatch</span>
+                            <span class="shipping-calc-pill"><i class="fa-solid fa-calculator"></i> Next Step</span>
+                        </div>
+                        <div class="cost-row">
+                            <span>Escrow Protection</span>
+                            <span class="escrow-free-pill"><i class="fa-solid fa-shield-halved"></i> Included</span>
                         </div>
                     </div>
-                {% endfor %}
-            </div>
+                    
+                    <button type="submit" class="action-btn btn-primary w-100 py-15 text-15 font-700-block mt-20" id="proceedCheckoutBtn">
+                        <i class="fa-solid fa-lock icon-white-spaced"></i> Proceed to Secure Checkout
+                    </button>
 
-            <!-- Right Column: Order Summary -->
-            <div class="summary-card checkout-summary-sticky">
-                <h3 class="summary-heading">Cart Summary</h3>
-
-                <div class="checkout-cost-breakdown">
-                    <div class="cost-row">
-                        <span>Selected Items Subtotal</span>
-                        <strong id="cartTotalDisplay">NGN {{ cart.get_cart_total|floatformat:0|intcomma }}</strong>
-                    </div>
-                    <div class="cost-row">
-                        <span>Delivery Fee</span>
-                        <span class="text-12-muted">Calculated at Checkout</span>
+                    <div class="security-notice mt-15">
+                        <i class="fa-solid fa-truck-fast security-icon"></i>
+                        <p>Compare live rates from <strong>AllThings Express</strong>, <strong>GIG Logistics</strong>, and <strong>Inter-State Waybill</strong> on the next screen.</p>
                     </div>
                 </div>
                 
-                <button type="submit" class="action-btn btn-checkout mt-20" id="proceedCheckoutBtn">
-                    <i class="fa-solid fa-shield-halved icon-white-spaced"></i> Proceed to Checkout
-                </button>
-
-                <div class="security-notice mt-15">
-                    <i class="fa-solid fa-truck-fast security-icon"></i>
-                    <p>Compare live rates from <strong>AllThings Express</strong>, <strong>GIG Logistics</strong>, and <strong>Eco Waybill</strong> in the next step.</p>
-                </div>
             </div>
-            
-        </div>
-    </form>
+        </form>
 
-{% else %}
-    <div class="empty-state-wrapper">
-        <i class="fa-solid fa-cart-arrow-down empty-state-icon"></i>
-        <h3 class="empty-state-title">Your cart is empty</h3>
-        <p class="empty-state-text">Looks like you haven't added any physical products to your cart yet.</p>
-        <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary">
-            <i class="fa-solid fa-magnifying-glass icon-white-spaced"></i> Browse Catalog
-        </a>
-    </div>
-{% endif %}
+    {% else %}
+        <div class="empty-state-wrapper empty-state-lg">
+            <i class="fa-solid fa-cart-arrow-down empty-state-icon text-muted"></i>
+            <h3 class="empty-state-title">Your shopping cart is empty</h3>
+            <p class="empty-state-text">Browse verified electrical components, solar hardware, and cables to start building your order.</p>
+            <a href="{% url 'marketplace:home' %}?item_type=products" class="action-btn btn-primary mt-15">
+                <i class="fa-solid fa-magnifying-glass icon-white-spaced"></i> Explore Hardware Catalog
+            </a>
+        </div>
+    {% endif %}
+</div>
 {% endblock %}
 
 {% block extra_js %}

@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Things | Electrical & Service Marketplace</title>
+    <title>All Things | Electrical &amp; Service Marketplace</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <link rel="stylesheet" href="{% static 'css/core/global.css' %}">
+    <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.1">
     <link rel="stylesheet" href="{% static 'css/core/utilities.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/buttons.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/forms.css' %}">
@@ -22,7 +22,10 @@
     <div class="mobile-overlay" id="mobileOverlay"></div>
     <div class="mobile-drawer" id="mobileDrawer">
         <div class="drawer-header flex-between">
-            <h2 class="brand-logo"><span class="brand-primary">All</span><span class="brand-accent">Things</span></h2>
+            <h2 class="brand-logo">
+                <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon">
+                <span class="brand-primary">ll</span><span class="brand-accent">Things</span>
+            </h2>
             <button type="button" class="close-drawer-btn" id="closeDrawerBtn"><i class="fa-solid fa-xmark"></i></button>
         </div>
         
@@ -33,50 +36,82 @@
                     <li>
                         <a href="{% url 'orders:cart' %}">
                             <i class="fa-solid fa-cart-shopping"></i> My Cart
-                            <span class="drawer-cart-badge nav-cart-badge {% if not cart_count or cart_count == 0 %}hidden-initial{% endif %}" {% if not cart_count or cart_count == 0 %}style="display: none;"{% endif %}>
+                            <span class="drawer-cart-badge nav-cart-badge {% if not cart_count or cart_count == 0 %}hidden-initial{% endif %}">
                                 {{ cart_count|default:0 }}
                             </span>
                         </a>
                     </li>
                     <li><a href="{% url 'orders:order_history' %}"><i class="fa-solid fa-box"></i> My Orders</a></li>
+                    <li><a href="{% url 'marketplace:my_requests' %}"><i class="fa-solid fa-bullhorn"></i> My Requests</a></li>
+                    <li>
+                        <a href="{% url 'marketplace:inbox' %}">
+                            <i class="fa-regular fa-envelope"></i> Inbox
+                            {% if global_unread_count > 0 %}
+                                <span class="drawer-cart-badge">{{ global_unread_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
                     <li><a href="{% url 'feedback:pending_reviews' %}"><i class="fa-regular fa-star"></i> Pending Reviews</a></li>
                     <li><a href="{% url 'marketplace:saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a></li>
                     <li><a href="{% url 'orders:support_center' %}"><i class="fa-solid fa-headset"></i> Help &amp; Support</a></li>
                     
-                    {% if request.user.provider_profile %}
+                    {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
                         <li><a href="{% url 'dashboard:provider_dashboard' %}"><i class="fa-solid fa-store"></i> Provider Portal</a></li>
+                    {% elif request.user.provider_profile %}
+                        <li><a href="{% url 'accounts:provider_status' %}"><i class="fa-solid fa-shield-halved"></i> Continue Verification</a></li>
                     {% else %}
-                        <li><a href="{% url 'accounts:profile' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
+                        <li><a href="{% url 'accounts:sell_on_allthings' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
                     {% endif %}
                     
                     <li><a href="{% url 'accounts:logout' %}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
                 {% else %}
                     <li><a href="{% url 'accounts:login' %}"><i class="fa-solid fa-right-to-bracket"></i> Login</a></li>
                     <li><a href="{% url 'accounts:register' %}"><i class="fa-solid fa-user-plus"></i> Create Account</a></li>
-                    <li><a href="{% url 'accounts:register' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
+                    <li><a href="{% url 'marketplace:create_request' %}"><i class="fa-solid fa-bullhorn"></i> Request What You Need</a></li>
+                    <li><a href="{% url 'accounts:sell_on_allthings' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
                 {% endif %}
             </ul>
 
+            <!-- 1. Mobile Product Categories -->
             <div class="mobile-menu-section">
-                <h4 class="menu-section-title">OUR CATEGORIES</h4>
+                <h4 class="menu-section-title"><i class="fa-solid fa-box text-primary mr-5"></i> PRODUCT CATEGORIES</h4>
                 <ul class="mobile-menu-list category-list" id="mobileCategoryList">
                     {% for cat in nav_categories %}
-                        {% if not cat.parent %}
+                        {% if not cat.parent and cat.category_type != 'SERVICE' %}
                             <li class="mobile-cat-item {% if forloop.counter > 10 %}hidden-initial{% endif %}">
-                                <a href="{% url 'marketplace:home' %}?category={{ cat.id }}">
+                                <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=products">
                                     <i class="fa-solid fa-circle-chevron-right text-muted"></i> {{ cat.name }}
                                 </a>
                                 {% if cat.subcategories.all %}
-                                    {% include 'partials/category_menu_node.html' with current_categories=cat.subcategories.all %}
+                                    {% include 'partials/category_menu_node.html' with current_categories=cat.subcategories.all item_type='products' %}
                                 {% endif %}
                             </li>
                         {% endif %}
                     {% endfor %}
                 </ul>
-                
+
                 <button type="button" id="seeMoreCategoriesBtn" class="see-more-btn">
                     See All Categories <i class="fa-solid fa-angle-down see-more-icon"></i>
                 </button>
+            </div>
+
+            <!-- 2. Mobile Service Categories -->
+            <div class="mobile-menu-section">
+                <h4 class="menu-section-title"><i class="fa-solid fa-screwdriver-wrench text-primary mr-5"></i> SERVICE CATEGORIES</h4>
+                <ul class="mobile-menu-list category-list" id="mobileServiceCategoryList">
+                    {% for cat in nav_categories %}
+                        {% if not cat.parent and cat.category_type == 'SERVICE' %}
+                            <li class="mobile-cat-item">
+                                <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=services">
+                                    <i class="fa-solid fa-circle-chevron-right text-muted"></i> {{ cat.name }}
+                                </a>
+                                {% if cat.subcategories.all %}
+                                    {% include 'partials/category_menu_node.html' with current_categories=cat.subcategories.all item_type='services' %}
+                                {% endif %}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
             </div>
         </div>
     </div>
@@ -87,20 +122,29 @@
                 <i class="fa-solid fa-bars"></i>
             </button>
             <a href="{% url 'marketplace:home' %}" class="brand-logo">
-                <span class="brand-primary">All</span><span class="brand-accent">Things</span>
+                <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon">
+                <span class="brand-primary">ll</span><span class="brand-accent">Things</span>
             </a>
         </div>
 
         <form method="GET" action="{% url 'marketplace:home' %}" class="nav-search" id="globalSearchForm">
-            <input type="text" name="q" id="globalSearchInput" value="{{ request.GET.q }}" placeholder="Search products & services..." class="nav-search-input" autocomplete="off">
+            <input type="text" name="q" id="globalSearchInput" value="{{ request.GET.q }}" placeholder="Search products &amp; services..." class="nav-search-input" autocomplete="off">
             <button type="submit" class="nav-search-btn">Search</button>
 
             <div class="search-dropdown" id="searchDropdown">
                 <div class="dropdown-section">
                     <h4 class="dropdown-heading">Popular Categories</h4>
                     <div class="search-pills-container">
-                        {% for cat in nav_categories|slice:":6" %}
-                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}" class="search-pill">{{ cat.name }}</a>
+                        {% for cat in nav_categories|slice:":8" %}
+                            {% if cat.category_type == 'SERVICE' %}
+                                <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=services" class="search-pill">
+                                    <i class="fa-solid fa-screwdriver-wrench"></i> {{ cat.name }}
+                                </a>
+                            {% else %}
+                                <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=products" class="search-pill">
+                                    <i class="fa-solid fa-box"></i> {{ cat.name }}
+                                </a>
+                            {% endif %}
                         {% endfor %}
                     </div>
                 </div>
@@ -117,15 +161,19 @@
 
         <div class="nav-links">
             {% if not request.user.provider_profile %}
-                <a href="{% if user.is_authenticated %}{% url 'accounts:profile' %}{% else %}{% url 'accounts:register' %}{% endif %}" class="icon-link hidden-mobile">
+                <a href="{% url 'accounts:sell_on_allthings' %}" class="icon-link hidden-mobile">
                     <i class="fa-solid fa-tag"></i> Sell on AllThings
+                </a>
+            {% elif request.user.provider_profile.verification_status != 'ACTIVE' %}
+                <a href="{% url 'accounts:provider_status' %}" class="icon-link hidden-mobile">
+                    <i class="fa-solid fa-shield-halved text-primary"></i> Verify Store
                 </a>
             {% endif %}
             
             <!-- Always-Present Cart Badge in DOM for Instant 0 -> 1 AJAX Updates -->
             <a href="{% url 'orders:cart' %}" class="icon-link requires-auth nav-cart-wrapper">
                 <i class="fa-solid fa-cart-shopping"></i> Cart
-                <span id="navCartBadge" class="cart-badge nav-cart-badge {% if not cart_count or cart_count == 0 %}hidden-initial{% endif %}" {% if not cart_count or cart_count == 0 %}style="display: none;"{% endif %}>
+                <span id="navCartBadge" class="cart-badge nav-cart-badge {% if not cart_count or cart_count == 0 %}hidden-initial{% endif %}">
                     {{ cart_count|default:0 }}
                 </span>
             </a>
@@ -193,6 +241,7 @@
                     {% if user.is_authenticated %}
                         <a href="{% url 'accounts:profile' %}"><i class="fa-regular fa-user"></i> My Account</a>
                         <a href="{% url 'orders:order_history' %}"><i class="fa-solid fa-box"></i> Orders</a>
+                        <a href="{% url 'marketplace:my_requests' %}"><i class="fa-solid fa-bullhorn"></i> My Requests</a>
                         <a href="{% url 'marketplace:inbox' %}">
                             <i class="fa-regular fa-envelope"></i> Inbox 
                             {% if global_unread_count > 0 %}<span class="badge-sm badge-danger ml-5">{{ global_unread_count }}</span>{% endif %}
@@ -200,8 +249,10 @@
                         <a href="{% url 'feedback:pending_reviews' %}"><i class="fa-regular fa-star"></i> Pending Reviews</a>
                         <a href="{% url 'marketplace:saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a>
                         <a href="{% url 'orders:support_center' %}"><i class="fa-solid fa-headset"></i> Help &amp; Support</a>
-                        {% if request.user.provider_profile %}
+                        {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
                             <a href="{% url 'dashboard:provider_dashboard' %}"><i class="fa-solid fa-store"></i> Provider Portal</a>
+                        {% elif request.user.provider_profile %}
+                            <a href="{% url 'accounts:provider_status' %}"><i class="fa-solid fa-shield-halved"></i> Verification Status</a>
                         {% endif %}
                         <div class="dropdown-divider"></div>
                         <a href="{% url 'accounts:logout' %}" class="logout-link">Logout</a>
@@ -255,7 +306,8 @@
         <div class="footer-container">
             <div class="footer-col">
                 <a href="{% url 'marketplace:home' %}" class="footer-logo">
-                    <span class="brand-primary footer-logo-text">All</span><span class="brand-accent">Things</span>
+                    <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon footer-logo-icon">
+                    <span class="brand-primary footer-logo-text">ll</span><span class="brand-accent">Things</span>
                 </a>
                 <p class="footer-text">Hardware and expertise, all in one place. Your trusted marketplace for premium electrical components and certified professionals.</p>
             </div>
@@ -264,12 +316,15 @@
                 <h4 class="footer-heading">Quick Links</h4>
                 <ul class="footer-links">
                     <li><a href="{% url 'marketplace:home' %}">Shop Catalog</a></li>
+                    <li><a href="{% url 'marketplace:create_request' %}">Request What You Need</a></li>
                     <li><a href="{% url 'orders:cart' %}">Your Cart</a></li>
                     <li><a href="{% url 'orders:support_center' %}">Help &amp; Resolution Center</a></li>
-                    {% if request.user.provider_profile %}
+                    {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
                         <li><a href="{% url 'dashboard:provider_dashboard' %}">Provider Portal</a></li>
+                    {% elif request.user.provider_profile %}
+                        <li><a href="{% url 'accounts:provider_status' %}">Verification Status</a></li>
                     {% else %}
-                        <li><a href="{% url 'accounts:profile' %}">Become a Provider</a></li>
+                        <li><a href="{% url 'accounts:sell_on_allthings' %}">Sell on AllThings</a></li>
                     {% endif %}
                 </ul>
             </div>
@@ -308,7 +363,7 @@
     <script src="{% static 'js/core/main.js' %}"></script>
     <script src="{% static 'js/components/toast.js' %}"></script>
     <script src="{% static 'js/components/modal.js' %}"></script>
-    <script src="{% static 'js/core/auth_guard.js' %}"></script>
+    <script src="{% static 'js/components/auth_guard.js' %}"></script>
     
     {% block extra_js %}{% endblock %}
 </body>

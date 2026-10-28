@@ -1,38 +1,27 @@
-/* --- static/css/pages/saved_items.css --- */
+/* ==========================================================================
+   SAVED ITEMS / WISHLIST PAGE STYLESHEET (saved_items.css v2.0)
+   ========================================================================== */
 .feed-full-width {
     width: 100%;
+}
+
+.saved-header-banner {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
 }
 
 .saved-item-actions {
     gap: 10px;
 }
 
-.text-center {
-    text-align: center;
-}
-
-.btn-icon-box {
-    padding: 10px 15px;
-}
-
-/* --- static/css/pages/saved_items.css --- */
-.feed-full-width {
-    width: 100%;
-}
-
-.saved-item-actions {
-    gap: 10px;
-}
-
-.text-center {
-    text-align: center;
-}
-
-.btn-icon-box {
-    padding: 10px 15px;
-}
-
-/* New: Forces the add-to-cart button to span the full card width */
 .w-100-block {
     width: 100%;
     display: block;

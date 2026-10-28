@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.6">
+    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}?v=3.0">
+{% endblock %}
+
+{% block content %}
+<div class="request-page-shell animate-fade-in">
+    <div class="order-top-banner mb-25">
+        <div>
+            <div class="flex-align-center gap-10 flex-wrap">
+                <h2 class="section-heading m-0">{{ cust_request.title }}</h2>
+                <span class="soft-badge status-{{ cust_request.status|lower }}">{{ cust_request.get_status_display }}</span>
+            </div>
+            <p class="text-12-muted mt-5 mb-0">
+                Reference: <strong>{{ cust_request.reference }}</strong> &bull;
+                {{ cust_request.get_request_type_display }} &bull;
+                Location: <strong>{{ cust_request.location_detail|default:cust_request.region }}, {{ cust_request.region }}</strong>
+            </p>
+        </div>
+        <a href="{% url 'marketplace:my_requests' %}" class="action-btn btn-outline action-sm">
+            &larr; All Requests
+        </a>
+    </div>
+
+    <!-- 1. Request Specification Summary -->
+    <div class="summary-card details-card mb-30">
+        <div class="order-destination-banner">
+            <div class="dest-col">
+                <span class="dest-label">Category &amp; Specifications</span>
+                <strong class="text-14-dark">{{ cust_request.category.name|default:"General" }}</strong>
+                <span class="text-13-muted">
+                    {% if cust_request.brand %}Brand: {{ cust_request.brand }} &bull; {% endif %}
+                    {% if cust_request.specifications %}Specs: {{ cust_request.specifications }} &bull; {% endif %}
+                    {% if cust_request.request_type == 'PRODUCT' %}Condition: {{ cust_request.get_condition_display }}{% endif %}
+                </span>
+            </div>
+            <div class="dest-col dest-col-right">
+                <span class="dest-label">Target Budget</span>
+                <strong class="text-16 text-primary">
+                    {% if cust_request.budget_min and cust_request.budget_max %}
+                        NGN {{ cust_request.budget_min|floatformat:0|intcomma }} – NGN {{ cust_request.budget_max|floatformat:0|intcomma }}
+                    {% elif cust_request.budget_max %}
+                        Up to NGN {{ cust_request.budget_max|floatformat:0|intcomma }}
+                    {% else %}
+                        Open to Provider Quotes
+                    {% endif %}
+                </strong>
+            </div>
+        </div>
+
+        {% if cust_request.description %}
+            <p class="text-14-dark mt-15 mb-0">{{ cust_request.description|linebreaksbr }}</p>
+        {% endif %}
+
+        {% if is_owner and cust_request.status not in 'FULFILLED,CANCELLED' %}
+            <div class="flex-between align-center flex-wrap gap-10 mt-20 pt-15 border-top-light">
+                <span class="text-12-muted">Found what you needed? Update your request status:</span>
+                <div class="flex-gap-10">
+                    <form method="POST" action="{% url 'marketplace:update_request_status' cust_request.id %}" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="FULFILLED">
+                        <button type="submit" class="action-btn btn-success action-sm">
+                            <i class="fa-solid fa-check"></i> Mark Fulfilled
+                        </button>
+                    </form>
+                    <form method="POST" action="{% url 'marketplace:update_request_status' cust_request.id %}" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="CANCELLED">
+                        <button type="submit" class="action-btn btn-outline action-sm">Cancel Request</button>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- 2. Provider Pitch Form (Visible only to ACTIVE providers viewing a customer's request) -->
+    {% if is_active_provider and not is_owner and cust_request.status not in 'FULFILLED,CANCELLED' %}
+        <div class="summary-card details-card mb-30">
+            <h3 class="section-heading mt-0 mb-10">
+                <i class="fa-solid fa-store text-primary mr-5"></i> Fulfill This Customer Request
+            </h3>
+            <p class="text-13-muted mb-15">Select one of your approved listings below to send directly to the customer. If you haven't uploaded the item yet, add it to your catalog first.</p>
+
+            {% if provider_products or provider_services %}
+                <form method="POST" action="{% url 'marketplace:submit_provider_match' cust_request.id %}">
+                    {% csrf_token %}
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label-dark">Select Your Listing *</label>
+                            <select name="listing_id" class="form-control" required>
+                                {% if cust_request.request_type == 'PRODUCT' %}
+                                    {% for prod in provider_products %}
+                                        <option value="{{ prod.id }}">{{ prod.name }} (NGN {{ prod.price|floatformat:0|intcomma }})</option>
+                                    {% endfor %}
+                                {% else %}
+                                    {% for srv in provider_services %}
+                                        <option value="{{ srv.id }}">{{ srv.name }}</option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label-dark">Your Offer Price (NGN) — Optional</label>
+                            <input type="number" name="quoted_price" class="form-control" placeholder="Defaults to listing price" min="0">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label-dark">Note to Customer (Availability / Warranty)</label>
+                        <input type="text" name="note" class="form-control" maxlength="250" placeholder="E.g., Ready for immediate dispatch from our Port Harcourt store.">
+                    </div>
+                    <button type="submit" class="action-btn btn-primary">
+                        <i class="fa-solid fa-paper-plane icon-spaced"></i> Send Match to Customer
+                    </button>
+                </form>
+            {% else %}
+                <div class="sourcing-inline-banner">
+                    <span>You don't have an approved {{ cust_request.get_request_type_display|lower }} in your catalog yet.</span>
+                    {% if cust_request.request_type == 'PRODUCT' %}
+                        <a href="{% url 'dashboard:add_product' %}" class="action-btn btn-primary action-sm">+ Add Product First</a>
+                    {% else %}
+                        <a href="{% url 'dashboard:add_service' %}" class="action-btn btn-primary action-sm">+ Add Service First</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <!-- 3. Matched Products / Services Feed -->
+    <h3 class="premium-category-title mb-15">
+        <span class="icon-circle"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+        <span>Matched Listings &amp; Provider Offers ({{ matches|length }})</span>
+    </h3>
+
+    <div class="premium-grid mb-40">
+        {% for match in matches %}
+            <div class="premium-card">
+                <div class="premium-card-header flex-between">
+                    <span class="ref-number">
+                        <i class="fa-solid fa-store text-primary mr-5"></i> {{ match.provider.business_name|default:"AllThings Partner" }}
+                    </span>
+                    <span class="soft-badge {% if match.match_source == 'PROVIDER' %}status-paid{% else %}status-accepted{% endif %}">
+                        {{ match.get_match_source_display }}
+                    </span>
+                </div>
+                <div class="premium-card-body">
+                    {% if match.product %}
+                        <h4 class="service-title">
+                            <a href="{% url 'marketplace:product_detail' match.product.slug %}" class="order-card-title-link">{{ match.product.name }}</a>
+                        </h4>
+                    {% elif match.service %}
+                        <h4 class="service-title">
+                            <a href="{% url 'marketplace:service_detail' match.service.slug %}" class="order-card-title-link">{{ match.service.name }}</a>
+                        </h4>
+                    {% endif %}
+                    <p class="text-13-muted m-0">{{ match.note }}</p>
+                </div>
+                <div class="premium-card-footer flex-between align-center">
+                    <div class="price-block">
+                        <span class="price-label">Price</span>
+                        <span class="price-value">
+                            {% if match.quoted_price %}NGN {{ match.quoted_price|floatformat:0|intcomma }}{% else %}Custom Quote{% endif %}
+                        </span>
+                    </div>
+                    {% if match.product %}
+                        <a href="{% url 'marketplace:product_detail' match.product.slug %}" class="action-btn btn-primary action-sm">
+                            View &amp; Buy via Escrow &rarr;
+                        </a>
+                    {% elif match.service %}
+                        <a href="{% url 'marketplace:service_detail' match.service.slug %}" class="action-btn btn-primary action-sm">
+                            View &amp; Book Service &rarr;
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="premium-empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-satellite-dish"></i></div>
+                <h3>Searching our partner network...</h3>
+                <p>We have alerted verified AllThings providers in {{ cust_request.region }}. You will receive a notification as soon as a matching listing is posted.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

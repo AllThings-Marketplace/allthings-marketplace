@@ -1,21 +1,25 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block extra_css %}
-    <!-- Import the grid and card styles from the main marketplace -->
-    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}">
-    <link rel="stylesheet" href="{% static 'css/pages/home.css' %}">
-    <link rel="stylesheet" href="{% static 'css/pages/saved_items.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.5">
+    <link rel="stylesheet" href="{% static 'css/pages/home.css' %}?v=3.5">
+    <link rel="stylesheet" href="{% static 'css/pages/saved_items.css' %}?v=2.0">
 {% endblock %}
 
 {% block content %}
 <div class="animate-fade-in">
-    <div class="dashboard-header flex-between mb-40">
+    <div class="saved-header-banner mb-30">
         <div>
-            <h2 class="section-heading checkout-page-title mb-5">Saved Items</h2>
-            <p class="section-subtitle text-muted mt-0">Products you're keeping an eye on.</p>
+            <h2 class="section-heading checkout-page-title mb-5">
+                <i class="fa-solid fa-heart text-danger mr-5"></i> Saved Hardware &amp; Wishlist
+            </h2>
+            <p class="text-14-muted m-0">Products you have bookmarked for upcoming projects ({{ saved_items|length }} item{{ saved_items|length|pluralize }}).</p>
         </div>
-        <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">Continue Shopping</a>
+        <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">
+            <i class="fa-solid fa-arrow-left icon-spaced"></i> Continue Shopping
+        </a>
     </div>
 
     <main class="marketplace-feed feed-full-width">
@@ -23,40 +27,76 @@
             <ul class="item-list">
                 {% for item in saved_items %}
                     <li class="product-card-wrapper" id="saved-item-card-{{ item.product.id }}">
-                        <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="block-link">
-                            <!-- NEW: Upgraded Image Fetching Logic -->
-                            {% if item.product.images.first %}
-                                <img src="{% if item.product.images.first.processed_image %}{{ item.product.images.first.processed_image.url }}{% else %}{{ item.product.images.first.original_image.url }}{% endif %}" alt="{{ item.product.name }}" class="card-img">
-                            {% else %}
-                                <div class="card-img flex-center-muted"><i class="fa-solid fa-bolt icon-32"></i></div>
+                        <!-- 1. Product Image & Floating Remove Button -->
+                        <div class="product-card-media">
+                            <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="product-card-img-link">
+                                {% with first_img=item.product.images.first %}
+                                    {% if first_img and first_img.processed_image %}
+                                        <img src="{{ first_img.processed_image.url }}" alt="{{ item.product.name }}" class="card-img" loading="lazy">
+                                    {% elif first_img and first_img.original_image %}
+                                        <img src="{{ first_img.original_image.url }}" alt="{{ item.product.name }}" class="card-img" loading="lazy">
+                                    {% elif item.product.image %}
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img" loading="lazy">
+                                    {% else %}
+                                        <div class="card-img-placeholder"><i class="fa-solid fa-bolt"></i></div>
+                                    {% endif %}
+                                {% endwith %}
+                            </a>
+
+                            {% if item.product.stock_count <= 0 %}
+                                <span class="product-stock-badge badge-out-stock">Out of Stock</span>
+                            {% elif item.product.stock_count <= 5 %}
+                                <span class="product-stock-badge badge-low-stock">{{ item.product.stock_count }} left</span>
                             {% endif %}
-                        </a>
-                        
-                        <!-- Information Layout -->
-                        <div class="card-info-layout">
-                            <div class="card-text-col">
-                                <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="item-info block-link">
-                                    <strong>{{ item.product.name }}</strong>
-                                </a>
-                                <strong class="block-mt-10 card-price">NGN {{ item.product.price }}</strong>
-                            </div>
-                            
-                            <!-- The Remove (Trash) Button -->
-                            <div class="card-action-col">
-                                <button class="action-btn btn-icon-only toggle-save-btn requires-auth" data-product-id="{{ item.product.id }}" aria-label="Remove Item">
-                                    <i class="fa-solid fa-trash text-danger"></i>
+
+                            <div class="product-wishlist-form">
+                                <button type="button"
+                                        class="product-wishlist-btn toggle-save-btn requires-auth"
+                                        data-product-id="{{ item.product.id }}"
+                                        title="Remove from Saved Items"
+                                        aria-label="Remove Item">
+                                    <i class="fa-solid fa-trash-can text-danger"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Full-Width Add to Cart Button -->
-                        <!-- NATIVE HTML FALLBACK applied here if you want consistency -->
-                        <form action="{% url 'orders:add_to_cart' item.product.id %}" method="POST" class="w-100-block mt-10">
-                            {% csrf_token %}
-                            <button type="submit" class="action-btn btn-add w-100 requires-auth">
-                                Add to Cart
-                            </button>
-                        </form>
+                        <!-- 2. Product Details -->
+                        <div class="product-card-body">
+                            {% if item.product.category %}
+                                <span class="product-cat-tag">{{ item.product.category.name }}</span>
+                            {% endif %}
+
+                            <h4 class="product-card-title">
+                                <a href="{% url 'marketplace:product_detail' item.product.slug %}">{{ item.product.name }}</a>
+                            </h4>
+
+                            <div class="product-meta-row">
+                                {% if item.product.provider %}
+                                    <span class="product-vendor-name">
+                                        <i class="fa-solid fa-store text-primary"></i> {{ item.product.provider.business_name }}
+                                    </span>
+                                {% endif %}
+                                <span class="text-12-muted">Saved {{ item.added_at|timesince }} ago</span>
+                            </div>
+
+                            <!-- 3. Price & Add to Cart Footer -->
+                            <div class="product-card-footer">
+                                <div class="product-price-block">
+                                    <span class="currency-prefix">NGN</span>
+                                    <strong class="card-price">{{ item.product.price|floatformat:0|intcomma }}</strong>
+                                </div>
+
+                                {% if item.product.stock_count > 0 %}
+                                    <a href="{% url 'orders:add_to_cart' item.product.id %}" class="action-btn btn-add ajax-cart-btn requires-auth">
+                                        <i class="fa-solid fa-cart-plus"></i> Move to Cart
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="action-btn btn-outline product-view-btn">
+                                        View Product
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
                     </li>
                 {% endfor %}
             </ul>
@@ -64,8 +104,8 @@
             <div class="empty-state-wrapper empty-state-lg">
                 <i class="fa-regular fa-heart empty-state-icon text-muted"></i>
                 <h3 class="empty-state-title">Your wishlist is empty</h3>
-                <p class="empty-state-text">Explore the marketplace and save items you love.</p>
-                <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-20">Start Exploring</a>
+                <p class="empty-state-text">Bookmark electrical hardware and components while browsing to compare and buy later.</p>
+                <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-15">Explore Marketplace</a>
             </div>
         {% endif %}
     </main>

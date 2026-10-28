@@ -3,78 +3,156 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}">
-    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}?v=3.0">
+    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}?v=2.0">
     <link rel="stylesheet" href="{% static 'css/components/modal.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="details-page-wrapper">
-    <div class="details-header flex-between">
-        <h2 class="section-heading checkout-page-title">Order #{{ order.reference }}</h2>
+<div class="details-page-wrapper animate-fade-in">
+    <!-- Top Executive Header -->
+    <div class="order-top-banner mb-25">
         <div>
-            <span class="status-badge 
-                {% if order.status == 'completed' %}badge-completed
-                {% elif order.status == 'unpaid' %}badge-danger
-                {% else %}badge-pending{% endif %} mr-15">
-                Order Status: {{ order.get_status_display }}
-            </span>
-            <a href="{% url 'orders:order_history' %}" class="action-btn btn-secondary action-sm">Back to Orders</a>
+            <div class="flex-align-center gap-10 flex-wrap">
+                <h2 class="section-heading checkout-page-title m-0">Order #{{ order.reference }}</h2>
+                <span class="soft-badge status-{{ order.status|lower }}">
+                    <i class="fa-solid fa-circle-dot"></i> {{ order.get_status_display }}
+                </span>
+            </div>
+            <p class="text-12-muted mt-5 mb-0">
+                Placed on {{ order.created_at|date:"M d, Y \a\t h:i A" }} &bull; Courier: <strong>{{ order.selected_courier }}</strong>
+            </p>
         </div>
+        <a href="{% url 'orders:order_history' %}" class="action-btn btn-outline action-sm">
+            <i class="fa-solid fa-arrow-left icon-spaced"></i> Back to Orders
+        </a>
     </div>
 
     <div class="summary-card details-card">
         
-        <h4 class="history-section-title mt-0">Physical Products</h4>
+        <!-- 1. Delivery Destination & Courier Summary Banner -->
+        <div class="order-destination-banner mb-25">
+            <div class="dest-col">
+                <span class="dest-label"><i class="fa-solid fa-location-dot text-primary"></i> Delivery Destination</span>
+                <strong class="text-14-dark">{{ order.first_name }} {{ order.last_name }} ({{ order.phone }})</strong>
+                <span class="text-13-muted">
+                    {{ order.street_address }}{% if order.landmark %} — Near {{ order.landmark }}{% endif %},
+                    {% if order.city %}{{ order.city }}, {% endif %}{{ order.region }}
+                </span>
+            </div>
+            <div class="dest-col dest-col-right">
+                <span class="dest-label"><i class="fa-solid fa-truck-fast text-primary"></i> Logistics Tier</span>
+                <strong class="text-14-dark">{{ order.selected_courier }} Dispatch</strong>
+                <span class="text-12-muted">6-Digit PIN Handshake Required</span>
+            </div>
+        </div>
+
+        <!-- 2. Physical Products & Item-Level Stepper -->
+        <h4 class="history-section-title mt-0 mb-15">
+            <i class="fa-solid fa-boxes-stacked text-primary mr-5"></i> Ordered Hardware ({{ order.items.count }})
+        </h4>
         
         {% if order.items.all %}
-            <div class="mt-15">
+            <div class="order-items-stack">
                 {% for item in order.items.all %}
                     <div class="item-tracking-card">
-                        <div class="flex-between-align-start">
-                            <div>
-                                <h4 class="font-600-dark mt-0">
-                                    {{ item.product.name }}
-                                    {% if item.variant %}
-                                        <span class="text-variant-muted">
-                                            ({{ item.variant.attribute_name }}: {{ item.variant.attribute_value }})
-                                        </span>
+                        <div class="item-tracking-top">
+                            <div class="item-tracking-info">
+                                {% with first_img=item.product.images.first %}
+                                    {% if first_img and first_img.processed_image %}
+                                        <img src="{{ first_img.processed_image.url }}" alt="{{ item.product.name }}" class="order-item-thumb">
+                                    {% elif first_img and first_img.original_image %}
+                                        <img src="{{ first_img.original_image.url }}" alt="{{ item.product.name }}" class="order-item-thumb">
+                                    {% elif item.product.image %}
+                                        <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="order-item-thumb">
+                                    {% else %}
+                                        <div class="order-item-thumb-fallback"><i class="fa-solid fa-bolt"></i></div>
                                     {% endif %}
-                                </h4>
-                                <p class="text-12-muted mt-5">Qty: {{ item.quantity }} | NGN {{ item.get_total|floatformat:0|intcomma }}</p>
+                                {% endwith %}
+
+                                <div>
+                                    <h4 class="item-tracking-title">
+                                        <a href="{% url 'marketplace:product_detail' item.product.slug %}">{{ item.product.name }}</a>
+                                        {% if item.variant %}
+                                            <span class="text-variant-muted">
+                                                ({{ item.variant.attribute_name }}: {{ item.variant.attribute_value }})
+                                            </span>
+                                        {% endif %}
+                                    </h4>
+                                    <p class="text-12-muted m-0">
+                                        Qty: <strong>{{ item.quantity }}</strong> &bull;
+                                        Line Total: <strong>NGN {{ item.get_total|floatformat:0|intcomma }}</strong>
+                                        {% if item.product.provider %}
+                                            &bull; Seller: <strong>{{ item.product.provider.business_name }}</strong>
+                                        {% endif %}
+                                    </p>
+                                </div>
                             </div>
-                            <span class="status-badge 
-                                {% if item.status == 'COMPLETED' %}badge-completed
-                                {% elif item.status in 'CANCELLED,DISPUTED,REFUNDED' %}badge-danger
-                                {% else %}badge-pending{% endif %}">
+
+                            <span class="soft-badge status-{{ item.status|lower }}">
                                 {{ item.get_status_display }}
                             </span>
                         </div>
 
+                        <!-- 4-Step Visual Progress Stepper -->
+                        {% if item.status not in 'CANCELLED,DISPUTED,REFUNDED' %}
+                        <div class="order-stepper mt-15">
+                            <div class="step-item {% if item.status in 'PAID,ACCEPTED,READY_FOR_PICKUP,SHIPPED,COMPLETED' %}completed{% endif %}">
+                                <div class="step-dot"><i class="fa-solid fa-shield-halved"></i></div>
+                                <span>Escrow Paid</span>
+                            </div>
+                            <div class="step-item {% if item.status in 'ACCEPTED,READY_FOR_PICKUP,SHIPPED,COMPLETED' %}completed{% endif %}">
+                                <div class="step-dot"><i class="fa-solid fa-box-open"></i></div>
+                                <span>Vendor Accepted</span>
+                            </div>
+                            <div class="step-item {% if item.status in 'READY_FOR_PICKUP,SHIPPED,COMPLETED' %}completed{% endif %}">
+                                <div class="step-dot"><i class="fa-solid fa-truck-fast"></i></div>
+                                <span>Dispatched</span>
+                            </div>
+                            <div class="step-item {% if item.status == 'COMPLETED' %}completed{% endif %}">
+                                <div class="step-dot"><i class="fa-solid fa-check-double"></i></div>
+                                <span>Delivered</span>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         <!-- Item-Level OTP Confirmation & Escrow Dispute Controls -->
                         {% if order.status != 'unpaid' and item.status not in 'COMPLETED,CANCELLED,PENDING,DISPUTED,REFUNDED' %}
-                            <div class="delivery-pin-box mb-15 mt-15">
-                                <span class="text-12-muted block">Your Delivery PIN</span>
-                                <strong class="font-700-block text-lg letter-spacing-2 text-primary-blue">{{ item.delivery_code }}</strong>
-                            </div>
+                            <div class="pin-handshake-panel mt-15">
+                                <div class="delivery-pin-box">
+                                    <div>
+                                        <span class="pin-box-label">6-Digit Delivery PIN</span>
+                                        <small class="text-12-muted block">Share with rider or enter to confirm receipt</small>
+                                    </div>
+                                    <strong class="pin-box-code">{{ item.delivery_code }}</strong>
+                                </div>
 
-                            <form method="POST" action="{% url 'orders:confirm_item_delivery' item.id %}" class="otp-input-group">
-                                {% csrf_token %}
-                                <input type="text" name="delivery_code" class="form-control otp-input" placeholder="6-Digit OTP" maxlength="6" required>
-                                <button type="submit" class="action-btn btn-success action-sm">Confirm Receipt</button>
-                            </form>
+                                <form method="POST" action="{% url 'orders:confirm_item_delivery' item.id %}" class="otp-input-group">
+                                    {% csrf_token %}
+                                    <input type="text"
+                                           name="delivery_code"
+                                           class="form-control otp-input"
+                                           value="{{ item.delivery_code }}"
+                                           placeholder="6-Digit PIN"
+                                           maxlength="6"
+                                           required>
+                                    <button type="submit" class="action-btn btn-success action-sm text-nowrap">
+                                        <i class="fa-solid fa-check-circle icon-spaced"></i> Confirm Delivery
+                                    </button>
+                                </form>
+                            </div>
                             
-                            <div class="otp-dispute-row">
-                                <p class="text-12-muted m-0">
-                                    <i class="fa-solid fa-circle-info"></i> Provide this code to the rider, or enter it here once you safely receive the item.
-                                </p>
+                            <div class="otp-dispute-row mt-12">
+                                <span class="text-12-muted">
+                                    <i class="fa-solid fa-shield-halved text-primary"></i> Confirming releases escrow funds to the vendor.
+                                </span>
                                 <a href="{% url 'orders:report_item_dispute' item.id %}" class="action-btn btn-outline action-sm btn-outline-danger">
                                     <i class="fa-solid fa-triangle-exclamation"></i> Report Issue / Freeze Escrow
                                 </a>
                             </div>
 
                         {% elif item.status == 'DISPUTED' %}
-                            <div class="escrow-frozen-banner">
+                            <div class="escrow-frozen-banner mt-15">
                                 <span class="escrow-frozen-text">
                                     <i class="fa-solid fa-lock"></i> <strong>Escrow Frozen:</strong> The 72-hour vendor payout timer is paused while support arbitrates your dispute.
                                 </span>
@@ -84,7 +162,10 @@
                             </div>
 
                         {% elif item.status == 'COMPLETED' %}
-                            <div class="mt-15">
+                            <div class="item-completed-bar mt-15">
+                                <span class="text-13 text-success font-600">
+                                    <i class="fa-solid fa-circle-check"></i> Delivery confirmed &amp; escrow released.
+                                </span>
                                 <a href="{% url 'feedback:product_feedback' item.id %}" class="action-btn btn-primary action-sm">
                                     <i class="fa-solid fa-star icon-white-spaced"></i> Rate Product
                                 </a>
@@ -97,65 +178,37 @@
             <p class="text-12-muted">No physical products in this order.</p>
         {% endif %}
 
-        <!-- Services Section -->
-        {% if order.job_bookings.all %}
-            <h4 class="history-section-title mt-30">Booked Services</h4>
-            <div class="mt-15">
-                {% for job in order.job_bookings.all %}
-                    <div class="item-tracking-card">
-                        <div class="flex-between-align-start">
-                            <div>
-                                <h4 class="font-600-dark mt-0">{{ job.service.name }}</h4>
-                                <p class="text-12-muted mt-5">
-                                    Scheduled: {% if job.scheduled_time %}{{ job.scheduled_time|date:"M d, Y g:i A" }}{% else %}ASAP{% endif %}
-                                </p>
-                                {% if job.provider %}
-                                    <p class="text-12-muted mt-5"><i class="fa-solid fa-user-tie"></i> Professional: {{ job.provider.provider_profile.business_name }}</p>
-                                {% endif %}
-                            </div>
-                            <span class="status-badge {% if job.status == 'COMPLETED' %}badge-completed{% else %}badge-pending{% endif %}">
-                                {{ job.get_status_display }}
-                            </span>
-                        </div>
-
-                        <!-- Professional Completion PIN -->
-                        {% if order.status != 'unpaid' and job.status in 'ACCEPTED,IN_PROGRESS' %}
-                            <div class="delivery-pin-box mt-15">
-                                <span class="text-12-muted block">Service Completion PIN</span>
-                                <strong class="font-700-block text-lg letter-spacing-2 text-primary-blue">{{ job.completion_code }}</strong>
-                            </div>
-                            <p class="text-12-muted mt-5">
-                                <i class="fa-solid fa-shield-halved"></i> Provide this PIN to the professional ONLY when the job is fully completed to your satisfaction.
-                            </p>
-                        {% elif job.status == 'COMPLETED' %}
-                            <div class="mt-15">
-                                <a href="{% url 'feedback:service_feedback' job.id %}" class="action-btn btn-primary action-sm">
-                                    <i class="fa-solid fa-star icon-white-spaced"></i> Rate Service
-                                </a>
-                            </div>
-                        {% endif %}
-                    </div>
-                {% endfor %}
+        <!-- 3. Financial Receipt Breakdown -->
+        <div class="order-receipt-breakdown mt-25">
+            {% if order.subtotal %}
+            <div class="receipt-row">
+                <span>Hardware Subtotal</span>
+                <strong>NGN {{ order.subtotal|floatformat:0|intcomma }}</strong>
             </div>
-        {% endif %}
-        
-        <!-- Order Totals -->
-        <div class="checkout-summary-total mt-30">
-            <span>Total Amount</span>
-            <span class="checkout-total-price">NGN {{ order.total_amount|floatformat:0|intcomma }}</span>
+            {% endif %}
+            {% if order.shipping_fee %}
+            <div class="receipt-row">
+                <span>Courier Delivery ({{ order.selected_courier }})</span>
+                <strong>NGN {{ order.shipping_fee|floatformat:0|intcomma }}</strong>
+            </div>
+            {% endif %}
+            <div class="summary-total checkout-summary-total mt-10 pt-15">
+                <span>Total Order Amount</span>
+                <span class="checkout-total-price">NGN {{ order.total_amount|floatformat:0|intcomma }}</span>
+            </div>
         </div>
         
         {% if order.status == 'unpaid' %}
-            <div class="mt-15 text-right">
+            <div class="mt-20">
                 <form method="POST" action="{% url 'orders:retry_payment' order.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="action-btn btn-primary w-100">
-                        Pay Now
+                    <button type="submit" class="action-btn btn-primary w-100 py-15 text-15 font-700-block">
+                        <i class="fa-solid fa-lock icon-white-spaced"></i> Complete Payment Now
                     </button>
                 </form>
                 <div class="payment-recovery-box">
                     <a href="{% url 'orders:support_center' %}" class="text-12-muted payment-recovery-link">
-                        Already debited for this order? Click here for Instant Payment Recovery
+                        Already debited for this order? Click here for 1-Click Instant Payment Recovery
                     </a>
                 </div>
             </div>

@@ -58,46 +58,15 @@
                 <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-dark action-sm">
                     <i class="fa-solid fa-briefcase icon-white-spaced"></i> Provider Portal
                 </a>
+            {% elif request.user.provider_profile %}
+                <a href="{% url 'accounts:provider_status' %}" class="action-btn btn-primary action-sm">
+                    <i class="fa-solid fa-shield-halved icon-spaced"></i> Verification Status
+                </a>
             {% endif %}
         </div>
     </div>
 
-    <!-- 2. Provider Onboarding / KYC Progress Callout (For Customers or Pending Applicants) -->
-    {% if not request.user.provider_profile %}
-        <div class="summary-card provider-cta-banner mb-25">
-            <div class="flex-between align-center flex-wrap gap-15">
-                <div>
-                    <h3 class="m-0 font-600-dark">
-                        <i class="fa-solid fa-bolt text-warning mr-5"></i> Want to sell electrical products or offer certified services?
-                    </h3>
-                    <p class="text-14-muted mt-5 mb-0">
-                        Apply for a Verified Provider account to list products, receive service bookings, and get escrow-protected payouts.
-                    </p>
-                </div>
-                <a href="/accounts/apply-provider/" class="action-btn btn-primary action-sm">
-                    <i class="fa-solid fa-store icon-spaced"></i> Become a Provider
-                </a>
-            </div>
-        </div>
-    {% elif request.user.provider_profile.verification_status != 'ACTIVE' %}
-        <div class="summary-card provider-cta-banner mb-25">
-            <div class="flex-between align-center flex-wrap gap-15">
-                <div>
-                    <h3 class="m-0 font-600-dark">
-                        <i class="fa-solid fa-shield-halved text-primary mr-5"></i> Complete Your Provider Verification ({{ request.user.provider_profile.get_verification_status_display }})
-                    </h3>
-                    <p class="text-14-muted mt-5 mb-0">
-                        Your provider application for <strong>{{ request.user.provider_profile.business_name }}</strong> is currently in progress.
-                    </p>
-                </div>
-                <a href="/accounts/provider-status/" class="action-btn btn-primary action-sm">
-                    <i class="fa-solid fa-arrow-right icon-spaced"></i> Continue Verification
-                </a>
-            </div>
-        </div>
-    {% endif %}
-
-    <!-- 3. Two-Column Layout: Personal & Security (Left) + Address Book & Business Summary (Right) -->
+    <!-- 2. Two-Column Layout: Personal & Security (Left) + Address Book & Business Summary (Right) -->
     <div class="profile-grid-2">
         
         <!-- LEFT STACK: Personal Info & Password Security -->
@@ -305,7 +274,7 @@
             </div>
 
             {% if request.user.provider_profile %}
-            <!-- Provider Store & Payout Summary (Links to Dedicated Provider Settings) -->
+            <!-- Provider Store & Payout Summary -->
             <div class="summary-card">
                 <div class="profile-settings-header flex-between align-center flex-wrap gap-10">
                     <div>
@@ -351,7 +320,7 @@
         </div>
     </div>
 
-    <!-- 4. Provider Ratings & Reviews Section -->
+    <!-- 3. Provider Ratings & Reviews Section -->
     {% if request.user.provider_profile %}
     <div class="summary-card mt-25">
         <div class="provider-rating text-center rating-container">

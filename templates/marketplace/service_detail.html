@@ -3,89 +3,131 @@
 {% load humanize %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/pages/service-detail.css' %}?v=2.0">
+<link rel="stylesheet" href="{% static 'css/pages/service-detail.css' %}?v=2.5">
 {% endblock %}
 
 {% block content %}
-<div class="service-detail-container">
+<div class="service-detail-container animate-fade-in">
 
     <!-- Navigation Breadcrumb -->
     <nav class="breadcrumb">
-        <a href="{% url 'marketplace:home' %}">Home</a> &rarr;
-        <a href="{% url 'marketplace:home' %}?category={{ service.category.id }}">{{ service.category.name }}</a> &rarr;
-        <span>{{ service.name }}</span>
+        <a href="{% url 'marketplace:home' %}"><i class="fa-solid fa-house"></i> Home</a>
+        <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+        <a href="{% url 'marketplace:home' %}?category={{ service.category.id }}&amp;item_type=services">{{ service.category.name }}</a>
+        <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+        <span class="breadcrumb-current">{{ service.name }}</span>
     </nav>
 
-    <!-- Cinematic Cover Banner -->
+    <!-- Cinematic Cover Banner with Floating Chips -->
     <div class="service-cover-wrapper">
         {% if service.cover_image %}
-        <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="service-cover-banner">
+            <img src="{{ service.cover_image.url }}" alt="{{ service.name }}" class="service-cover-banner">
         {% else %}
-        <div class="service-cover-fallback">
-            <i class="fa-solid fa-screwdriver-wrench"></i>
-        </div>
+            <div class="service-cover-fallback">
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+            </div>
         {% endif %}
+
+        <div class="service-cover-overlay">
+            <div class="cover-Floating-badges">
+                <span class="cover-pill cover-pill-blue">
+                    <i class="fa-solid fa-briefcase"></i> {{ service.category.name }}
+                </span>
+                <span class="cover-pill cover-pill-dark">
+                    <i class="fa-solid fa-location-dot"></i> {{ service.get_service_mode_display }}
+                </span>
+                <span class="cover-pill cover-pill-gold">
+                    <i class="fa-solid fa-star"></i> {{ avg_rating }} ({{ review_count }} Review{{ review_count|pluralize }})
+                </span>
+            </div>
+        </div>
     </div>
 
     <div class="service-layout grid-2-sidebar">
 
-        <!-- Left Column: Service Details -->
+        <!-- Left Column: Service Overview, Scope, Portfolio & Reviews -->
         <div class="service-main-content">
             <h1 class="service-title mt-0">{{ service.name }}</h1>
 
-            <div class="provider-badge">
-                <div class="provider-avatar">
-                    <i class="fa-solid fa-user-tie"></i>
+            <!-- Verified Provider Card -->
+            <div class="provider-badge-card">
+                <div class="provider-badge-left">
+                    <div class="provider-avatar">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+                    <div class="provider-info">
+                        <strong class="provider-name-lg">
+                            <a href="{% url 'marketplace:public_provider' service.provider.id %}" class="provider-profile-link">
+                                {{ service.provider.business_name }}
+                            </a>
+                        </strong>
+                        <span class="text-12-muted block mt-5">
+                            <i class="fa-solid fa-circle-check text-success"></i> KYC Verified Engineering Partner
+                            {% if service.provider.region %} &bull; <i class="fa-solid fa-location-dot text-primary"></i> {{ service.provider.region }}{% endif %}
+                        </span>
+                    </div>
                 </div>
-                <div class="provider-info">
-                    <strong class="provider-name-lg">
-                        <a href="{% url 'marketplace:public_provider' service.provider.id %}" class="provider-profile-link">
-                            {{ service.provider.business_name }}
-                        </a>
-                    </strong>
-                    <span class="text-12-muted block mt-5">
-                        <i class="fa-solid fa-circle-check text-success"></i> KYC Verified Professional
-                        {% if service.provider.region %} &bull; <i class="fa-solid fa-location-dot"></i> {{ service.provider.region }}{% endif %}
-                    </span>
-                </div>
+                <a href="{% url 'marketplace:public_provider' service.provider.id %}" class="provider-store-btn">
+                    View Profile &rarr;
+                </a>
             </div>
 
-            <div class="service-section mt-40">
-                <h3 class="font-600-dark mb-15">About this service</h3>
-                <p class="service-description">{{ service.description|linebreaksbr }}</p>
+            <!-- About This Service -->
+            <div class="service-section-card mt-30">
+                <h3 class="service-section-heading">
+                    <i class="fa-solid fa-file-lines text-primary"></i> Service Overview &amp; Expertise
+                </h3>
+                <p class="service-description m-0">{{ service.description|linebreaksbr }}</p>
             </div>
 
             <!-- Scope of Work (What's Included / Excluded) -->
             {% if service.whats_included or service.whats_excluded %}
-            <div class="scope-grid mt-40">
-                {% if service.whats_included %}
-                <div class="scope-box included">
-                    <h4 class="mt-0 mb-15 font-600-dark"><i class="fa-solid fa-check text-success mr-5"></i> What's Included</h4>
-                    <ul class="scope-list">
-                        {% for item in service.whats_included %}
-                        <li>{{ item }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
+            <div class="mt-30">
+                <h3 class="service-section-heading mb-15">
+                    <i class="fa-solid fa-shield-halved text-primary"></i> Escrow-Protected Scope of Work
+                </h3>
+                <div class="scope-grid">
+                    {% if service.whats_included %}
+                    <div class="scope-box included">
+                        <h4 class="scope-box-title text-success">
+                            <i class="fa-solid fa-circle-check"></i> What's Included
+                        </h4>
+                        <ul class="scope-list">
+                            {% for item in service.whats_included %}
+                            <li>
+                                <i class="fa-solid fa-check text-success scope-item-icon"></i>
+                                <span>{{ item }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
 
-                {% if service.whats_excluded %}
-                <div class="scope-box excluded">
-                    <h4 class="mt-0 mb-15 font-600-dark"><i class="fa-solid fa-xmark text-danger mr-5"></i> What's Not Included</h4>
-                    <ul class="scope-list">
-                        {% for item in service.whats_excluded %}
-                        <li>{{ item }}</li>
-                        {% endfor %}
-                    </ul>
+                    {% if service.whats_excluded %}
+                    <div class="scope-box excluded">
+                        <h4 class="scope-box-title text-danger">
+                            <i class="fa-solid fa-circle-xmark"></i> What's Not Included
+                        </h4>
+                        <ul class="scope-list">
+                            {% for item in service.whats_excluded %}
+                            <li>
+                                <i class="fa-solid fa-xmark text-danger scope-item-icon"></i>
+                                <span>{{ item }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             {% endif %}
 
             <!-- Portfolio Gallery -->
             {% if portfolio %}
-            <div class="service-section mt-50">
-                <h3 class="font-600-dark mb-20">Completed Work &amp; Portfolio</h3>
+            <div class="mt-40">
+                <h3 class="service-section-heading mb-15">
+                    <i class="fa-solid fa-images text-primary"></i> Completed Projects &amp; Portfolio
+                </h3>
                 <div class="portfolio-grid">
                     {% for img in portfolio %}
                     <div class="portfolio-item">
@@ -99,11 +141,13 @@
             {% endif %}
 
             <!-- Customer Reviews Feed -->
-            <div class="reviews-container mt-50">
-                <h3 class="font-600-dark mb-20">Verified Client Reviews</h3>
+            <div class="reviews-container mt-40">
+                <h3 class="service-section-heading mb-15">
+                    <i class="fa-solid fa-star text-yellow"></i> Verified Client Reviews ({{ review_count }})
+                </h3>
                 {% if recent_reviews %}
                     {% for review in recent_reviews %}
-                        <div class="review-card-item mb-20">
+                        <div class="review-card-item mb-15">
                             <div class="review-header flex-between mb-10">
                                 <div>
                                     <strong class="font-600-dark">{{ review.customer.username }}</strong>
@@ -113,15 +157,15 @@
                                         </span>
                                     {% endif %}
                                 </div>
-                                <span class="rating-highlight font-600-dark">
-                                    <i class="fa-solid fa-star text-warning"></i> {{ review.overall_rating }}.0
+                                <span class="review-star-pill">
+                                    <i class="fa-solid fa-star text-yellow"></i> {{ review.overall_rating }}.0
                                 </span>
                             </div>
 
                             <p class="text-14-dark mt-0 mb-10">{{ review.public_review }}</p>
                             
                             {% if review.attributes.all %}
-                                <div class="review-attributes flex-wrap gap-15 mb-15">
+                                <div class="review-attributes flex-wrap gap-10 mb-10">
                                     {% for attr in review.attributes.all %}
                                         <span class="text-12-muted review-attr-tag">
                                             <strong>{{ attr.attribute_name }}:</strong> {{ attr.rating }}/5
@@ -146,14 +190,14 @@
                 {% else %}
                     <div class="reviews-empty-box">
                         <i class="fa-regular fa-star text-muted reviews-empty-icon"></i>
-                        <p class="text-14-muted m-0">No reviews yet. Book this professional and be the first to leave feedback!</p>
+                        <p class="text-14-muted m-0">No client reviews yet. Book this service and be the first to share your experience!</p>
                     </div>
                 {% endif %}
             </div>
 
         </div>
 
-        <!-- Right Column: Premium Booking Card -->
+        <!-- Right Column: Sticky Executive Booking Card -->
         <div class="service-sidebar">
             <div class="booking-card">
 
@@ -161,45 +205,45 @@
                     {% csrf_token %}
 
                     {% if service.pricing_type == 'PACKAGES' %}
-                    <h3 class="mt-0 mb-20 font-600-dark">Select a Service Package</h3>
-                    <div class="package-list">
-                        {% for pkg in packages %}
-                        <label class="package-card {% if forloop.first %}selected{% endif %}">
-                            <input type="radio" name="selected_package" value="{{ pkg.id }}" {% if forloop.first %}checked{% endif %}>
-                            <div class="package-info">
-                                <div class="package-header">
-                                    <span class="package-name">{{ pkg.name }}</span>
-                                    <span class="package-price">NGN {{ pkg.price|floatformat:0|intcomma }}</span>
+                        <div class="booking-card-top-label">Select a Service Package</div>
+                        <div class="package-list">
+                            {% for pkg in packages %}
+                            <label class="package-card {% if forloop.first %}selected{% endif %}">
+                                <input type="radio" name="selected_package" value="{{ pkg.id }}" {% if forloop.first %}checked{% endif %}>
+                                <div class="package-info">
+                                    <div class="package-header">
+                                        <span class="package-name">{{ pkg.name }}</span>
+                                        <span class="package-price">NGN {{ pkg.price|floatformat:0|intcomma }}</span>
+                                    </div>
+                                    <div class="text-12-muted"><i class="fa-regular fa-clock mr-5"></i> Est. Duration: {{ pkg.estimated_duration }}</div>
+                                    {% if pkg.features %}
+                                    <ul class="package-features">
+                                        {% for feature in pkg.features %}
+                                        <li><i class="fa-solid fa-check feature-check-icon"></i> <span>{{ feature }}</span></li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
                                 </div>
-                                <div class="text-12-muted"><i class="fa-regular fa-clock mr-5"></i> {{ pkg.estimated_duration }}</div>
-                                {% if pkg.features %}
-                                <ul class="package-features">
-                                    {% for feature in pkg.features %}
-                                    <li><i class="fa-solid fa-check feature-check-icon"></i> {{ feature }}</li>
-                                    {% endfor %}
-                                </ul>
-                                {% endif %}
-                            </div>
-                        </label>
-                        {% endfor %}
-                    </div>
+                            </label>
+                            {% endfor %}
+                        </div>
                     {% else %}
-                    <!-- Dynamic Pricing Display for Fixed, Hourly, Starting, Quote -->
-                    <div class="single-price-display mb-30">
-                        {% if service.pricing_type == 'FIXED' %}
-                        <div class="text-14-muted text-uppercase price-label-tracked">Fixed Price</div>
-                        <h2 class="mt-5 mb-0 price-value-lg">NGN {{ service.base_price|floatformat:0|intcomma }}</h2>
-                        {% elif service.pricing_type == 'STARTING' %}
-                        <div class="text-14-muted text-uppercase price-label-tracked">Starting From</div>
-                        <h2 class="mt-5 mb-0 price-value-lg">NGN {{ service.base_price|floatformat:0|intcomma }}</h2>
-                        {% elif service.pricing_type == 'HOURLY' %}
-                        <div class="text-14-muted text-uppercase price-label-tracked">Hourly Rate</div>
-                        <h2 class="mt-5 mb-0 price-value-lg">NGN {{ service.base_price|floatformat:0|intcomma }}<span class="text-14-muted hourly-rate-suffix">/hr</span></h2>
-                        {% elif service.pricing_type == 'QUOTE' %}
-                        <div class="text-14-muted text-uppercase price-label-tracked">Custom Assessment</div>
-                        <h2 class="mt-5 mb-0 price-value-lg">Custom Quote</h2>
-                        {% endif %}
-                    </div>
+                        <!-- Dynamic Pricing Header for Fixed, Hourly, Starting, Quote -->
+                        <div class="single-price-banner">
+                            {% if service.pricing_type == 'FIXED' %}
+                                <span class="price-banner-tag">Fixed Service Rate</span>
+                                <h2 class="price-value-lg">NGN {{ service.base_price|floatformat:0|intcomma }}</h2>
+                            {% elif service.pricing_type == 'STARTING' %}
+                                <span class="price-banner-tag">Starting From</span>
+                                <h2 class="price-value-lg">NGN {{ service.base_price|floatformat:0|intcomma }}</h2>
+                            {% elif service.pricing_type == 'HOURLY' %}
+                                <span class="price-banner-tag">Hourly Rate</span>
+                                <h2 class="price-value-lg">NGN {{ service.base_price|floatformat:0|intcomma }}<span class="hourly-rate-suffix">/hr</span></h2>
+                            {% elif service.pricing_type == 'QUOTE' %}
+                                <span class="price-banner-tag">Site / Scope Inspection</span>
+                                <h2 class="price-value-lg">Custom Quote</h2>
+                            {% endif %}
+                        </div>
                     {% endif %}
 
                     <!-- Fulfillment Coverage Block -->
@@ -211,7 +255,7 @@
                         {% if service.service_radius_km %}
                         <div class="fulfillment-item">
                             <i class="fa-solid fa-route"></i>
-                            <span>Covers up to {{ service.service_radius_km }}km radius</span>
+                            <span>Travels up to {{ service.service_radius_km }}km from {{ service.provider.region|default:"base" }}</span>
                         </div>
                         {% endif %}
                     </div>
@@ -232,7 +276,7 @@
                     <div class="form-group">
                         <label>Service Location / Site Address *</label>
                         {% if user.is_authenticated and user.addresses.all %}
-                        <div class="saved-location-pills mb-8">
+                        <div class="saved-location-pills">
                             {% for addr in user.addresses.all|slice:":3" %}
                                 <button type="button"
                                         class="saved-loc-pill"
@@ -251,23 +295,23 @@
                                required>
                     </div>
 
-                    <div class="form-group mb-25">
+                    <div class="form-group mb-20">
                         <label>Task Scope / Notes for Professional</label>
-                        <textarea name="customer_notes" class="form-control" rows="3" placeholder="Describe the issue, access instructions, or specific requirements..."></textarea>
+                        <textarea name="customer_notes" class="form-control" rows="3" placeholder="Describe the fault, installation goal, or access instructions..."></textarea>
                     </div>
 
                     <button type="submit" class="action-btn btn-primary w-100 btn-submit-booking requires-auth">
                         {% if service.pricing_type == 'QUOTE' %}
                             <i class="fa-solid fa-file-invoice-dollar icon-spaced"></i> Request Custom Quote
                         {% else %}
-                            <i class="fa-solid fa-calendar-check icon-spaced"></i> Request Booking
+                            <i class="fa-solid fa-calendar-check icon-spaced"></i> Book Professional Now
                         {% endif %}
                     </button>
                 </form>
 
                 <div class="booking-escrow-note mt-15">
                     <i class="fa-solid fa-shield-halved text-primary"></i>
-                    <span><strong>Zero Upfront Risk:</strong> You won't be charged until the provider accepts your schedule. Funds are held in Escrow until the job is done.</span>
+                    <span><strong>Zero Upfront Risk:</strong> You are not charged until the engineer accepts your schedule. Funds stay locked in Escrow until you confirm job completion.</span>
                 </div>
             </div>
         </div>

@@ -1,25 +1,42 @@
 {% extends 'base.html' %}
-{% load socialaccount %} <!-- Required to generate secure OAuth URLs -->
+{% load socialaccount %}
 
 {% block content %}
 <div class="login-wrapper animate-fade-in">
     <div class="summary-card">
-        <h2 class="text-center mt-0 font-600-dark text-24">Welcome Back</h2>
+        <div class="text-center mb-20">
+            <div class="icon-circle mx-auto mb-10">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h2 class="mt-0 mb-5 font-700-dark text-24">Welcome Back</h2>
+            {% if request.GET.next and 'apply-provider' in request.GET.next %}
+                <p class="text-13 text-primary font-600 m-0">
+                    <i class="fa-solid fa-store"></i> Log in to continue to your Provider Application
+                </p>
+            {% else %}
+                <p class="text-13-muted m-0">Log in to manage your escrow orders, bookings, and account.</p>
+            {% endif %}
+        </div>
         
-        <form method="POST" class="django-form mt-20">
+        <form method="POST" action="{% url 'accounts:login' %}" class="django-form mt-20">
             {% csrf_token %}
+            {% if request.GET.next %}
+                <input type="hidden" name="next" value="{{ request.GET.next }}">
+            {% elif next %}
+                <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+
             {{ form.as_p }}
-            <button type="submit" class="action-btn btn-primary w-100 mt-15 py-15 text-16">
-                Log In
+
+            <button type="submit" class="action-btn btn-primary w-100 mt-15 py-15 text-16 font-700-block">
+                <i class="fa-solid fa-right-to-bracket icon-spaced"></i> Log In Securely
             </button>
         </form>
 
-        <!-- Premium Divider -->
         <div class="auth-divider">
             <span>Or continue with</span>
         </div>
 
-        <!-- Social Auth Grid -->
         <div class="social-auth-grid">
             <form action="{% provider_login_url 'google' %}" method="post" class="w-100">
                 {% csrf_token %}
@@ -29,8 +46,11 @@
             </form>
         </div>
         
-        <p class="text-center mt-25 text-14-muted">
-            Don't have an account? <a href="{% url 'accounts:register' %}" class="text-blue font-600-dark no-underline">Sign Up</a>
+        <p class="text-center mt-25 text-14-muted mb-0">
+            Don't have an account?
+            <a href="{% url 'accounts:register' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}" class="text-primary font-700-dark no-underline">
+                Create an Account &rarr;
+            </a>
         </p>
     </div>
 </div>

@@ -1,20 +1,56 @@
 /* ==========================================================================
-   SERVICE DETAIL PAGE STYLES (PREMIUM RESPONSIVE)
+   SERVICE DETAIL PAGE STYLESHEET (service-detail.css v2.5)
    ========================================================================== */
 .service-detail-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 30px 20px;
+    max-width: 1180px;
+    margin: 0 auto 60px auto;
+    padding: 20px;
 }
 
+/* --- 1. Breadcrumb Trail --- */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 10px 16px;
+    border-radius: 10px;
+}
+
+.breadcrumb a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-sep {
+    font-size: 10px;
+    color: #94a3b8;
+}
+
+.breadcrumb-current {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+/* --- 2. Cinematic Cover Banner & Floating Pills --- */
 .service-cover-wrapper {
-    margin-top: 15px;
+    position: relative;
     width: 100%;
-    height: 480px;
-    border-radius: 20px;
+    height: 400px;
+    border-radius: 18px;
     overflow: hidden;
-    background-color: #f3f4f6;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    background-color: #0f172a;
+    box-shadow: 0 12px 32px -10px rgba(15, 23, 42, 0.22);
 }
 
 .service-cover-banner {
@@ -24,137 +60,371 @@
     display: block;
 }
 
+.service-cover-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #64748b;
+    font-size: 64px;
+}
+
+.service-cover-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.72) 0%, rgba(15, 23, 42, 0.1) 55%, transparent 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 22px 26px;
+}
+
+.cover-Floating-badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.cover-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.cover-pill-blue {
+    background: rgba(37, 99, 235, 0.92);
+    color: #ffffff;
+}
+
+.cover-pill-dark {
+    background: rgba(15, 23, 42, 0.85);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.cover-pill-gold {
+    background: rgba(255, 251, 235, 0.95);
+    color: #92400e;
+}
+
+/* --- 3. Two-Column Layout --- */
 .grid-2-sidebar {
     display: grid;
-    grid-template-columns: 1fr 420px;
-    gap: 50px;
-    margin-top: 40px;
+    grid-template-columns: 1fr 410px;
+    gap: 42px;
+    margin-top: 32px;
     align-items: start;
 }
 
 .service-title {
-    font-size: 34px;
+    font-size: 30px;
     font-weight: 800;
     color: #0f172a;
     letter-spacing: -0.5px;
-    line-height: 1.3;
+    line-height: 1.25;
+    margin-bottom: 18px;
 }
 
-.service-description {
-    font-size: 16px;
-    line-height: 1.7;
-    color: #4b5563;
-}
-
-/* --- Provider Badge --- */
-.provider-badge {
+/* Verified Provider Strip */
+.provider-badge-card {
     display: flex;
     align-items: center;
-    gap: 15px;
-    padding: 20px 0;
-    margin-top: 20px;
-    border-bottom: 1px solid #e2e8f0;
-    border-top: 1px solid #e2e8f0;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 16px 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.provider-badge-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
 }
 
 .provider-avatar {
-    width: 56px;
-    height: 56px;
+    width: 50px;
+    height: 50px;
     background-color: #eff6ff;
     color: #2563eb;
-    border-radius: 50%;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 20px;
+    flex-shrink: 0;
 }
 
-/* --- Scope Grid --- */
+.provider-name-lg {
+    font-size: 16.5px;
+    color: #0f172a;
+}
+
+.provider-profile-link {
+    color: #0f172a;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.provider-profile-link:hover {
+    color: #2563eb;
+}
+
+.provider-store-btn {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 7px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.provider-store-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+/* Overview Card */
+.service-section-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 22px 24px;
+}
+
+.service-section-heading {
+    font-size: 17px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.service-description {
+    font-size: 15px;
+    line-height: 1.75;
+    color: #475569;
+}
+
+/* --- 4. Scope of Work Grid (Included vs Excluded) --- */
 .scope-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 25px;
+    gap: 20px;
 }
 
 .scope-box {
-    padding: 24px;
-    border-radius: 16px;
-    background-color: #f8fafc;
+    padding: 20px 22px;
+    border-radius: 14px;
     border: 1px solid #e2e8f0;
+}
+
+.scope-box.included {
+    background-color: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.scope-box.excluded {
+    background-color: #fef2f2;
+    border-color: #fecaca;
+}
+
+.scope-box-title {
+    margin: 0 0 14px 0;
+    font-size: 15px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .scope-list {
     list-style: none;
-    padding-left: 0;
-    margin-bottom: 0;
+    padding: 0;
+    margin: 0;
 }
 
 .scope-list li {
-    margin-bottom: 12px;
-    position: relative;
-    padding-left: 22px;
-    color: #334155;
-    font-size: 15px;
-    line-height: 1.6;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    color: #1e293b;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
-/* --- Portfolio Grid --- */
+.scope-list li:last-child {
+    margin-bottom: 0;
+}
+
+.scope-item-icon {
+    margin-top: 4px;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+/* --- 5. Portfolio Gallery & Reviews --- */
 .portfolio-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 16px;
 }
 
 .portfolio-item img {
     width: 100%;
-    height: 160px;
+    height: 155px;
     object-fit: cover;
     border-radius: 12px;
-    transition: transform 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .portfolio-item img:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px -6px rgba(15, 23, 42, 0.14);
 }
 
-/* --- Premium Booking Card --- */
+.review-card-item {
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.review-star-pill {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    font-weight: 700;
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.review-attr-tag {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 4px 9px;
+    border-radius: 6px;
+}
+
+.review-photo-thumb {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+}
+
+.reviews-empty-box {
+    padding: 28px 20px;
+    text-align: center;
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+}
+
+.reviews-empty-icon {
+    font-size: 26px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+/* --- 6. Sticky Booking Sidebar Card --- */
 .service-sidebar {
     position: sticky;
-    top: 100px;
+    top: 95px;
 }
 
 .booking-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 30px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+    border: 1px solid #cbd5e1;
+    border-radius: 18px;
+    padding: 26px;
+    box-shadow: 0 16px 36px -10px rgba(15, 23, 42, 0.1);
 }
 
-/* --- Package Selector --- */
+.booking-card-top-label {
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #0f172a;
+    margin-bottom: 14px;
+}
+
+.single-price-banner {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    color: #ffffff;
+    padding: 18px 20px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+}
+
+.price-banner-tag {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #93c5fd;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.price-value-lg {
+    font-size: 28px;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+}
+
+.hourly-rate-suffix {
+    font-size: 15px;
+    font-weight: 500;
+    color: #cbd5e1;
+    margin-left: 4px;
+}
+
+/* Package Selector Cards */
 .package-card {
     display: flex;
-    align-items: flex-start; /* Keeps the radio button at the very top */
-    gap: 16px;
-    padding: 20px;
-    border: 2px solid #e2e8f0;
-    border-radius: 14px;
-    margin-bottom: 15px;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 12px;
     cursor: pointer;
-    background: #fff;
+    background: #ffffff;
     transition: all 0.2s ease;
 }
 
 .package-card input[type="radio"] {
-    margin-top: 4px; /* Perfectly aligns with the title text */
-    transform: scale(1.2);
+    margin-top: 4px;
+    accent-color: #2563eb;
+    transform: scale(1.15);
 }
 
-.package-card.selected, .package-card:hover {
+.package-card.selected,
+.package-card:hover {
     border-color: #2563eb;
-    background-color: #f8fafc;
+    background-color: #eff6ff;
 }
 
 .package-info {
@@ -166,167 +436,92 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 10px;
-    flex-wrap: wrap; /* If the price is too long, it neatly drops below the title */
-    margin-bottom: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
 }
 
 .package-name {
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 800;
     color: #0f172a;
 }
 
 .package-price {
     font-weight: 800;
     color: #2563eb;
-    font-size: 18px;
+    font-size: 16px;
 }
 
 .package-features {
     list-style: none;
-    padding-left: 0;
-    margin: 12px 0 0 0;
-    font-size: 14px;
-    color: #4b5563;
-    line-height: 1.6;
+    padding: 0;
+    margin: 10px 0 0 0;
+    font-size: 13px;
+    color: #334155;
 }
 
 .package-features li {
-    margin-bottom: 6px;
+    margin-bottom: 5px;
     display: flex;
-    gap: 8px;
+    align-items: flex-start;
+    gap: 7px;
 }
 
-/* --- Fulfillment Details --- */
+.feature-check-icon {
+    color: #059669;
+    font-size: 12px;
+    margin-top: 3px;
+}
+
+/* Fulfillment Details */
 .fulfillment-details {
-    padding-top: 25px;
-    margin-top: 25px;
-    margin-bottom: 25px;
+    padding: 14px 0;
+    margin: 16px 0;
     border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .fulfillment-item {
     display: flex;
     align-items: center;
-    gap: 15px; /* Huge breathing space between icon and text */
-    margin-bottom: 15px;
-    font-size: 15px;
+    gap: 12px;
+    font-size: 13.5px;
     color: #334155;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .fulfillment-item i {
-    font-size: 18px;
+    font-size: 15px;
     color: #2563eb;
-    width: 24px; /* Fixed width so stacked icons align perfectly */
+    width: 22px;
     text-align: center;
 }
 
-/* --- Form Adjustments --- */
+/* Booking Form Controls */
 .booking-card .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .booking-card label {
-    font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
-    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 6px;
     display: block;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
 }
 
 .booking-card .form-control {
-    padding: 12px 15px;
+    padding: 10px 13px;
     border-radius: 10px;
     border: 1px solid #cbd5e1;
-    font-size: 15px;
+    font-size: 14px;
 }
 
-/* --- Mobile Viewport Optimization --- */
-@media (max-width: 900px) {
-    .service-detail-container {
-        padding: 20px 15px;
-    }
-
-    .grid-2-sidebar {
-        grid-template-columns: 1fr;
-        gap: 30px;
-        margin-top: 20px;
-    }
-    
-    .service-cover-wrapper {
-        height: 250px;
-        border-radius: 16px;
-    }
-
-    .service-title {
-        font-size: 26px;
-    }
-
-    .scope-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .service-sidebar {
-        position: static; 
-    }
-
-    .booking-card {
-        padding: 24px 20px;
-    }
-
-    .portfolio-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-/* Extracted Service Detail Styles */
-.provider-name-lg {
-    font-size: 18px;
-    color: #0f172a;
-}
-
-.feature-check-icon {
-    color: #10b981; 
-    font-size: 12px; 
-    margin-top: 4px;
-}
-
-.price-label-tracked {
-    letter-spacing: 1px;
-}
-
-.price-value-lg {
-    font-size: 32px; 
-    color: #2563eb;
-}
-
-.hourly-rate-suffix {
-    font-size: 18px;
-}
-
-.btn-submit-booking {
-    font-size: 16px; 
-    padding: 16px; 
-    border-radius: 12px;
-}
-
-/* Service Page Provider Badge Link */
-.provider-badge-link {
-    text-decoration: none;
-    color: inherit;
-    display: inline-block;
-    transition: transform 0.2s ease;
-}
-.provider-badge-link:hover .provider-badge {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    background-color: #f8fafc;
-}
-
-/* --- Quick Saved Address Pills & Escrow Note --- */
 .saved-location-pills {
     display: flex;
     flex-wrap: wrap;
@@ -339,26 +534,76 @@
     border: 1px solid #bfdbfe;
     color: #1d4ed8;
     font-size: 11.5px;
-    font-weight: 600;
+    font-weight: 700;
     padding: 4px 10px;
     border-radius: 999px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.15s ease;
 }
 
 .saved-loc-pill:hover {
-    background: #dbeafe;
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.btn-submit-booking {
+    font-size: 15px;
+    font-weight: 700;
+    padding: 14px;
+    border-radius: 10px;
 }
 
 .booking-escrow-note {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 10px;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    padding: 10px 12px;
-    border-radius: 8px;
+    padding: 12px 14px;
+    border-radius: 10px;
     font-size: 12px;
     color: #475569;
-    line-height: 1.4;
+    line-height: 1.45;
+}
+
+/* --- 7. Mobile Viewport Optimization --- */
+@media (max-width: 920px) {
+    .service-detail-container {
+        padding: 15px;
+    }
+
+    .grid-2-sidebar {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        margin-top: 20px;
+    }
+
+    .service-cover-wrapper {
+        height: 240px;
+        border-radius: 14px;
+    }
+
+    .service-cover-overlay {
+        padding: 14px;
+    }
+
+    .service-title {
+        font-size: 24px;
+    }
+
+    .scope-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .service-sidebar {
+        position: static;
+    }
+
+    .booking-card {
+        padding: 20px;
+    }
+
+    .portfolio-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
