@@ -35,8 +35,8 @@ class Category(models.Model):
         ('SERVICE', 'Professional Service Category'),
     )
 
-    name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True, blank=True)
+    name = models.CharField(max_length=150)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
     parent = models.ForeignKey(
         'self',
         null=True,
