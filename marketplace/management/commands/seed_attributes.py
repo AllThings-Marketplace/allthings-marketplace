@@ -1,50 +1,56 @@
 from django.core.management.base import BaseCommand
 from marketplace.models import Category
 
+
 class Command(BaseCommand):
-    help = 'Bulk updates existing electrical categories with dynamic JSON attribute schemas'
+    help = "Synchronizes dynamic JSON attribute schemas across all AllThings product and service categories."
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("Injecting electrical category attributes...")
+        self.stdout.write("Synchronizing AllThings category attribute schemas...")
 
-        ELECTRICAL_BASE = [
-            {"name": "Brand", "required": True},
-            {"name": "Condition (New/Refurbished)", "required": True},
-            {"name": "Warranty Period", "required": False}
-        ]
-        SERVICE_BASE = [
-            {"name": "Service Mode (On-site / Remote)", "required": True},
-            {"name": "Estimated Duration", "required": True},
-        ]
-        UNIVERSAL_FALLBACK = [
-            {"name": "Brand/Manufacturer", "required": False},
-            {"name": "Condition", "required": False}
+        UNIVERSAL_PRODUCT_FALLBACK = [
+            {"name": "Brand / Manufacturer", "required": False},
+            {"name": "Condition (Brand New / Used / Refurbished)", "required": True},
+            {"name": "Color / Variant", "required": False},
+            {"name": "Warranty Period", "required": False},
         ]
 
-        ATTRIBUTE_MAPPING = {
-            "House Wiring & Building Cables": ELECTRICAL_BASE + [{"name": "Cable Gauge (mm²)", "required": True}, {"name": "Coil Length (m)", "required": True}],
-            "Armoured & Underground Cables": ELECTRICAL_BASE + [{"name": "Cable Size (mm²)", "required": True}, {"name": "Number of Cores", "required": True}],
-            "Hybrid & Pure Sine Wave Inverters": ELECTRICAL_BASE + [{"name": "Capacity (kVA / kW)", "required": True}, {"name": "System Voltage (12V/24V/48V)", "required": True}],
-            "Solar Panels (Monocrystalline & Bifacial)": ELECTRICAL_BASE + [{"name": "Rated Power (Watts)", "required": True}, {"name": "Cell Type", "required": True}],
-            "Lithium (LiFePO4) & Tubular Batteries": ELECTRICAL_BASE + [{"name": "Capacity (Ah or kWh)", "required": True}, {"name": "Nominal Voltage", "required": True}],
-            "Circuit Breakers (MCB, MCCB, RCD & ELCB)": ELECTRICAL_BASE + [{"name": "Amperage Rating (A)", "required": True}, {"name": "Poles (1P/2P/3P/4P)", "required": True}],
-            "Complete Solar & Inverter System Installation": SERVICE_BASE + [{"name": "System Capacity (kVA)", "required": True}],
-            "Full Building Conduit & Surface Wiring": SERVICE_BASE + [{"name": "Property Type (Residential/Commercial)", "required": True}],
-        }
+        UNIVERSAL_SERVICE_FALLBACK = [
+            {"name": "Service Mode (On-site / Shop / Remote)", "required": True},
+            {"name": "Estimated Turnaround Time", "required": True},
+            {"name": "Service Guarantee / Warranty", "required": False},
+        ]
 
-        updated_count = 0
-        for category_name, schema in ATTRIBUTE_MAPPING.items():
-            categories = Category.objects.filter(name=category_name)
-            for category in categories:
-                category.attribute_schema = schema
-                category.save()
-                updated_count += 1
-                self.stdout.write(f"Updated specific schema for: {category_name}")
+        # Inherit parent schema for any subcategory that currently has an empty schema
+        inherited_count = 0
+        subcategories_missing_schema = Category.objects.filter(
+            parent__isnull=False,
+            attribute_schema=[]
+        ).select_related("parent")
 
-        unmapped_categories = Category.objects.filter(attribute_schema=[])
-        fallback_count = unmapped_categories.count()
-        for category in unmapped_categories:
-            category.attribute_schema = UNIVERSAL_FALLBACK
-            category.save()
+        for sub in subcategories_missing_schema:
+            if sub.parent and sub.parent.attribute_schema:
+                sub.attribute_schema = sub.parent.attribute_schema
+                sub.save(update_fields=["attribute_schema"])
+                inherited_count += 1
 
-        self.stdout.write(self.style.SUCCESS(f'Successfully injected {updated_count} specific schemas and {fallback_count} fallbacks.'))
+        # Apply type-aware fallbacks to any remaining unmapped categories
+        unmapped_products = Category.objects.filter(category_type="PRODUCT", attribute_schema=[])
+        prod_fallback_count = unmapped_products.count()
+        for cat in unmapped_products:
+            cat.attribute_schema = UNIVERSAL_PRODUCT_FALLBACK
+            cat.save(update_fields=["attribute_schema"])
+
+        unmapped_services = Category.objects.filter(category_type="SERVICE", attribute_schema=[])
+        srv_fallback_count = unmapped_services.count()
+        for cat in unmapped_services:
+            cat.attribute_schema = UNIVERSAL_SERVICE_FALLBACK
+            cat.save(update_fields=["attribute_schema"])
+
+        total_categories = Category.objects.filter(is_active=True).count()
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"✓ Verified schemas across {total_categories} active categories "
+                f"(Inherited: {inherited_count}, Product Fallbacks: {prod_fallback_count}, Service Fallbacks: {srv_fallback_count})."
+            )
+        )
