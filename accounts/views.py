@@ -2,7 +2,6 @@ import re
 import logging
 import secrets
 import datetime
-import threading
 import requests
 from django.conf import settings
 from django.core.mail import get_connection, EmailMultiAlternatives
@@ -28,6 +27,7 @@ from feedback.models import Feedback
 logger = logging.getLogger(__name__)
 
 NG_PHONE_VALIDATOR = re.compile(r'^(?:\+?234|0)[789][01]\d{8}$')
+ALL_ONBOARDING_STAGES = ['STAGE_1', 'STAGE_2', 'STAGE_3', 'STAGE_4']
 
 
 def _safe_redirect(namespaced_url, fallback_url):
@@ -59,13 +59,75 @@ def _parse_from_email(raw_from):
     return "AllThings Marketplace", raw
 
 
-def _send_email_otp(recipient_email, recipient_name, code):
+def _send_transactional_email(recipient_email, recipient_name, subject, text_body, html_body):
     """
-    Sends Email OTP using:
+    Dispatches transactional emails via:
     1. Brevo HTTPS API (Port 443 - never blocked by Railway firewalls) if BREVO_API_KEY is set.
     2. Standard Django SMTP with a strict 8-second timeout so Gunicorn workers never hang.
     Returns (sent_ok: bool, info: str).
     """
+    if not recipient_email:
+        return False, "No recipient email provided."
+
+    sender_name, sender_email = _parse_from_email(
+        getattr(settings, 'DEFAULT_FROM_EMAIL', 'AllThings Marketplace <noreply@allthings.com>')
+    )
+
+    brevo_api_key = getattr(settings, 'BREVO_API_KEY', '').strip()
+    if not brevo_api_key:
+        smtp_pass = getattr(settings, 'EMAIL_HOST_PASSWORD', '').strip()
+        if smtp_pass.startswith('xkeysib-'):
+            brevo_api_key = smtp_pass
+
+    if brevo_api_key:
+        try:
+            resp = requests.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "accept": "application/json",
+                    "api-key": brevo_api_key,
+                    "content-type": "application/json",
+                },
+                json={
+                    "sender": {"name": sender_name, "email": sender_email},
+                    "to": [{"email": recipient_email, "name": recipient_name or recipient_email}],
+                    "subject": subject,
+                    "textContent": text_body,
+                    "htmlContent": html_body,
+                },
+                timeout=8,
+            )
+            if resp.status_code in (200, 201, 202):
+                logger.info("Brevo HTTP API sent email '%s' to %s", subject, recipient_email)
+                return True, "Sent via Brevo HTTP API"
+            logger.warning("Brevo HTTP API error (%s): %s", resp.status_code, resp.text)
+        except Exception as exc:
+            logger.warning("Brevo HTTP API exception: %s", exc)
+
+    if not getattr(settings, 'EMAIL_HOST_USER', ''):
+        logger.warning("EMAIL_HOST_USER / BREVO_API_KEY not configured for %s", recipient_email)
+        return False, "Email credentials not configured."
+
+    try:
+        connection = get_connection(timeout=8, fail_silently=False)
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=f"{sender_name} <{sender_email}>",
+            to=[recipient_email],
+            connection=connection,
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=False)
+        logger.info("SMTP sent email '%s' to %s", subject, recipient_email)
+        return True, "Sent via SMTP"
+    except Exception as exc:
+        logger.error("SMTP email delivery failed for %s: %s", recipient_email, exc)
+        return False, str(exc)
+
+
+def _send_email_otp(recipient_email, recipient_name, code):
+    """Formats and sends a 6-digit verification OTP email."""
     subject = f"{code} is your AllThings Verification Code"
     text_body = (
         f"Hi {recipient_name},\n\n"
@@ -85,71 +147,13 @@ def _send_email_otp(recipient_email, recipient_name, code):
         f"<p style='color:#64748b;font-size:13px;'>This code expires in 10 minutes. If you did not request this code, please ignore this email.</p>"
         f"</div>"
     )
-
-    sender_name, sender_email = _parse_from_email(
-        getattr(settings, 'DEFAULT_FROM_EMAIL', 'AllThings Marketplace <noreply@allthings.com>')
-    )
-
-    # 1. Try Brevo HTTP API first (Port 443 - bypasses Railway SMTP port blocks)
-    brevo_api_key = getattr(settings, 'BREVO_API_KEY', '').strip()
-    if not brevo_api_key:
-        # Also auto-detect if user pasted a Brevo 'xkeysib-...' API key into EMAIL_HOST_PASSWORD
-        smtp_pass = getattr(settings, 'EMAIL_HOST_PASSWORD', '').strip()
-        if smtp_pass.startswith('xkeysib-'):
-            brevo_api_key = smtp_pass
-
-    if brevo_api_key:
-        try:
-            resp = requests.post(
-                "https://api.brevo.com/v3/smtp/email",
-                headers={
-                    "accept": "application/json",
-                    "api-key": brevo_api_key,
-                    "content-type": "application/json",
-                },
-                json={
-                    "sender": {"name": sender_name, "email": sender_email},
-                    "to": [{"email": recipient_email, "name": recipient_name}],
-                    "subject": subject,
-                    "textContent": text_body,
-                    "htmlContent": html_body,
-                },
-                timeout=8,
-            )
-            if resp.status_code in (200, 201, 202):
-                logger.info("Brevo HTTP API sent OTP email to %s", recipient_email)
-                return True, "Sent via Brevo HTTP API"
-            logger.warning("Brevo HTTP API error (%s): %s", resp.status_code, resp.text)
-        except Exception as exc:
-            logger.warning("Brevo HTTP API exception: %s", exc)
-
-    # 2. Fallback to Django SMTP with strict 8-second timeout (prevents Gunicorn worker hang)
-    if not getattr(settings, 'EMAIL_HOST_USER', ''):
-        logger.warning("EMAIL_HOST_USER / BREVO_API_KEY not configured. OTP for %s is %s", recipient_email, code)
-        return False, "Email credentials not configured."
-
-    try:
-        connection = get_connection(timeout=8, fail_silently=False)
-        msg = EmailMultiAlternatives(
-            subject=subject,
-            body=text_body,
-            from_email=f"{sender_name} <{sender_email}>",
-            to=[recipient_email],
-            connection=connection,
-        )
-        msg.attach_alternative(html_body, "text/html")
-        msg.send(fail_silently=False)
-        logger.info("SMTP sent OTP email to %s", recipient_email)
-        return True, "Sent via SMTP"
-    except Exception as exc:
-        logger.error("SMTP OTP delivery failed for %s: %s", recipient_email, exc)
-        return False, str(exc)
+    return _send_transactional_email(recipient_email, recipient_name, subject, text_body, html_body)
 
 
 def _send_sms_otp(phone_e164, code):
     """
     Sends SMS OTP via Termii (if TERMII_API_KEY is configured in settings/.env).
-    Automatically attempts the configured channel (defaults to 'dnd' then 'generic')
+    Automatically attempts the configured channel (defaults to 'generic' then 'dnd')
     and logs the exact gateway response for debugging on Railway.
     """
     api_key = getattr(settings, 'TERMII_API_KEY', '').strip()
@@ -164,7 +168,6 @@ def _send_sms_otp(phone_e164, code):
     clean_phone = phone_e164.lstrip('+')
     sms_text = f"Your AllThings verification code is {code}. Valid for 10 minutes. Do not share this code."
 
-    # Try preferred channel first, then fallback channel if rejected
     channels_to_try = [preferred_channel]
     if preferred_channel != 'generic':
         channels_to_try.append('generic')
@@ -636,6 +639,14 @@ def provider_status(request):
     if profile.verification_status == 'ACTIVE':
         return redirect('dashboard:provider_dashboard')
 
+    # Defensive fallback: if an admin flagged the profile via list view without ticking specific
+    # checkboxes, unlock all 4 onboarding sections so the applicant is never stuck on an empty screen.
+    active_flagged_sections = (
+        profile.flagged_sections
+        if (profile.verification_status == 'FLAGGED' and profile.flagged_sections)
+        else (ALL_ONBOARDING_STAGES if profile.verification_status == 'FLAGGED' else [])
+    )
+
     if request.method == 'POST':
         try:
             # STAGE 2: Identity Verification (KYC)
@@ -698,6 +709,108 @@ def provider_status(request):
                 profile.verification_status = 'STAGE_4_LOCATION'
                 profile.save()
                 messages.success(request, "Location pinned! Your application is now under admin review.")
+
+            # SURGICAL SPOT-CORRECTION HANDLER (When Admin Flags Specific Sections)
+            elif profile.verification_status == 'FLAGGED':
+                with transaction.atomic():
+                    # Spot 1: Stage 1 (Personal & Business Identity)
+                    if 'STAGE_1' in active_flagged_sections:
+                        first_name = request.POST.get('first_name', '').strip()
+                        last_name = request.POST.get('last_name', '').strip()
+                        business_name = request.POST.get('business_name', '').strip()
+                        provider_type = request.POST.get('provider_type', '').strip()
+                        business_category = request.POST.get('business_category', '').strip()
+                        dob = request.POST.get('dob') or profile.dob
+                        residential_address = request.POST.get('residential_address', '').strip()
+
+                        if not (first_name and last_name and business_name and provider_type and residential_address):
+                            raise ValidationError("Please complete all required Stage 1 personal and business fields.")
+
+                        request.user.first_name = first_name
+                        request.user.last_name = last_name
+                        request.user.save(update_fields=['first_name', 'last_name'])
+
+                        profile.business_name = business_name
+                        if provider_type in dict(ProviderProfile.ProviderType.choices):
+                            profile.provider_type = provider_type
+                        profile.business_category = business_category
+                        profile.dob = dob
+                        profile.residential_address = residential_address
+
+                    # Spot 2: Stage 2 (Identity / KYC Documents)
+                    if 'STAGE_2' in active_flagged_sections:
+                        id_type = request.POST.get('id_type', '').strip() or profile.id_type
+                        id_doc = request.FILES.get('id_document')
+                        selfie_img = request.FILES.get('selfie_image')
+
+                        if not id_type:
+                            raise ValidationError("Please select your Government ID type.")
+                        if not id_doc and not selfie_img and not (profile.id_document and profile.selfie_image):
+                            raise ValidationError("Please upload your replacement ID document and/or live selfie for Stage 2.")
+                        if not id_doc and not selfie_img:
+                            raise ValidationError("Please upload a replacement ID document or live selfie to resolve Stage 2.")
+
+                        profile.id_type = id_type
+                        if id_doc:
+                            validate_kyc_document(id_doc, allow_pdf=True)
+                            profile.id_document = id_doc
+                        if selfie_img:
+                            validate_product_image(selfie_img)
+                            profile.selfie_image = selfie_img
+
+                    # Spot 3: Stage 3 (Business Credentials / CAC)
+                    if 'STAGE_3' in active_flagged_sections:
+                        business_desc = request.POST.get('business_description', '').strip()
+                        if not business_desc:
+                            raise ValidationError("Please provide your store or technical expertise description for Stage 3.")
+
+                        cert_file = request.FILES.get('business_certificate')
+                        if cert_file:
+                            validate_kyc_document(cert_file, allow_pdf=True)
+                            profile.business_certificate = cert_file
+
+                        profile.business_description = business_desc
+                        profile.cac_registration_number = request.POST.get('cac_registration_number', '').strip()
+
+                    # Spot 4: Stage 4 (Physical Store Location, GPS & Photos)
+                    if 'STAGE_4' in active_flagged_sections:
+                        region = request.POST.get('region', '').strip() or profile.region
+                        store_address = request.POST.get('store_address', '').strip()
+                        if not (region and store_address):
+                            raise ValidationError("Please provide your State/Region and full shop street address for Stage 4.")
+
+                        ext_img = request.FILES.get('exterior_image')
+                        int_img = request.FILES.get('interior_image')
+                        sign_img = request.FILES.get('signboard_image')
+
+                        if ext_img:
+                            validate_product_image(ext_img)
+                            profile.exterior_image = ext_img
+                        if int_img:
+                            validate_product_image(int_img)
+                            profile.interior_image = int_img
+                        if sign_img:
+                            validate_product_image(sign_img)
+                            profile.signboard_image = sign_img
+
+                        if not profile.exterior_image or not profile.interior_image:
+                            raise ValidationError("Both exterior and interior store photos are required for Stage 4.")
+
+                        profile.region = region
+                        profile.store_address = store_address
+                        lat_raw = request.POST.get('latitude', '').strip()
+                        lon_raw = request.POST.get('longitude', '').strip()
+                        if lat_raw and lon_raw:
+                            profile.latitude = lat_raw
+                            profile.longitude = lon_raw
+
+                    # Clear flags and return directly to the Admin Review queue
+                    profile.flagged_sections = []
+                    profile.admin_review_note = ''
+                    profile.verification_status = 'STAGE_4_LOCATION'
+                    profile.save()
+
+                messages.success(request, "Your corrections have been submitted! Your dossier is back under admin review.")
 
             # STAGE 5: Paystack Bank NUBAN Resolution & Account Activation
             elif profile.verification_status == 'APPROVED':
@@ -775,7 +888,10 @@ def provider_status(request):
 
         return _safe_redirect('accounts:provider_status', 'provider_status')
 
-    context = {'profile': profile}
+    context = {
+        'profile': profile,
+        'active_flagged_sections': active_flagged_sections,
+    }
     if profile.verification_status == 'APPROVED':
         banks = []
         try:

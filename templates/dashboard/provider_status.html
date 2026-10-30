@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.0">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -74,7 +74,7 @@
 
                     <div class="form-group">
                         <label>Store / Technical Expertise Description *</label>
-                        <textarea name="business_description" class="form-control" rows="4" placeholder="Describe the electrical products you supply or the engineering services you specialize in..." required></textarea>
+                        <textarea name="business_description" class="form-control" rows="4" placeholder="Describe the products you supply or the services you specialize in..." required></textarea>
                     </div>
 
                     <div class="form-grid-2">
@@ -184,6 +184,212 @@
                     </div>
                 </div>
 
+            <!-- SURGICAL SPOT-CORRECTION VIEW (WHEN ADMIN FLAGS SPECIFIC SECTIONS) -->
+            {% elif profile.verification_status == 'FLAGGED' %}
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="onboarding-step-header">
+                        <span class="otp-status-pill pill-flagged mb-10">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Action Required &bull; Correction Requested
+                        </span>
+                        <h3 class="checkout-section-title onboarding-step-title">
+                            <i class="fa-solid fa-screwdriver-wrench text-danger icon-spaced"></i> Update Highlighted Application Details
+                        </h3>
+                        <p class="onboarding-step-subtitle">
+                            Our compliance team reviewed your dossier and highlighted specific item(s) below. You only need to update the section(s) shown on this page.
+                        </p>
+                    </div>
+
+                    <!-- Admin Compliance Feedback Banner -->
+                    <div class="admin-feedback-banner">
+                        <div class="admin-feedback-title">
+                            <i class="fa-solid fa-comment-dots"></i> Admin Compliance Note:
+                        </div>
+                        <p class="admin-feedback-body">
+                            {{ profile.admin_review_note|default:"Please review the highlighted sections below and provide clear, accurate information."|linebreaksbr }}
+                        </p>
+                    </div>
+
+                    <!-- Spot 1: Stage 1 (Personal & Business Basics) -->
+                    {% if 'STAGE_1' in active_flagged_sections %}
+                        <div class="flagged-spot-card">
+                            <h4 class="flagged-spot-heading">
+                                <i class="fa-solid fa-user-pen text-danger"></i> Fix Stage 1: Legal Name &amp; Business Profile
+                            </h4>
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label>Legal First Name (Must match ID &amp; Bank) *</label>
+                                    <input type="text" name="first_name" class="form-control" value="{{ request.user.first_name }}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Legal Last Name (Surname) *</label>
+                                    <input type="text" name="last_name" class="form-control" value="{{ request.user.last_name }}" required>
+                                </div>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label>Date of Birth *</label>
+                                    <input type="date" name="dob" class="form-control" value="{{ profile.dob|date:'Y-m-d' }}" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Residential Address *</label>
+                                    <input type="text" name="residential_address" class="form-control" value="{{ profile.residential_address|default:'' }}" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Store / Business Name *</label>
+                                <input type="text" name="business_name" class="form-control" value="{{ profile.business_name }}" required>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label>Provider Type *</label>
+                                    <select name="provider_type" class="form-control" required>
+                                        <option value="VENDOR" {% if profile.provider_type == 'VENDOR' %}selected{% endif %}>Retail Vendor (Products)</option>
+                                        <option value="SERVICE" {% if profile.provider_type == 'SERVICE' %}selected{% endif %}>Service Professional</option>
+                                        <option value="BOTH" {% if profile.provider_type == 'BOTH' %}selected{% endif %}>Both (Products &amp; Services)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Primary Specialty / Category *</label>
+                                    <input type="text" name="business_category" class="form-control" value="{{ profile.business_category|default:'' }}" required>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Spot 2: Stage 2 (Identity / KYC) -->
+                    {% if 'STAGE_2' in active_flagged_sections %}
+                        <div class="flagged-spot-card">
+                            <h4 class="flagged-spot-heading">
+                                <i class="fa-solid fa-id-card text-danger"></i> Fix Stage 2: Government ID &amp; Live Selfie
+                            </h4>
+                            <div class="form-group">
+                                <label>Government ID Type *</label>
+                                <select name="id_type" class="form-control" required>
+                                    <option value="">Select ID document type...</option>
+                                    <option value="NIN" {% if profile.id_type == 'NIN' %}selected{% endif %}>National Identification Number (NIN Slip / Card)</option>
+                                    <option value="DRIVERS" {% if profile.id_type == 'DRIVERS' %}selected{% endif %}>Driver's License</option>
+                                    <option value="PASSPORT" {% if profile.id_type == 'PASSPORT' %}selected{% endif %}>International Passport</option>
+                                    <option value="VOTERS" {% if profile.id_type == 'VOTERS' %}selected{% endif %}>Permanent Voter's Card (PVC)</option>
+                                </select>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label>Replacement ID Document</label>
+                                    <input type="file" name="id_document" class="form-control" accept="image/*,.pdf">
+                                    <small class="form-text-muted">Upload a clear, uncropped photo or PDF scan.</small>
+                                    {% if profile.id_document %}
+                                        <span class="current-file-chip"><i class="fa-solid fa-paperclip"></i> Current ID on file (upload new file to replace)</span>
+                                    {% endif %}
+                                </div>
+                                <div class="form-group">
+                                    <label>Replacement Live Selfie</label>
+                                    <input type="file" name="selfie_image" class="form-control" accept="image/*" capture="user">
+                                    <small class="form-text-muted">Well-lit photo of your face without sunglasses or hats.</small>
+                                    {% if profile.selfie_image %}
+                                        <span class="current-file-chip"><i class="fa-solid fa-paperclip"></i> Current selfie on file (upload new photo to replace)</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Spot 3: Stage 3 (Business Profile & CAC) -->
+                    {% if 'STAGE_3' in active_flagged_sections %}
+                        <div class="flagged-spot-card">
+                            <h4 class="flagged-spot-heading">
+                                <i class="fa-solid fa-briefcase text-danger"></i> Fix Stage 3: Business Credentials
+                            </h4>
+                            <div class="form-group">
+                                <label>Store / Technical Expertise Description *</label>
+                                <textarea name="business_description" class="form-control" rows="4" required>{{ profile.business_description|default:'' }}</textarea>
+                            </div>
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label>CAC Registration Number (Optional)</label>
+                                    <input type="text" name="cac_registration_number" class="form-control" value="{{ profile.cac_registration_number|default:'' }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Replacement CAC Certificate / Trade License</label>
+                                    <input type="file" name="business_certificate" class="form-control" accept="image/*,.pdf">
+                                    {% if profile.business_certificate %}
+                                        <span class="current-file-chip"><i class="fa-solid fa-paperclip"></i> Certificate on file (upload new file to replace)</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Spot 4: Stage 4 (Location & Store Photos) -->
+                    {% if 'STAGE_4' in active_flagged_sections %}
+                        <div class="flagged-spot-card">
+                            <h4 class="flagged-spot-heading">
+                                <i class="fa-solid fa-location-dot text-danger"></i> Fix Stage 4: Store Address, GPS &amp; Photos
+                            </h4>
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label>State / Region *</label>
+                                    <select name="region" class="form-control" required>
+                                        <option value="Rivers State" {% if profile.region == 'Rivers State' %}selected{% endif %}>Rivers State</option>
+                                        <option value="Lagos State" {% if profile.region == 'Lagos State' %}selected{% endif %}>Lagos State</option>
+                                        <option value="Abuja (FCT)" {% if profile.region == 'Abuja (FCT)' %}selected{% endif %}>Abuja (FCT)</option>
+                                        <option value="Abia State" {% if profile.region == 'Abia State' %}selected{% endif %}>Abia State</option>
+                                        <option value="Delta State" {% if profile.region == 'Delta State' %}selected{% endif %}>Delta State</option>
+                                        <option value="Akwa Ibom State" {% if profile.region == 'Akwa Ibom State' %}selected{% endif %}>Akwa Ibom State</option>
+                                        <option value="Bayelsa State" {% if profile.region == 'Bayelsa State' %}selected{% endif %}>Bayelsa State</option>
+                                        <option value="Enugu State" {% if profile.region == 'Enugu State' %}selected{% endif %}>Enugu State</option>
+                                        <option value="Imo State" {% if profile.region == 'Imo State' %}selected{% endif %}>Imo State</option>
+                                        <option value="Anambra State" {% if profile.region == 'Anambra State' %}selected{% endif %}>Anambra State</option>
+                                        <option value="Edo State" {% if profile.region == 'Edo State' %}selected{% endif %}>Edo State</option>
+                                        <option value="Oyo State" {% if profile.region == 'Oyo State' %}selected{% endif %}>Oyo State</option>
+                                        <option value="Kano State" {% if profile.region == 'Kano State' %}selected{% endif %}>Kano State</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Full Shop / Workshop Street Address *</label>
+                                    <input type="text" name="store_address" class="form-control" value="{{ profile.store_address|default:'' }}" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group location-capture-box">
+                                <label><i class="fa-solid fa-satellite-dish text-primary mr-5"></i> Update GPS Coordinates</label>
+                                <div class="location-input-group">
+                                    <input type="text" name="latitude" id="latInput" class="form-control" value="{{ profile.latitude|default:'' }}" placeholder="Latitude" readonly>
+                                    <input type="text" name="longitude" id="lonInput" class="form-control" value="{{ profile.longitude|default:'' }}" placeholder="Longitude" readonly>
+                                </div>
+                                <button type="button" id="getLocationBtn" class="action-btn btn-dark w-100">
+                                    <i class="fa-solid fa-location-crosshairs icon-spaced"></i> Re-Capture My Current GPS Coordinates
+                                </button>
+                            </div>
+
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label>Replacement Exterior Photo</label>
+                                    <input type="file" name="exterior_image" class="form-control" accept="image/*" capture="environment">
+                                    {% if profile.exterior_image %}
+                                        <span class="current-file-chip"><i class="fa-solid fa-paperclip"></i> Exterior photo on file</span>
+                                    {% endif %}
+                                </div>
+                                <div class="form-group">
+                                    <label>Replacement Interior Photo</label>
+                                    <input type="file" name="interior_image" class="form-control" accept="image/*" capture="environment">
+                                    {% if profile.interior_image %}
+                                        <span class="current-file-chip"><i class="fa-solid fa-paperclip"></i> Interior photo on file</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="form-group mb-0">
+                                <label>Replacement Signboard / Work Vehicle Photo (Optional)</label>
+                                <input type="file" name="signboard_image" class="form-control" accept="image/*" capture="environment">
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <button type="submit" class="action-btn btn-primary w-100 mt-15 py-15 text-15 font-700-block">
+                        <i class="fa-solid fa-paper-plane icon-spaced"></i> Submit Corrections for Admin Review
+                    </button>
+                </form>
+
             <!-- STAGE 5: PAYOUT SETUP -->
             {% elif profile.verification_status == 'APPROVED' %}
                 <form method="POST">
@@ -232,51 +438,107 @@
             <h3 class="tracker-title"><i class="fa-solid fa-list-check text-primary mr-5"></i> Verification Progress</h3>
             <div class="status-timeline">
                 
-                <div class="timeline-step completed">
-                    <div class="step-indicator"><i class="fa-solid fa-check"></i></div>
+                <div class="timeline-step {% if 'STAGE_1' in active_flagged_sections %}flagged{% else %}completed{% endif %}">
+                    <div class="step-indicator">
+                        {% if 'STAGE_1' in active_flagged_sections %}<i class="fa-solid fa-exclamation"></i>{% else %}<i class="fa-solid fa-check"></i>{% endif %}
+                    </div>
                     <div class="step-content">
-                        <h4 class="step-title">1. Email &amp; Phone OTP</h4>
-                        <p class="step-text">Contact credentials verified</p>
+                        <h4 class="step-title">1. Personal &amp; Contact</h4>
+                        <p class="step-text">
+                            {% if 'STAGE_1' in active_flagged_sections %}
+                                <span class="text-danger font-600">Correction required</span>
+                            {% else %}
+                                Contact credentials verified
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 
-                <div class="timeline-step {% if profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED,ACTIVE' %}completed{% else %}active{% endif %}">
+                <div class="timeline-step {% if 'STAGE_2' in active_flagged_sections %}flagged{% elif profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}completed{% else %}active{% endif %}">
                     <div class="step-indicator">
-                        {% if profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED,ACTIVE' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-id-card"></i>{% endif %}
+                        {% if 'STAGE_2' in active_flagged_sections %}
+                            <i class="fa-solid fa-exclamation"></i>
+                        {% elif profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}
+                            <i class="fa-solid fa-check"></i>
+                        {% else %}
+                            <i class="fa-solid fa-id-card"></i>
+                        {% endif %}
                     </div>
                     <div class="step-content">
                         <h4 class="step-title">2. Identity (KYC)</h4>
-                        <p class="step-text">Government ID &amp; live selfie</p>
+                        <p class="step-text">
+                            {% if 'STAGE_2' in active_flagged_sections %}
+                                <span class="text-danger font-600">Correction required</span>
+                            {% else %}
+                                Government ID &amp; live selfie
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 
-                <div class="timeline-step {% if profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_2_KYC' %}active{% endif %}">
+                <div class="timeline-step {% if 'STAGE_3' in active_flagged_sections %}flagged{% elif profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_2_KYC' %}active{% endif %}">
                     <div class="step-indicator">
-                        {% if profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,APPROVED,ACTIVE' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-briefcase"></i>{% endif %}
+                        {% if 'STAGE_3' in active_flagged_sections %}
+                            <i class="fa-solid fa-exclamation"></i>
+                        {% elif profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}
+                            <i class="fa-solid fa-check"></i>
+                        {% else %}
+                            <i class="fa-solid fa-briefcase"></i>
+                        {% endif %}
                     </div>
                     <div class="step-content">
                         <h4 class="step-title">3. Business Profile</h4>
-                        <p class="step-text">Specialty &amp; CAC credentials</p>
+                        <p class="step-text">
+                            {% if 'STAGE_3' in active_flagged_sections %}
+                                <span class="text-danger font-600">Correction required</span>
+                            {% else %}
+                                Specialty &amp; CAC credentials
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 
-                <div class="timeline-step {% if profile.verification_status in 'STAGE_4_LOCATION,APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_3_BUSINESS' %}active{% endif %}">
+                <div class="timeline-step {% if 'STAGE_4' in active_flagged_sections %}flagged{% elif profile.verification_status in 'STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_3_BUSINESS' %}active{% endif %}">
                     <div class="step-indicator">
-                        {% if profile.verification_status in 'STAGE_4_LOCATION,APPROVED,ACTIVE' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-location-dot"></i>{% endif %}
+                        {% if 'STAGE_4' in active_flagged_sections %}
+                            <i class="fa-solid fa-exclamation"></i>
+                        {% elif profile.verification_status in 'STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}
+                            <i class="fa-solid fa-check"></i>
+                        {% else %}
+                            <i class="fa-solid fa-location-dot"></i>
+                        {% endif %}
                     </div>
                     <div class="step-content">
                         <h4 class="step-title">4. Location &amp; GPS</h4>
-                        <p class="step-text">Dispatch base &amp; store photos</p>
+                        <p class="step-text">
+                            {% if 'STAGE_4' in active_flagged_sections %}
+                                <span class="text-danger font-600">Correction required</span>
+                            {% else %}
+                                Dispatch base &amp; store photos
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 
-                <div class="timeline-step {% if profile.verification_status in 'APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_4_LOCATION' %}active{% endif %}">
+                <div class="timeline-step {% if profile.verification_status == 'FLAGGED' %}flagged{% elif profile.verification_status in 'APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_4_LOCATION' %}active{% endif %}">
                     <div class="step-indicator">
-                        {% if profile.verification_status in 'APPROVED,ACTIVE' %}<i class="fa-solid fa-check"></i>{% else %}<i class="fa-solid fa-magnifying-glass"></i>{% endif %}
+                        {% if profile.verification_status == 'FLAGGED' %}
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        {% elif profile.verification_status in 'APPROVED,ACTIVE' %}
+                            <i class="fa-solid fa-check"></i>
+                        {% else %}
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        {% endif %}
                     </div>
                     <div class="step-content">
                         <h4 class="step-title">5. Compliance Review</h4>
-                        <p class="step-text">Admin KYC verification</p>
+                        <p class="step-text">
+                            {% if profile.verification_status == 'FLAGGED' %}
+                                <span class="text-danger font-600">Awaiting your corrections</span>
+                            {% else %}
+                                Admin KYC verification
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
 

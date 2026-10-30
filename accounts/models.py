@@ -168,8 +168,23 @@ class ProviderProfile(models.Model):
     bank_code = models.CharField(max_length=10, null=True, blank=True, help_text="The 3-digit Paystack bank code")
     account_name = models.CharField(max_length=150, null=True, blank=True)
     
-    # System Tracking
-    verification_status = models.CharField(max_length=30, choices=VerificationPhase.choices, default=VerificationPhase.STAGE_1_BASIC)
+    # System Tracking & Spot-Flagging
+    verification_status = models.CharField(
+        max_length=30,
+        choices=VerificationPhase.choices,
+        default=VerificationPhase.STAGE_1_BASIC
+    )
+    flagged_sections = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of onboarding stages flagged by admin (e.g. ['STAGE_1', 'STAGE_2'])."
+    )
+    admin_review_note = models.TextField(
+        null=True,
+        blank=True,
+        help_text="Specific instructions from the admin explaining what the applicant must fix."
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     applied_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
 
