@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.0">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -152,7 +152,7 @@
 
             <div class="form-group">
                 <label>Store / Business Name *</label>
-                <input type="text" name="business_name" class="form-control" placeholder="E.g., VoltEdge Electricals &amp; Solar" required>
+                <input type="text" name="business_name" class="form-control" placeholder="E.g., Apex Gadgets Hub, Luxe Hair Studio, or Prime Solar Tech" required>
             </div>
 
             <div class="form-grid-2">
@@ -161,13 +161,13 @@
                     <select name="provider_type" class="form-control" required>
                         <option value="">Select how you want to operate...</option>
                         <option value="VENDOR">Retail Vendor (Selling Physical Products)</option>
-                        <option value="SERVICE">Service Professional (Electrician, Solar, HVAC)</option>
-                        <option value="BOTH">Both (Physical Products &amp; Engineering Services)</option>
+                        <option value="SERVICE">Service Professional (Tech, Beauty, Repairs, Engineering, Events)</option>
+                        <option value="BOTH">Both (Selling Physical Products &amp; Offering Services)</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Primary Specialty / Category *</label>
-                    <input type="text" name="business_category" class="form-control" placeholder="E.g., Solar &amp; Inverters, Industrial Wiring, HVAC" required>
+                    <label>Primary Specialty / Department *</label>
+                    <input type="text" name="business_category" class="form-control" placeholder="E.g., Smartphones &amp; Laptops, Fashion &amp; Wigs, Web Design, Solar &amp; Electricals" required>
                 </div>
             </div>
 
