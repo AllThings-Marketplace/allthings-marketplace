@@ -1,9 +1,11 @@
 import re
+import logging
 import secrets
 import datetime
+import threading
 import requests
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import get_connection, EmailMultiAlternatives
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
@@ -23,6 +25,7 @@ from .models import ProviderProfile, VendorWallet, ContactOTP
 from orders.models import ShippingAddress
 from feedback.models import Feedback
 
+logger = logging.getLogger(__name__)
 
 NG_PHONE_VALIDATOR = re.compile(r'^(?:\+?234|0)[789][01]\d{8}$')
 
@@ -45,32 +48,151 @@ def _normalize_ng_phone(raw_phone):
     return cleaned
 
 
+def _parse_from_email(raw_from):
+    """Extracts ('Sender Name', 'email@domain.com') from DEFAULT_FROM_EMAIL."""
+    raw = (raw_from or 'AllThings Marketplace <noreply@allthings.com>').strip()
+    match = re.match(r'^(.*?)\s*<([^>]+)>$', raw)
+    if match:
+        name = match.group(1).strip().strip('"') or "AllThings Marketplace"
+        email = match.group(2).strip()
+        return name, email
+    return "AllThings Marketplace", raw
+
+
+def _send_email_otp(recipient_email, recipient_name, code):
+    """
+    Sends Email OTP using:
+    1. Brevo HTTPS API (Port 443 - never blocked by Railway firewalls) if BREVO_API_KEY is set.
+    2. Standard Django SMTP with a strict 8-second timeout so Gunicorn workers never hang.
+    Returns (sent_ok: bool, info: str).
+    """
+    subject = f"{code} is your AllThings Verification Code"
+    text_body = (
+        f"Hi {recipient_name},\n\n"
+        f"Your 6-digit verification code for your AllThings account is:\n\n"
+        f"    {code}\n\n"
+        f"This code expires in 10 minutes. Never share this code with anyone."
+    )
+    html_body = (
+        f"<div style='font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;"
+        f"border:1px solid #e2e8f0;border-radius:12px;'>"
+        f"<h2 style='color:#0f172a;margin-top:0;'>AllThings Verification Code</h2>"
+        f"<p style='color:#475569;font-size:15px;'>Hi <strong>{recipient_name}</strong>,</p>"
+        f"<p style='color:#475569;font-size:15px;'>Use the 6-digit code below to verify your email address:</p>"
+        f"<div style='background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:16px;"
+        f"text-align:center;font-size:28px;font-weight:800;letter-spacing:6px;color:#1d4ed8;margin:20px 0;'>"
+        f"{code}</div>"
+        f"<p style='color:#64748b;font-size:13px;'>This code expires in 10 minutes. If you did not request this code, please ignore this email.</p>"
+        f"</div>"
+    )
+
+    sender_name, sender_email = _parse_from_email(
+        getattr(settings, 'DEFAULT_FROM_EMAIL', 'AllThings Marketplace <noreply@allthings.com>')
+    )
+
+    # 1. Try Brevo HTTP API first (Port 443 - bypasses Railway SMTP port blocks)
+    brevo_api_key = getattr(settings, 'BREVO_API_KEY', '').strip()
+    if not brevo_api_key:
+        # Also auto-detect if user pasted a Brevo 'xkeysib-...' API key into EMAIL_HOST_PASSWORD
+        smtp_pass = getattr(settings, 'EMAIL_HOST_PASSWORD', '').strip()
+        if smtp_pass.startswith('xkeysib-'):
+            brevo_api_key = smtp_pass
+
+    if brevo_api_key:
+        try:
+            resp = requests.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={
+                    "accept": "application/json",
+                    "api-key": brevo_api_key,
+                    "content-type": "application/json",
+                },
+                json={
+                    "sender": {"name": sender_name, "email": sender_email},
+                    "to": [{"email": recipient_email, "name": recipient_name}],
+                    "subject": subject,
+                    "textContent": text_body,
+                    "htmlContent": html_body,
+                },
+                timeout=8,
+            )
+            if resp.status_code in (200, 201, 202):
+                logger.info("Brevo HTTP API sent OTP email to %s", recipient_email)
+                return True, "Sent via Brevo HTTP API"
+            logger.warning("Brevo HTTP API error (%s): %s", resp.status_code, resp.text)
+        except Exception as exc:
+            logger.warning("Brevo HTTP API exception: %s", exc)
+
+    # 2. Fallback to Django SMTP with strict 8-second timeout (prevents Gunicorn worker hang)
+    if not getattr(settings, 'EMAIL_HOST_USER', ''):
+        logger.warning("EMAIL_HOST_USER / BREVO_API_KEY not configured. OTP for %s is %s", recipient_email, code)
+        return False, "Email credentials not configured."
+
+    try:
+        connection = get_connection(timeout=8, fail_silently=False)
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=f"{sender_name} <{sender_email}>",
+            to=[recipient_email],
+            connection=connection,
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=False)
+        logger.info("SMTP sent OTP email to %s", recipient_email)
+        return True, "Sent via SMTP"
+    except Exception as exc:
+        logger.error("SMTP OTP delivery failed for %s: %s", recipient_email, exc)
+        return False, str(exc)
+
+
 def _send_sms_otp(phone_e164, code):
     """
     Sends SMS OTP via Termii (if TERMII_API_KEY is configured in settings/.env).
-    Returns (sent_via_gateway: bool, error_or_info: str).
+    Automatically attempts the configured channel (defaults to 'dnd' then 'generic')
+    and logs the exact gateway response for debugging on Railway.
     """
-    api_key = getattr(settings, 'TERMII_API_KEY', '')
-    sender_id = getattr(settings, 'TERMII_SENDER_ID', 'AllThings')
+    api_key = getattr(settings, 'TERMII_API_KEY', '').strip()
+    sender_id = getattr(settings, 'TERMII_SENDER_ID', 'AllThings').strip()
+    preferred_channel = getattr(settings, 'TERMII_CHANNEL', 'generic').strip().lower()
+    base_url = getattr(settings, 'TERMII_BASE_URL', 'https://v3.api.termii.com').rstrip('/')
 
     if not api_key:
-        return False, "SMS gateway key not configured; using development console."
+        logger.warning("TERMII_API_KEY not set. SMS OTP for %s is %s", phone_e164, code)
+        return False, "SMS gateway key not configured."
 
-    try:
-        payload = {
-            "to": phone_e164.lstrip('+'),
-            "from": sender_id,
-            "sms": f"Your AllThings Provider verification code is {code}. Valid for 10 minutes. Do not share this code.",
-            "type": "plain",
-            "channel": "generic",
-            "api_key": api_key,
-        }
-        resp = requests.post("https://api.ng.termii.com/api/sms/send", json=payload, timeout=8)
-        if resp.status_code == 200:
-            return True, "Sent via SMS"
-        return False, f"Gateway returned {resp.status_code}"
-    except Exception as exc:
-        return False, str(exc)
+    clean_phone = phone_e164.lstrip('+')
+    sms_text = f"Your AllThings verification code is {code}. Valid for 10 minutes. Do not share this code."
+
+    # Try preferred channel first, then fallback channel if rejected
+    channels_to_try = [preferred_channel]
+    if preferred_channel != 'generic':
+        channels_to_try.append('generic')
+    elif preferred_channel != 'dnd':
+        channels_to_try.append('dnd')
+
+    last_error = "Unknown SMS gateway error"
+    for channel in channels_to_try:
+        try:
+            payload = {
+                "to": clean_phone,
+                "from": sender_id if channel != 'dnd' else getattr(settings, 'TERMII_DND_SENDER_ID', 'N-Alert'),
+                "sms": sms_text,
+                "type": "plain",
+                "channel": channel,
+                "api_key": api_key,
+            }
+            resp = requests.post(f"{base_url}/api/sms/send", json=payload, timeout=8)
+            if resp.status_code in (200, 201):
+                logger.info("Termii SMS OTP sent to %s via '%s' channel", clean_phone, channel)
+                return True, "Sent via SMS"
+            last_error = f"HTTP {resp.status_code}: {resp.text}"
+            logger.warning("Termii SMS failed on channel '%s' for %s -> %s", channel, clean_phone, last_error)
+        except Exception as exc:
+            last_error = str(exc)
+            logger.error("Termii SMS exception on channel '%s' for %s: %s", channel, clean_phone, exc)
+
+    return False, last_error
 
 
 def sell_on_allthings(request):
@@ -141,38 +263,29 @@ def send_verification_otp(request):
         expires_at=expires_at
     )
 
-    # 3. Dispatch via Email or SMS
+    # 3. Dispatch via Email or SMS (with strict timeouts so Gunicorn never hangs)
+    show_fallback = settings.DEBUG or getattr(settings, 'SHOW_OTP_FALLBACK', False)
     dev_code_hint = None
+    recipient_name = request.user.first_name or request.user.username
+
     if channel == 'EMAIL':
-        try:
-            send_mail(
-                subject=f"{code} is your AllThings Verification Code",
-                message=(
-                    f"Hi {request.user.first_name or request.user.username},\n\n"
-                    f"Your 6-digit verification code for your AllThings Provider Application is:\n\n"
-                    f"    {code}\n\n"
-                    f"This code expires in 10 minutes. Never share this code with anyone."
-                ),
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@allthings.com'),
-                recipient_list=[target],
-                fail_silently=False,
-            )
+        sent_ok, info = _send_email_otp(target, recipient_name, code)
+        if sent_ok:
             delivery_msg = f"A 6-digit verification code has been sent to {target}."
-        except Exception:
+        else:
             delivery_msg = f"Verification code generated for {target}."
-            if settings.DEBUG:
+            if show_fallback:
                 dev_code_hint = code
     else:
-        sent_ok, _ = _send_sms_otp(target, code)
+        sent_ok, info = _send_sms_otp(target, code)
         if sent_ok:
             delivery_msg = f"A 6-digit SMS code has been sent to {target}."
         else:
             delivery_msg = f"SMS verification code generated for {target}."
-            if settings.DEBUG:
+            if show_fallback:
                 dev_code_hint = code
 
-    if settings.DEBUG and not dev_code_hint:
-        # In local development, also return dev_code so testing is effortless
+    if show_fallback and not dev_code_hint:
         dev_code_hint = code
 
     response_payload = {

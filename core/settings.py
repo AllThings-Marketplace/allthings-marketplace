@@ -258,19 +258,22 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 # 6. EMAIL CONFIGURATION
 # ==============================================================================
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
-if EMAIL_HOST_USER:
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').strip()
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '').strip()
+EMAIL_TIMEOUT = 8  # Prevents Gunicorn worker hangs when SMTP ports are blocked
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
     EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
     EMAIL_USE_TLS = True
-    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'AllThings Marketplace <noreply@allthings.com>')
-
-AUTH_USER_MODEL = 'accounts.User'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL',
+    f"AllThings Marketplace <{EMAIL_HOST_USER or 'noreply@allthings.com'}>"
+)
 
 
 # ==============================================================================
@@ -308,8 +311,11 @@ LOGIN_URL = 'accounts:login'
 PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', '')
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
 GIGL_API_KEY = os.environ.get('GIGL_API_KEY', 'your_test_key_here')
-TERMII_API_KEY = os.environ.get('TERMII_API_KEY', '')
-TERMII_SENDER_ID = os.environ.get('TERMII_SENDER_ID', 'AllThings')
+TERMII_API_KEY = os.environ.get('TERMII_API_KEY', '').strip()
+TERMII_SENDER_ID = os.environ.get('TERMII_SENDER_ID', 'AllThings').strip()
+TERMII_CHANNEL = os.environ.get('TERMII_CHANNEL', 'generic').strip()
+TERMII_BASE_URL = os.environ.get('TERMII_BASE_URL', 'https://v3.api.termii.com').strip()
+SHOW_OTP_FALLBACK = os.environ.get('SHOW_OTP_FALLBACK', 'False').lower() in ('true', '1', 'yes')
 
 # Uses explicit SITE_URL if set, else auto-detects Railway public URL, else falls back to ngrok
 if os.environ.get('SITE_URL'):
