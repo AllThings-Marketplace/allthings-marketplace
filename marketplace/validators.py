@@ -2,6 +2,7 @@ import os
 import re
 from PIL import Image, UnidentifiedImageError
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 
 # Prevent decompression bombs (max 20 Megapixels ~ 4472x4472px)
 Image.MAX_IMAGE_PIXELS = 20_000_000
@@ -25,14 +26,32 @@ OFF_PLATFORM_PHRASES = [
 ]
 
 
+def _is_already_saved_file(file_obj):
+    """
+    Returns True if `file_obj` is an already-saved database/Cloudinary file
+    rather than a newly uploaded file in the current request.
+    Prevents Django Admin from re-validating extensionless Cloudinary public IDs.
+    """
+    if not file_obj:
+        return True
+    if getattr(file_obj, '_committed', False):
+        return True
+    if isinstance(file_obj, UploadedFile):
+        return False
+    if isinstance(getattr(file_obj, '_file', None), UploadedFile):
+        return False
+    return True
+
+
 def validate_product_image(image_file, max_size_mb=5, min_dim=200):
     """
     Server-side image validator:
-    1. Enforces 5MB file size limit.
-    2. Checks extension allowlist (.jpg, .jpeg, .png, .webp) — blocks SVG/scripts.
-    3. Decodes image header via Pillow to verify real format & guard against decompression bombs.
+    1. Skips files already committed to storage/Cloudinary.
+    2. Enforces 5MB file size limit.
+    3. Checks extension allowlist (.jpg, .jpeg, .png, .webp) — blocks SVG/scripts.
+    4. Decodes image header via Pillow to verify real format & guard against decompression bombs.
     """
-    if not image_file:
+    if _is_already_saved_file(image_file):
         return
 
     if image_file.size > max_size_mb * 1024 * 1024:
@@ -62,15 +81,19 @@ def validate_product_image(image_file, max_size_mb=5, min_dim=200):
     except (OSError, UnidentifiedImageError, Image.DecompressionBombError):
         raise ValidationError("The uploaded file is corrupted or not a valid image.")
     finally:
-        image_file.seek(0)
+        try:
+            image_file.seek(0)
+        except Exception:
+            pass
 
 
 def validate_kyc_document(uploaded_file, allow_pdf=True, max_size_mb=5):
     """
     Validates sensitive KYC & CAC uploads. Allows verified images (JPEG/PNG/WebP)
     and optionally PDF documents (verified via %PDF- magic header bytes).
+    Skips files already committed to storage/Cloudinary.
     """
-    if not uploaded_file:
+    if _is_already_saved_file(uploaded_file):
         return
 
     if uploaded_file.size > max_size_mb * 1024 * 1024:

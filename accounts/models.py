@@ -3,8 +3,30 @@ import uuid
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
-from marketplace.validators import validate_product_image, validate_kyc_document
+from marketplace.validators import (
+    validate_product_image as _raw_validate_product_image,
+    validate_kyc_document as _raw_validate_kyc_document,
+)
+
+
+def validate_product_image(file_obj):
+    """Only run image validation on newly uploaded files, not existing Cloudinary Public IDs."""
+    if not file_obj or getattr(file_obj, '_committed', False):
+        return
+    if not isinstance(file_obj, UploadedFile) and not isinstance(getattr(file_obj, '_file', None), UploadedFile):
+        return
+    return _raw_validate_product_image(file_obj)
+
+
+def validate_kyc_document(file_obj, allow_pdf=True):
+    """Only run KYC document validation on newly uploaded files, not existing Cloudinary Public IDs."""
+    if not file_obj or getattr(file_obj, '_committed', False):
+        return
+    if not isinstance(file_obj, UploadedFile) and not isinstance(getattr(file_obj, '_file', None), UploadedFile):
+        return
+    return _raw_validate_kyc_document(file_obj, allow_pdf=allow_pdf)
 
 
 def kyc_id_upload_path(instance, filename):
