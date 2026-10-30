@@ -1,7 +1,7 @@
 import uuid
 import requests
-from django.conf import settings
 from decimal import Decimal, InvalidOperation
+from django.conf import settings
 from django.utils import timezone
 from django.db.models import F, Q, Sum
 from django.db import transaction
@@ -17,15 +17,15 @@ from accounts.models import ProviderProfile, VendorWallet, VendorTransaction
 from orders.models import Order, OrderItem, ServiceOrder, ServiceQuote, SupportTicket
 from orders.paystack import PaystackAPI
 from marketplace.models import (
-    Product, Service, ProductImage, ServiceImage, 
+    Product, Service, ProductImage, ServiceImage,
     Category, ProductVariant, ServicePackage, CustomerRequest
 )
 
 # Utilities & AI Tasks
 from orders.utils import dispatch_gigl_rider
 from marketplace.tasks import (
-    process_product_image_task, 
-    process_service_cover_task, 
+    process_product_image_task,
+    process_service_cover_task,
     process_service_portfolio_task
 )
 from marketplace.validators import (
@@ -80,7 +80,7 @@ def provider_dashboard(request):
     profile, gate_redirect = _check_active_provider_gate(request)
     if gate_redirect:
         return gate_redirect
-    
+
     is_vendor = profile.provider_type in ['VENDOR', 'BOTH']
     is_service = profile.provider_type in ['SERVICE', 'BOTH']
 
@@ -95,24 +95,24 @@ def provider_dashboard(request):
             status__in=['PAID', 'ACCEPTED']
         ).exclude(order__status='unpaid').count()
         low_stock_count = profile.products.filter(stock_count__lt=5).count()
-    
+
     my_services = []
     pending_requests = []
     active_jobs = []
     past_jobs = []
-    
+
     if is_service:
         my_services = Service.objects.filter(provider=profile).select_related('category').order_by('-id')
         pending_requests = ServiceOrder.objects.filter(
             provider=profile,
             status='REQUESTED'
         ).select_related('service', 'customer', 'package')
-        
+
         active_jobs = ServiceOrder.objects.filter(
-            provider=profile, 
-            status__in=['QUOTE_SENT', 'ACCEPTED', 'PAID', 'IN_PROGRESS'] 
+            provider=profile,
+            status__in=['QUOTE_SENT', 'ACCEPTED', 'PAID', 'IN_PROGRESS']
         ).select_related('service', 'customer').order_by('-created_at')
-        
+
         past_jobs = ServiceOrder.objects.filter(
             provider=profile,
             status__in=['COMPLETED', 'CONFIRMED', 'DISPUTED', 'DECLINED', 'CANCELLED']
@@ -135,7 +135,7 @@ def provider_dashboard(request):
         open_leads_qs = open_leads_qs.filter(request_type='SERVICE')
 
     open_buyer_requests = list(open_leads_qs.order_by('-created_at')[:8])
-    
+
     # Wallet, Ledger History & Real-Time Withdrawal Eligibility
     wallet, _ = VendorWallet.objects.get_or_create(provider=profile)
     recent_transactions = VendorTransaction.objects.filter(wallet=wallet).order_by('-created_at')[:8]
@@ -144,7 +144,7 @@ def provider_dashboard(request):
     last_payout = VendorTransaction.objects.filter(
         wallet=wallet,
         transaction_type='PAYOUT'
-    ).order_by('-created_at').first()
+    ).exclude(status='FAILED').order_by('-created_at').first()
 
     if last_payout:
         days_since = (timezone.now() - last_payout.created_at).days
@@ -158,7 +158,7 @@ def provider_dashboard(request):
         and wallet.available_balance >= Decimal('100.00')
         and has_bank_details
     )
-    
+
     context = {
         'profile': profile,
         'wallet': wallet,
@@ -171,7 +171,7 @@ def provider_dashboard(request):
         'open_buyer_requests': open_buyer_requests,
         'pending_store_orders_count': pending_store_orders_count,
         'low_stock_count': low_stock_count,
-        'recent_transactions': recent_transactions, 
+        'recent_transactions': recent_transactions,
         'can_withdraw': can_withdraw,
         'days_left': days_left,
         'has_bank_details': has_bank_details,
@@ -192,81 +192,105 @@ def request_payout(request):
             messages.error(request, "Your account is not eligible for withdrawals.")
             return redirect('dashboard:provider_dashboard')
 
-        wallet = profile.wallet
-
-        # Check weekly withdrawal limit
-        last_payout = VendorTransaction.objects.filter(
-            wallet=wallet, 
-            transaction_type='PAYOUT'
-        ).order_by('-created_at').first()
-
-        if last_payout:
-            days_since_last_payout = (timezone.now() - last_payout.created_at).days
-            if days_since_last_payout < 7:
-                days_left = 7 - days_since_last_payout
-                messages.error(
-                    request, 
-                    f"Withdrawals are limited to once per week. You can request your next payout in {days_left} day(s)."
-                )
-                return redirect('dashboard:provider_dashboard')
-        
-        # Verify provider has banking details set up
         if not all([profile.account_name, profile.account_number, profile.bank_code]):
             messages.error(request, "Please verify your payout bank account in Store Settings before withdrawing.")
             return redirect('dashboard:provider_settings')
-        
+
         try:
-            amount = Decimal(request.POST.get('amount'))
+            amount = Decimal(request.POST.get('amount', '')).quantize(Decimal('0.01'))
         except (InvalidOperation, TypeError, ValueError):
             messages.error(request, "Please enter a valid numeric amount.")
             return redirect('dashboard:provider_dashboard')
 
-        if amount <= 0:
-            messages.error(request, "Withdrawal amount must be greater than zero.")
-        elif amount > wallet.available_balance:
-            messages.error(request, "Insufficient funds.")
-        else:
-            paystack = PaystackAPI()
-            unique_ref = f"WD-{uuid.uuid4().hex[:8].upper()}"
-            
+        if amount < Decimal('100.00'):
+            messages.error(request, "Minimum withdrawal amount is NGN 100.00.")
+            return redirect('dashboard:provider_dashboard')
+
+        unique_ref = f"WD-{uuid.uuid4().hex[:8].upper()}"
+
+        # Step 1: Lock wallet row, verify cooldown & funds, and reserve balance atomically
+        with transaction.atomic():
+            wallet = VendorWallet.objects.select_for_update().get(provider=profile)
+
+            last_payout = VendorTransaction.objects.filter(
+                wallet=wallet,
+                transaction_type='PAYOUT'
+            ).exclude(status='FAILED').order_by('-created_at').first()
+
+            if last_payout:
+                days_since_last_payout = (timezone.now() - last_payout.created_at).days
+                if days_since_last_payout < 7:
+                    days_left = 7 - days_since_last_payout
+                    messages.error(
+                        request,
+                        f"Withdrawals are limited to once per week. You can request your next payout in {days_left} day(s)."
+                    )
+                    return redirect('dashboard:provider_dashboard')
+
+            if amount > wallet.available_balance:
+                messages.error(request, "Insufficient available balance for this withdrawal.")
+                return redirect('dashboard:provider_dashboard')
+
+            wallet.available_balance -= amount
+            wallet.total_withdrawn += amount
+            wallet.save(update_fields=['available_balance', 'total_withdrawn', 'last_updated'])
+
+            payout_tx = VendorTransaction.objects.create(
+                wallet=wallet,
+                transaction_type='PAYOUT',
+                gross_amount=amount,
+                commission=Decimal('0.00'),
+                net_amount=amount,
+                reference=unique_ref,
+                status='PENDING'
+            )
+
+        # Step 2: Dispatch Paystack transfer outside the DB lock
+        paystack = PaystackAPI()
+        transfer_succeeded = False
+        failure_reason = "Transfer could not be completed."
+
+        try:
             recipient_response = paystack.create_transfer_recipient(
                 name=profile.account_name,
                 account_number=profile.account_number,
                 bank_code=profile.bank_code
             )
-            
-            if not recipient_response.get('status'):
-                messages.error(request, f"Bank Verification Failed: {recipient_response.get('message')}")
-                return redirect('dashboard:provider_dashboard')
-                
-            recipient_code = recipient_response['data']['recipient_code']
-            
-            transfer_response = paystack.initiate_transfer(
-                amount_in_naira=amount,
-                recipient_code=recipient_code,
-                reference=unique_ref,
-                reason=f"AllThings Payout for {profile.business_name}"
-            )
-            
-            if transfer_response.get('status'):
-                with transaction.atomic():
-                    wallet.available_balance -= amount
-                    wallet.total_withdrawn += amount
-                    wallet.save()
 
-                    VendorTransaction.objects.create(
-                        wallet=wallet,
-                        transaction_type='PAYOUT',
-                        gross_amount=amount,
-                        commission=Decimal('0.00'),
-                        net_amount=amount,
-                        reference=unique_ref,
-                        status='PENDING'
-                    )
-                
-                messages.success(request, "Withdrawal initiated successfully! The funds will reflect in your bank account shortly.")
+            if recipient_response.get('status'):
+                recipient_code = recipient_response['data']['recipient_code']
+                transfer_response = paystack.initiate_transfer(
+                    amount_in_naira=amount,
+                    recipient_code=recipient_code,
+                    reference=unique_ref,
+                    reason=f"AllThings Payout for {profile.business_name}"
+                )
+                if transfer_response.get('status'):
+                    transfer_succeeded = True
+                else:
+                    failure_reason = f"Transfer Failed: {transfer_response.get('message', 'Gateway error')}"
             else:
-                messages.error(request, f"Transfer Failed: {transfer_response.get('message')}")
+                failure_reason = f"Bank Verification Failed: {recipient_response.get('message', 'Invalid recipient')}"
+        except Exception as exc:
+            failure_reason = f"Payment gateway communication error: {str(exc)}"
+
+        # Step 3: If Paystack rejected the transfer, refund the wallet atomically and mark FAILED
+        if transfer_succeeded:
+            messages.success(
+                request,
+                f"Withdrawal of NGN {amount:,.2f} initiated! The funds will reflect in your bank account shortly."
+            )
+        else:
+            with transaction.atomic():
+                wallet = VendorWallet.objects.select_for_update().get(provider=profile)
+                wallet.available_balance += amount
+                wallet.total_withdrawn = max(Decimal('0.00'), wallet.total_withdrawn - amount)
+                wallet.save(update_fields=['available_balance', 'total_withdrawn', 'last_updated'])
+
+                payout_tx.status = 'FAILED'
+                payout_tx.save(update_fields=['status'])
+
+            messages.error(request, failure_reason)
 
     return redirect('dashboard:provider_dashboard')
 
@@ -314,14 +338,14 @@ def add_product(request):
 
                 dynamic_attributes = {}
                 schema = category.attribute_schema
-                
+
                 if schema:
                     for attr in schema:
                         attr_name = attr.get('name', '')
                         is_required = attr.get('required', False)
                         expected_field_name = f"attr_{attr_name.lower().replace(' ', '_')}"
                         submitted_value = request.POST.get(expected_field_name, '').strip()
-                        
+
                         if is_required and not submitted_value:
                             raise ValidationError(f"The specification '{attr_name}' is required for this category.")
                         if submitted_value:
@@ -356,10 +380,10 @@ def add_product(request):
                     shipping_class=shipping_class,
                     weight_kg=weight_kg,
                     description=description,
-                    attributes=dynamic_attributes, 
+                    attributes=dynamic_attributes,
                     status=Product.ProductStatus.PENDING,
                     moderation_note=flag_reason if is_flagged else '',
-                    is_active=False 
+                    is_active=False
                 )
 
                 variant_names = request.POST.getlist('variant_names[]')
@@ -377,7 +401,7 @@ def add_product(request):
                             safe_price = Decimal(price.strip()) if price.strip() else None
                         except InvalidOperation:
                             safe_price = None
-                            
+
                         safe_stock = int(stock.strip()) if stock.strip().isdigit() else 0
                         total_variant_stock += safe_stock
 
@@ -434,7 +458,7 @@ def upload_product_images(request, product_id):
 
     if request.method == 'POST':
         uploaded_files = request.FILES.getlist('images')
-        
+
         if not uploaded_files:
             messages.error(request, "Please select at least one image to upload.")
             return redirect('dashboard:provider_dashboard')
@@ -462,10 +486,10 @@ def upload_product_images(request, product_id):
                 processing_status='UPLOADED'
             )
             _dispatch_task_safely(process_product_image_task, new_image.id)
-        
+
         messages.success(request, f"Successfully uploaded {len(uploaded_files)} image(s). Our system is optimizing them now.")
         return redirect('dashboard:provider_dashboard')
-        
+
     return render(request, 'marketplace/upload_images.html', {'product': product})
 
 
@@ -498,7 +522,7 @@ def add_service(request):
 
                 category = Category.objects.get(id=request.POST.get('category_id'))
                 pricing_type = request.POST.get('pricing_type')
-                
+
                 included_list = [i.strip() for i in included_raw.split(',') if i.strip()]
                 excluded_list = [i.strip() for i in excluded_raw.split(',') if i.strip()]
 
@@ -600,12 +624,13 @@ def edit_service(request, service_id):
                 description = request.POST.get('description', service.description).strip()
                 included_raw = request.POST.get('whats_included', '')
                 excluded_raw = request.POST.get('whats_excluded', '')
+                pkg_features = request.POST.getlist('pkg_features[]')
 
-                # Re-verify anti-leakage safety on edit
+                # Re-verify anti-leakage safety on edit (including package features)
                 is_flagged, flag_reason = inspect_listing_safety(
                     title=name,
                     description=description,
-                    extra_texts=[included_raw, excluded_raw],
+                    extra_texts=[included_raw, excluded_raw, *pkg_features],
                     provider=profile
                 )
 
@@ -626,32 +651,69 @@ def edit_service(request, service_id):
                 category_id = request.POST.get('category_id')
                 if category_id:
                     service.category_id = category_id
-                
+
                 service.name = name
                 service.description = description
-                
+
                 submitted_mode = request.POST.get('service_mode', service.service_mode)
                 if submitted_mode in dict(Service.ServiceMode.choices):
                     service.service_mode = submitted_mode
-                
+
+                submitted_pricing = request.POST.get('pricing_type', service.pricing_type)
+                if hasattr(Service, 'PricingType') and submitted_pricing in dict(Service.PricingType.choices):
+                    service.pricing_type = submitted_pricing
+
                 radius_raw = request.POST.get('service_radius_km', '').strip()
                 service.service_radius_km = int(radius_raw) if radius_raw.isdigit() else None
-                
+
                 service.whats_included = [i.strip() for i in included_raw.split(',') if i.strip()]
                 service.whats_excluded = [i.strip() for i in excluded_raw.split(',') if i.strip()]
 
                 base_price_raw = request.POST.get('base_price')
                 if base_price_raw and service.pricing_type not in ['QUOTE', 'PACKAGES']:
                     service.base_price = Decimal(base_price_raw.strip())
+                elif service.pricing_type in ['QUOTE', 'PACKAGES']:
+                    service.base_price = None
 
+                # Sync Service Packages if submitted
+                if service.pricing_type == 'PACKAGES' and 'pkg_names[]' in request.POST:
+                    pkg_names = request.POST.getlist('pkg_names[]')
+                    pkg_prices = request.POST.getlist('pkg_prices[]')
+                    pkg_durations = request.POST.getlist('pkg_durations[]')
+
+                    valid_packages = []
+                    for p_name, price, dur, feat in zip(pkg_names, pkg_prices, pkg_durations, pkg_features):
+                        if p_name.strip() and price.strip():
+                            valid_packages.append({
+                                'name': p_name.strip(),
+                                'price': Decimal(price.strip()),
+                                'estimated_duration': dur.strip(),
+                                'features': [f.strip() for f in feat.split(',') if f.strip()],
+                            })
+                    if valid_packages:
+                        service.packages.all().delete()
+                        for pkg_data in valid_packages:
+                            ServicePackage.objects.create(service=service, **pkg_data)
+
+                # Moderation Recovery Logic
+                was_rejected = (service.status == Service.ServiceStatus.REJECTED)
                 if is_flagged:
                     service.status = Service.ServiceStatus.PENDING
                     service.moderation_note = flag_reason
                     service.is_active = False
-                elif service.status != Service.ServiceStatus.REJECTED:
+                elif was_rejected:
+                    # Resubmitted after rejection: queue for admin review
+                    service.status = Service.ServiceStatus.PENDING
+                    service.moderation_note = ''
+                    service.is_active = False
+                elif getattr(profile, 'trust_score', 100) >= 50:
                     service.status = Service.ServiceStatus.APPROVED
                     service.moderation_note = ''
                     service.is_active = True
+                else:
+                    service.status = Service.ServiceStatus.PENDING
+                    service.moderation_note = ''
+                    service.is_active = False
 
                 if new_cover:
                     service.cover_image = new_cover
@@ -669,6 +731,8 @@ def edit_service(request, service_id):
 
             if is_flagged:
                 messages.warning(request, f"Changes saved, but '{service.name}' was placed under review: {flag_reason}")
+            elif was_rejected:
+                messages.info(request, f"'{service.name}' has been updated and resubmitted for admin review.")
             else:
                 messages.success(request, f"'{service.name}' was updated successfully!")
             return redirect('dashboard:provider_dashboard')
@@ -680,10 +744,11 @@ def edit_service(request, service_id):
             messages.error(request, f"Error updating service: {str(e)}")
 
     parent_categories = _get_categories_for_type('SERVICE')
-    
+
     context = {
         'service': service,
-        'parent_categories': parent_categories
+        'parent_categories': parent_categories,
+        'packages': service.packages.all(),
     }
     return render(request, 'dashboard/edit_service.html', context)
 
@@ -695,62 +760,137 @@ def edit_product(request, product_id):
         return gate_redirect
 
     product = get_object_or_404(Product, id=product_id, provider=profile)
-    
+
     if request.method == 'POST':
         try:
-            name = request.POST.get('name', product.name).strip()
-            description = request.POST.get('description', product.description).strip()
+            with transaction.atomic():
+                name = request.POST.get('name', product.name).strip()
+                description = request.POST.get('description', product.description).strip()
 
-            is_flagged, flag_reason = inspect_listing_safety(
-                title=name,
-                description=description,
-                provider=profile
-            )
+                is_flagged, flag_reason = inspect_listing_safety(
+                    title=name,
+                    description=description,
+                    provider=profile
+                )
 
-            product.name = name
-            category_id = request.POST.get('category_id')
-            if category_id:
-                product.category_id = category_id
-            product.price = request.POST.get('price', product.price)
-            
-            stock_input = request.POST.get('stock_count', '').strip()
-            product.stock_count = int(stock_input) if stock_input.isdigit() else 0
+                product.name = name
+                category_id = request.POST.get('category_id')
+                if category_id:
+                    product.category = Category.objects.get(id=category_id)
 
-            shipping_class = request.POST.get('shipping_class', product.shipping_class)
-            if shipping_class in dict(Product.ShippingClass.choices):
-                product.shipping_class = shipping_class
+                product.price = Decimal(str(request.POST.get('price', product.price)).strip())
 
-            try:
-                weight_val = Decimal(request.POST.get('weight_kg', product.weight_kg))
-                if weight_val > 0:
-                    product.weight_kg = weight_val
-            except (InvalidOperation, TypeError, ValueError):
-                pass
-            
-            product.description = description
+                stock_input = request.POST.get('stock_count', '').strip()
+                if stock_input.isdigit():
+                    product.stock_count = int(stock_input)
 
-            if is_flagged:
-                product.status = Product.ProductStatus.PENDING
-                product.moderation_note = flag_reason
-                product.is_active = False
-            
-            product.save()
+                shipping_class = request.POST.get('shipping_class', product.shipping_class)
+                if shipping_class in dict(Product.ShippingClass.choices):
+                    product.shipping_class = shipping_class
+
+                try:
+                    weight_val = Decimal(request.POST.get('weight_kg', product.weight_kg))
+                    if weight_val > 0:
+                        product.weight_kg = weight_val
+                except (InvalidOperation, TypeError, ValueError):
+                    pass
+
+                product.description = description
+
+                # Sync Dynamic Category Attributes if submitted in the form
+                schema = product.category.attribute_schema if product.category else []
+                has_submitted_attrs = any(k.startswith('attr_') for k in request.POST.keys())
+                if schema and has_submitted_attrs:
+                    updated_attributes = dict(product.attributes or {})
+                    for attr in schema:
+                        attr_name = attr.get('name', '')
+                        is_required = attr.get('required', False)
+                        field_key = f"attr_{attr_name.lower().replace(' ', '_')}"
+                        if field_key in request.POST:
+                            val = request.POST.get(field_key, '').strip()
+                            if is_required and not val:
+                                raise ValidationError(f"The specification '{attr_name}' is required for this category.")
+                            if val:
+                                updated_attributes[attr_name] = val
+                            else:
+                                updated_attributes.pop(attr_name, None)
+                    product.attributes = updated_attributes
+
+                # Sync Product Variants if submitted in the form
+                if 'variant_names[]' in request.POST:
+                    variant_names = request.POST.getlist('variant_names[]')
+                    variant_values = request.POST.getlist('variant_values[]')
+                    variant_prices = request.POST.getlist('variant_prices[]')
+                    variant_stocks = request.POST.getlist('variant_stocks[]')
+
+                    product.variants.all().delete()
+                    has_variants = False
+                    total_variant_stock = 0
+
+                    for v_name, value, price, stock in zip(variant_names, variant_values, variant_prices, variant_stocks):
+                        if v_name.strip() and value.strip():
+                            has_variants = True
+                            try:
+                                safe_price = Decimal(price.strip()) if price.strip() else None
+                            except InvalidOperation:
+                                safe_price = None
+
+                            safe_stock = int(stock.strip()) if stock.strip().isdigit() else 0
+                            total_variant_stock += safe_stock
+
+                            ProductVariant.objects.create(
+                                product=product,
+                                attribute_name=v_name.strip(),
+                                attribute_value=value.strip(),
+                                price_override=safe_price,
+                                stock=safe_stock
+                            )
+
+                    if has_variants:
+                        product.stock_count = total_variant_stock
+
+                # Moderation Recovery Logic
+                was_rejected = (product.status == Product.ProductStatus.REJECTED)
+                if is_flagged:
+                    product.status = Product.ProductStatus.PENDING
+                    product.moderation_note = flag_reason
+                    product.is_active = False
+                else:
+                    product.moderation_note = ''
+                    has_ready_images = product.images.filter(processing_status='COMPLETED').exists() or product.images.exists()
+                    if was_rejected:
+                        product.status = Product.ProductStatus.PENDING
+                        product.is_active = False
+                    elif getattr(profile, 'trust_score', 100) >= 50 and has_ready_images:
+                        product.status = Product.ProductStatus.APPROVED
+                        product.is_active = True
+                    else:
+                        product.status = Product.ProductStatus.PENDING
+
+                product.save()
 
             if is_flagged:
                 messages.warning(request, f"Changes saved, but '{product.name}' was flagged for review: {flag_reason}")
+            elif was_rejected:
+                messages.info(request, f"'{product.name}' has been updated and resubmitted for admin review.")
             else:
                 messages.success(request, f"'{product.name}' has been updated successfully.")
             return redirect('dashboard:provider_dashboard')
 
+        except Category.DoesNotExist:
+            messages.error(request, "Invalid category selected.")
         except ValidationError as e:
             error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
             messages.error(request, error_msg)
+        except Exception as e:
+            messages.error(request, f"Error updating product: {str(e)}")
 
     parent_categories = _get_categories_for_type('PRODUCT')
-    
+
     context = {
         'product': product,
         'parent_categories': parent_categories,
+        'variants': product.variants.all(),
     }
     return render(request, 'dashboard/edit_product.html', context)
 
@@ -762,7 +902,7 @@ def vendor_orders(request):
     profile, gate_redirect = _check_active_provider_gate(request)
     if gate_redirect:
         return gate_redirect
-    
+
     if profile.provider_type not in ['VENDOR', 'BOTH']:
         messages.error(request, "Only product vendors can manage store orders.")
         return redirect('dashboard:provider_dashboard')
@@ -770,11 +910,11 @@ def vendor_orders(request):
     vendor_items = OrderItem.objects.filter(
         product__provider=profile
     ).exclude(order__status='unpaid').select_related('order', 'product', 'variant')
-    
+
     total_revenue = vendor_items.filter(status='COMPLETED').aggregate(
         total=Sum(F('price') * F('quantity'))
     )['total'] or 0.00
-    
+
     net_earnings = float(total_revenue) * 0.90
     pending_fulfillment = vendor_items.filter(status__in=['PAID', 'ACCEPTED']).count()
     low_stock_alerts = Product.objects.filter(provider=profile, stock_count__lt=5)
@@ -797,20 +937,20 @@ def update_item_status(request, item_id, new_status):
 
     if request.method == 'POST':
         item = get_object_or_404(OrderItem, id=item_id, product__provider=profile)
-        
+
         valid_transitions = {
             'PAID': ['ACCEPTED', 'CANCELLED'],
             'ACCEPTED': ['READY_FOR_PICKUP'],
         }
-        
+
         current_status = item.status
-        
+
         if current_status in valid_transitions and new_status in valid_transitions[current_status]:
             item.status = new_status
-            
+
             if new_status == 'READY_FOR_PICKUP':
                 dispatch_gigl_rider(item)
-            
+
             item.save(update_fields=['status'])
             messages.success(request, f"Order status updated to: {item.get_status_display()}")
         else:
@@ -826,10 +966,10 @@ def accept_service_request(request, order_id):
 
     if request.method == 'POST':
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='REQUESTED')
-        
+
         service_order.status = 'ACCEPTED'
         service_order.save(update_fields=['status'])
-        
+
         messages.success(request, f"You accepted the request for {service_order.service.name}. The customer has been notified to make payment.")
     return redirect('dashboard:provider_dashboard')
 
@@ -842,10 +982,10 @@ def decline_service_request(request, order_id):
 
     if request.method == 'POST':
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='REQUESTED')
-        
+
         service_order.status = 'DECLINED'
         service_order.save(update_fields=['status'])
-        
+
         messages.info(request, f"You declined the request for {service_order.service.name}.")
     return redirect('dashboard:provider_dashboard')
 
@@ -858,10 +998,10 @@ def provider_start_service(request, order_id):
 
     if request.method == 'POST':
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='PAID')
-        
+
         service_order.status = 'IN_PROGRESS'
         service_order.save(update_fields=['status'])
-        
+
         messages.success(request, f"You have started work on '{service_order.service.name}'.")
     return redirect('dashboard:provider_dashboard')
 
@@ -874,11 +1014,11 @@ def provider_complete_service(request, order_id):
 
     if request.method == 'POST':
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='IN_PROGRESS')
-        
+
         service_order.status = 'COMPLETED'
         service_order.completed_at = timezone.now()
         service_order.save(update_fields=['status', 'completed_at'])
-        
+
         messages.success(request, f"You marked '{service_order.service.name}' as completed. Waiting for customer confirmation.")
     return redirect('dashboard:provider_dashboard')
 
@@ -891,7 +1031,7 @@ def send_quote(request, order_id):
 
     if request.method == 'POST':
         service_order = get_object_or_404(ServiceOrder, id=order_id, provider=profile, status='REQUESTED')
-        
+
         labor_cost = request.POST.get('labor_cost', 0)
         materials_cost = request.POST.get('materials_cost', 0)
         provider_notes = request.POST.get('provider_notes', '')
@@ -903,13 +1043,13 @@ def send_quote(request, order_id):
                 materials_cost=Decimal(str(materials_cost or 0)),
                 provider_notes=provider_notes
             )
-            
+
             service_order.status = 'QUOTE_SENT'
             service_order.agreed_price = quote.total_amount
             service_order.save(update_fields=['status', 'agreed_price'])
 
             messages.success(request, f"Quote for NGN {quote.total_amount:,.2f} sent to the customer!")
-            
+
         except Exception as e:
             messages.error(request, f"Error generating quote: {str(e)}")
 
@@ -943,7 +1083,9 @@ def provider_settings(request):
                     return redirect('dashboard:provider_settings')
 
             profile.business_category = request.POST.get('business_category', '').strip()
-            profile.phone = request.POST.get('phone', '').strip()
+            submitted_phone = request.POST.get('phone', '').strip()
+            if submitted_phone:
+                profile.phone = submitted_phone
             profile.business_description = request.POST.get('business_description', '').strip()
             profile.save()
             messages.success(request, "Public storefront settings updated!")
@@ -964,9 +1106,9 @@ def provider_settings(request):
             profile.store_address = store_address
             if lat and lon:
                 try:
-                    profile.latitude = float(lat)
-                    profile.longitude = float(lon)
-                except ValueError:
+                    profile.latitude = Decimal(str(lat))
+                    profile.longitude = Decimal(str(lon))
+                except (InvalidOperation, ValueError):
                     pass
             profile.save()
             messages.success(request, f"Dispatch hub updated to {region}. All checkout shipping quotes will now calculate from this location.")
