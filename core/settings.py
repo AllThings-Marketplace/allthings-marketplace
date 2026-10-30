@@ -255,18 +255,18 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 
 # ==============================================================================
-# 6. EMAIL CONFIGURATION
+# 6. EMAIL CONFIGURATION (Brevo HTTPS Port 443 API + SMTP/Console Fallbacks)
 # ==============================================================================
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com').strip()
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').strip()
 BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '').strip()
-EMAIL_TIMEOUT = 8  # Prevents Gunicorn worker hangs when SMTP ports are blocked
+EMAIL_TIMEOUT = 8  # Strict socket/HTTP timeout so Gunicorn workers never hang
 
-if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com')
-    EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-    EMAIL_USE_TLS = True
+if BREVO_API_KEY or (EMAIL_HOST_USER and EMAIL_HOST_PASSWORD):
+    EMAIL_BACKEND = 'core.email_backend.BrevoAPIEmailBackend'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
@@ -274,6 +274,7 @@ DEFAULT_FROM_EMAIL = os.environ.get(
     'DEFAULT_FROM_EMAIL',
     f"AllThings Marketplace <{EMAIL_HOST_USER or 'noreply@allthings.com'}>"
 )
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 
 # ==============================================================================
