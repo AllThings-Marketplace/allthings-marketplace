@@ -304,6 +304,9 @@ CELERY_BEAT_SCHEDULE = {
 # ==============================================================================
 # 8. AUTHENTICATION REDIRECTS & THIRD-PARTY GATEWAYS
 # ==============================================================================
+AUTH_USER_MODEL = 'accounts.User'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 LOGIN_REDIRECT_URL = 'marketplace:home'
 LOGOUT_REDIRECT_URL = 'marketplace:home'
 LOGIN_URL = 'accounts:login'
