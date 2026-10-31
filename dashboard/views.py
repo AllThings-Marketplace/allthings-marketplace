@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.db.models import F, Q, Sum
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.contrib.contenttypes.models import ContentType
 
 # Django Core & Auth
 from django.shortcuts import render, redirect, get_object_or_404
@@ -14,16 +15,16 @@ from django.contrib import messages
 
 # Models from your other apps
 from accounts.models import ProviderProfile, VendorWallet, VendorTransaction
-from orders.tasks import trigger_escrow_auto_clear_if_due
 from orders.models import Order, OrderItem, ServiceOrder, ServiceQuote, SupportTicket
 from orders.paystack import PaystackAPI
+from orders.tasks import trigger_escrow_auto_clear_if_due
+from orders.utils import dispatch_gigl_rider, refund_item_escrow
 from marketplace.models import (
     Product, Service, ProductImage, ServiceImage,
     Category, ProductVariant, ServicePackage, CustomerRequest
 )
 
 # Utilities & AI Tasks
-from orders.utils import dispatch_gigl_rider
 from marketplace.tasks import (
     process_product_image_task,
     process_service_cover_task,
@@ -35,6 +36,30 @@ from marketplace.validators import (
     MAX_PRODUCT_IMAGES,
     MAX_PORTFOLIO_IMAGES,
 )
+
+
+def _notify_user(recipient, title, message, target_obj=None, notif_type='ORDER'):
+    """
+    Creates an in-app Bell Notification and triggers the Brevo email signal
+    when a provider updates an order or service booking.
+    """
+    if not recipient:
+        return
+    try:
+        from notifications.models import Notification
+        ct = ContentType.objects.get_for_model(target_obj) if target_obj else None
+        obj_id = target_obj.id if target_obj else None
+
+        Notification.objects.create(
+            recipient=recipient,
+            notification_type=notif_type,
+            title=title,
+            message=message,
+            content_type=ct,
+            object_id=obj_id,
+        )
+    except Exception:
+        pass
 
 
 def _get_categories_for_type(cat_type):
@@ -938,25 +963,65 @@ def update_item_status(request, item_id, new_status):
         return gate_redirect
 
     if request.method == 'POST':
-        item = get_object_or_404(OrderItem, id=item_id, product__provider=profile)
-
         valid_transitions = {
             'PAID': ['ACCEPTED', 'CANCELLED'],
             'ACCEPTED': ['READY_FOR_PICKUP'],
         }
 
-        current_status = item.status
+        with transaction.atomic():
+            item = (
+                OrderItem.objects.select_for_update()
+                .select_related('order__customer', 'product', 'variant')
+                .filter(id=item_id, product__provider=profile)
+                .first()
+            )
+            if not item:
+                return redirect('dashboard:vendor_orders')
 
-        if current_status in valid_transitions and new_status in valid_transitions[current_status]:
+            current_status = item.status
+            if current_status not in valid_transitions or new_status not in valid_transitions[current_status]:
+                messages.error(request, "You cannot perform that action right now.")
+                return redirect('dashboard:vendor_orders')
+
             item.status = new_status
+            item.save(update_fields=['status'])
 
             if new_status == 'READY_FOR_PICKUP':
                 dispatch_gigl_rider(item)
+            elif new_status == 'CANCELLED':
+                # Reverse pending escrow from vendor wallet and restore product inventory
+                refund_item_escrow(item)
+                if item.variant:
+                    item.variant.stock = F('stock') + item.quantity
+                    item.variant.save(update_fields=['stock'])
+                if item.product:
+                    item.product.stock_count = F('stock_count') + item.quantity
+                    item.product.save(update_fields=['stock_count'])
 
-            item.save(update_fields=['status'])
-            messages.success(request, f"Order status updated to: {item.get_status_display()}")
-        else:
-            messages.error(request, "You cannot perform that action right now.")
+        product_title = item.product.name if item.product else f"Item #{item.id}"
+        if new_status == 'ACCEPTED':
+            _notify_user(
+                recipient=item.order.customer,
+                title=f"Order Item Accepted ({item.order.reference})",
+                message=f"'{product_title}' is now being packaged by {profile.business_name}.",
+                target_obj=item.order,
+            )
+        elif new_status == 'READY_FOR_PICKUP':
+            _notify_user(
+                recipient=item.order.customer,
+                title=f"Item Dispatched ({item.order.reference})",
+                message=f"'{product_title}' is ready for courier pickup! Share your 6-digit delivery PIN only when the item reaches you.",
+                target_obj=item.order,
+            )
+        elif new_status == 'CANCELLED':
+            _notify_user(
+                recipient=item.order.customer,
+                title=f"Order Item Cancelled ({item.order.reference})",
+                message=f"{profile.business_name} could not fulfill '{product_title}'. Escrow for this item has been released for refund.",
+                target_obj=item.order,
+            )
+
+        messages.success(request, f"Order status updated to: {item.get_status_display()}")
     return redirect('dashboard:vendor_orders')
 
 
@@ -972,7 +1037,15 @@ def accept_service_request(request, order_id):
         service_order.status = 'ACCEPTED'
         service_order.save(update_fields=['status'])
 
-        messages.success(request, f"You accepted the request for {service_order.service.name}. The customer has been notified to make payment.")
+        service_name = service_order.service.name if service_order.service else service_order.reference_code
+        _notify_user(
+            recipient=service_order.customer,
+            title=f"Booking Accepted ({service_order.reference_code})",
+            message=f"{profile.business_name} accepted your booking for '{service_name}'. Please fund escrow in your Orders dashboard so work can begin.",
+            target_obj=service_order,
+        )
+
+        messages.success(request, f"You accepted the request for {service_name}. The customer has been notified to make payment.")
     return redirect('dashboard:provider_dashboard')
 
 
@@ -988,7 +1061,15 @@ def decline_service_request(request, order_id):
         service_order.status = 'DECLINED'
         service_order.save(update_fields=['status'])
 
-        messages.info(request, f"You declined the request for {service_order.service.name}.")
+        service_name = service_order.service.name if service_order.service else service_order.reference_code
+        _notify_user(
+            recipient=service_order.customer,
+            title=f"Booking Declined ({service_order.reference_code})",
+            message=f"{profile.business_name} is unavailable for '{service_name}' at the requested time.",
+            target_obj=service_order,
+        )
+
+        messages.info(request, f"You declined the request for {service_name}.")
     return redirect('dashboard:provider_dashboard')
 
 
@@ -1004,7 +1085,15 @@ def provider_start_service(request, order_id):
         service_order.status = 'IN_PROGRESS'
         service_order.save(update_fields=['status'])
 
-        messages.success(request, f"You have started work on '{service_order.service.name}'.")
+        service_name = service_order.service.name if service_order.service else service_order.reference_code
+        _notify_user(
+            recipient=service_order.customer,
+            title=f"Service In Progress ({service_order.reference_code})",
+            message=f"{profile.business_name} has started work on '{service_name}'.",
+            target_obj=service_order,
+        )
+
+        messages.success(request, f"You have started work on '{service_name}'.")
     return redirect('dashboard:provider_dashboard')
 
 
@@ -1021,7 +1110,15 @@ def provider_complete_service(request, order_id):
         service_order.completed_at = timezone.now()
         service_order.save(update_fields=['status', 'completed_at'])
 
-        messages.success(request, f"You marked '{service_order.service.name}' as completed. Waiting for customer confirmation.")
+        service_name = service_order.service.name if service_order.service else service_order.reference_code
+        _notify_user(
+            recipient=service_order.customer,
+            title=f"Service Completed — Please Confirm ({service_order.reference_code})",
+            message=f"{profile.business_name} marked '{service_name}' as completed. Please review and confirm completion in your Orders dashboard to release escrow.",
+            target_obj=service_order,
+        )
+
+        messages.success(request, f"You marked '{service_name}' as completed. Waiting for customer confirmation.")
     return redirect('dashboard:provider_dashboard')
 
 
@@ -1039,16 +1136,27 @@ def send_quote(request, order_id):
         provider_notes = request.POST.get('provider_notes', '')
 
         try:
-            quote = ServiceQuote.objects.create(
-                order=service_order,
-                labor_cost=Decimal(str(labor_cost or 0)),
-                materials_cost=Decimal(str(materials_cost or 0)),
-                provider_notes=provider_notes
-            )
+            with transaction.atomic():
+                quote, _ = ServiceQuote.objects.update_or_create(
+                    order=service_order,
+                    defaults={
+                        'labor_cost': Decimal(str(labor_cost or 0)),
+                        'materials_cost': Decimal(str(materials_cost or 0)),
+                        'provider_notes': provider_notes,
+                    }
+                )
 
-            service_order.status = 'QUOTE_SENT'
-            service_order.agreed_price = quote.total_amount
-            service_order.save(update_fields=['status', 'agreed_price'])
+                service_order.status = 'QUOTE_SENT'
+                service_order.agreed_price = quote.total_amount
+                service_order.save(update_fields=['status', 'agreed_price'])
+
+            service_name = service_order.service.name if service_order.service else service_order.reference_code
+            _notify_user(
+                recipient=service_order.customer,
+                title=f"New Service Quote: NGN {quote.total_amount:,.2f} ({service_order.reference_code})",
+                message=f"{profile.business_name} sent a custom quote of NGN {quote.total_amount:,.2f} for '{service_name}'. Review and accept in your Orders dashboard.",
+                target_obj=service_order,
+            )
 
             messages.success(request, f"Quote for NGN {quote.total_amount:,.2f} sent to the customer!")
 
