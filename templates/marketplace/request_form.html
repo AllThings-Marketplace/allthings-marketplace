@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.6">
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.7">
 {% endblock %}
 
 {% block content %}
@@ -32,7 +32,7 @@
                     <i class="fa-solid fa-box-open"></i>
                     <div>
                         <strong>Physical Product</strong>
-                        <small>Hardware, cables, inverters, appliances, tools</small>
+                        <small>Phones, laptops, fashion, appliances, groceries, solar &amp; hardware</small>
                     </div>
                 </button>
                 <button type="button"
@@ -41,7 +41,7 @@
                     <i class="fa-solid fa-screwdriver-wrench"></i>
                     <div>
                         <strong>Professional Service</strong>
-                        <small>Electrician, solar installer, HVAC, repairs</small>
+                        <small>Web &amp; design, beauty &amp; tailoring, repairs, cleaning, catering &amp; engineering</small>
                     </div>
                 </button>
             </div>
@@ -49,7 +49,7 @@
             <!-- 2. Core Request Details (Pre-filled from Search Bar) -->
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label id="requestTitleLabel" class="form-label-dark">
+                    <label id="requestTitleLabel" class="form-label-dark" for="requestTitleInput">
                         {% if initial_type == 'SERVICE' %}Service Needed *{% else %}Product Name / Model *{% endif %}
                     </label>
                     <input type="text"
@@ -57,13 +57,15 @@
                            id="requestTitleInput"
                            class="form-control"
                            value="{{ initial_query }}"
-                           placeholder="E.g., 5kVA Hybrid Solar Inverter or Certified Electrician"
+                           data-product-placeholder="E.g., Samsung Galaxy S24 Ultra, HP EliteBook, or 5kVA Hybrid Inverter"
+                           data-service-placeholder="E.g., Full-Stack Web Developer, Bridal Makeup Artist, or Split AC Installer"
+                           placeholder="{% if initial_type == 'SERVICE' %}E.g., Full-Stack Web Developer, Bridal Makeup Artist, or Split AC Installer{% else %}E.g., Samsung Galaxy S24 Ultra, HP EliteBook, or 5kVA Hybrid Inverter{% endif %}"
                            required>
                 </div>
 
                 <!-- Product Category Select -->
                 <div class="form-group {% if initial_type == 'SERVICE' %}hidden-initial{% endif %}" id="productCategoryGroup">
-                    <label class="form-label-dark">Product Category *</label>
+                    <label class="form-label-dark" for="productCategorySelect">Product Department *</label>
                     <select name="category_id" id="productCategorySelect" class="form-control" {% if initial_type == 'SERVICE' %}disabled{% endif %}>
                         <option value="">Select product department...</option>
                         {% for cat in product_categories %}
@@ -74,7 +76,7 @@
 
                 <!-- Service Category Select -->
                 <div class="form-group {% if initial_type == 'PRODUCT' %}hidden-initial{% endif %}" id="serviceCategoryGroup">
-                    <label class="form-label-dark">Service Category *</label>
+                    <label class="form-label-dark" for="serviceCategorySelect">Service Department *</label>
                     <select name="category_id" id="serviceCategorySelect" class="form-control" {% if initial_type == 'PRODUCT' %}disabled{% endif %}>
                         <option value="">Select service specialty...</option>
                         {% for cat in service_categories %}
@@ -88,12 +90,17 @@
             <div id="productSpecificFields" class="{% if initial_type == 'SERVICE' %}hidden-initial{% endif %}">
                 <div class="form-grid-3">
                     <div class="form-group">
-                        <label class="form-label-dark">Preferred Brand (Optional)</label>
-                        <input type="text" name="brand" class="form-control" placeholder="E.g., Coleman, Luminous, Schneider">
+                        <label class="form-label-dark" for="productBrandInput">Preferred Brand (Optional)</label>
+                        <input type="text"
+                               name="brand"
+                               id="productBrandInput"
+                               class="form-control"
+                               placeholder="E.g., Samsung, Apple, HP, LG, Felicity"
+                               {% if initial_type == 'SERVICE' %}disabled{% endif %}>
                     </div>
                     <div class="form-group">
-                        <label class="form-label-dark">Condition</label>
-                        <select name="condition" class="form-control">
+                        <label class="form-label-dark" for="productConditionSelect">Condition</label>
+                        <select name="condition" id="productConditionSelect" class="form-control" {% if initial_type == 'SERVICE' %}disabled{% endif %}>
                             <option value="NEW">Brand New</option>
                             <option value="REFURBISHED">Refurbished / Foreign Used</option>
                             <option value="USED">Local Used</option>
@@ -101,8 +108,13 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label-dark">Key Specifications (Optional)</label>
-                        <input type="text" name="specifications" class="form-control" placeholder="E.g., 16mm 4-Core, 48V 200Ah">
+                        <label class="form-label-dark" for="productSpecsInput">Key Specifications (Optional)</label>
+                        <input type="text"
+                               name="specifications"
+                               id="productSpecsInput"
+                               class="form-control"
+                               placeholder="E.g., 256GB, 16GB RAM, Size 42, or 48V 200Ah"
+                               {% if initial_type == 'SERVICE' %}disabled{% endif %}>
                     </div>
                 </div>
             </div>
@@ -111,12 +123,22 @@
             <div id="serviceSpecificFields" class="{% if initial_type == 'PRODUCT' %}hidden-initial{% endif %}">
                 <div class="form-grid-2">
                     <div class="form-group">
-                        <label class="form-label-dark">Preferred Service Date (Optional)</label>
-                        <input type="date" name="preferred_date" min="{% now 'Y-m-d' %}" class="form-control">
+                        <label class="form-label-dark" for="serviceDateInput">Preferred Service Date (Optional)</label>
+                        <input type="date"
+                               name="preferred_date"
+                               id="serviceDateInput"
+                               min="{% now 'Y-m-d' %}"
+                               class="form-control"
+                               {% if initial_type == 'PRODUCT' %}disabled{% endif %}>
                     </div>
                     <div class="form-group">
-                        <label class="form-label-dark">Specific Technical Scope (Optional)</label>
-                        <input type="text" name="specifications" class="form-control" placeholder="E.g., 3-bedroom conduit wiring, inverter fault">
+                        <label class="form-label-dark" for="serviceSpecsInput">Specific Scope / Deliverables (Optional)</label>
+                        <input type="text"
+                               name="specifications"
+                               id="serviceSpecsInput"
+                               class="form-control"
+                               placeholder="E.g., E-commerce website, 3-bedroom deep clean, or AC servicing"
+                               {% if initial_type == 'PRODUCT' %}disabled{% endif %}>
                     </div>
                 </div>
             </div>
@@ -125,11 +147,11 @@
             <div class="form-grid-2">
                 <div class="form-group">
                     <label class="form-label-dark">Minimum Budget (NGN) — Optional</label>
-                    <input type="number" name="budget_min" class="form-control" placeholder="E.g., 50000" min="0">
+                    <input type="number" name="budget_min" class="form-control" placeholder="E.g., 25000" min="0">
                 </div>
                 <div class="form-group">
                     <label class="form-label-dark">Maximum Budget (NGN) — Optional</label>
-                    <input type="number" name="budget_max" class="form-control" placeholder="E.g., 120000" min="0">
+                    <input type="number" name="budget_max" class="form-control" placeholder="E.g., 150000" min="0">
                 </div>
             </div>
 
@@ -137,19 +159,43 @@
                 <div class="form-group">
                     <label class="form-label-dark">State / Region *</label>
                     <select name="region" class="form-control" required>
-                        <option value="Rivers State" selected>Rivers State</option>
-                        <option value="Lagos State">Lagos State</option>
-                        <option value="Abuja (FCT)">Abuja (FCT)</option>
                         <option value="Abia State">Abia State</option>
-                        <option value="Delta State">Delta State</option>
+                        <option value="Adamawa State">Adamawa State</option>
                         <option value="Akwa Ibom State">Akwa Ibom State</option>
-                        <option value="Bayelsa State">Bayelsa State</option>
-                        <option value="Enugu State">Enugu State</option>
-                        <option value="Imo State">Imo State</option>
                         <option value="Anambra State">Anambra State</option>
+                        <option value="Bauchi State">Bauchi State</option>
+                        <option value="Bayelsa State">Bayelsa State</option>
+                        <option value="Benue State">Benue State</option>
+                        <option value="Borno State">Borno State</option>
+                        <option value="Cross River State">Cross River State</option>
+                        <option value="Delta State">Delta State</option>
+                        <option value="Ebonyi State">Ebonyi State</option>
                         <option value="Edo State">Edo State</option>
-                        <option value="Oyo State">Oyo State</option>
+                        <option value="Ekiti State">Ekiti State</option>
+                        <option value="Enugu State">Enugu State</option>
+                        <option value="Abuja (FCT)">Abuja (FCT)</option>
+                        <option value="Gombe State">Gombe State</option>
+                        <option value="Imo State">Imo State</option>
+                        <option value="Jigawa State">Jigawa State</option>
+                        <option value="Kaduna State">Kaduna State</option>
                         <option value="Kano State">Kano State</option>
+                        <option value="Katsina State">Katsina State</option>
+                        <option value="Kebbi State">Kebbi State</option>
+                        <option value="Kogi State">Kogi State</option>
+                        <option value="Kwara State">Kwara State</option>
+                        <option value="Lagos State">Lagos State</option>
+                        <option value="Nasarawa State">Nasarawa State</option>
+                        <option value="Niger State">Niger State</option>
+                        <option value="Ogun State">Ogun State</option>
+                        <option value="Ondo State">Ondo State</option>
+                        <option value="Osun State">Osun State</option>
+                        <option value="Oyo State">Oyo State</option>
+                        <option value="Plateau State">Plateau State</option>
+                        <option value="Rivers State" selected>Rivers State</option>
+                        <option value="Sokoto State">Sokoto State</option>
+                        <option value="Taraba State">Taraba State</option>
+                        <option value="Yobe State">Yobe State</option>
+                        <option value="Zamfara State">Zamfara State</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -160,7 +206,7 @@
 
             <div class="form-group">
                 <label class="form-label-dark">Additional Details / Requirements</label>
-                <textarea name="description" class="form-control" rows="3" placeholder="Describe any specific requirements, quantities, or site details..."></textarea>
+                <textarea name="description" class="form-control" rows="3" placeholder="Describe any specific requirements, quantities, colors, or delivery preferences..."></textarea>
             </div>
 
             <button type="submit" class="action-btn btn-primary w-100 py-15 text-16 font-700-block mt-10">
@@ -172,45 +218,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const tabs = document.querySelectorAll(".req-type-tab");
-    const typeInput = document.getElementById("requestTypeInput");
-    const titleLabel = document.getElementById("requestTitleLabel");
-    const prodCatGroup = document.getElementById("productCategoryGroup");
-    const srvCatGroup = document.getElementById("serviceCategoryGroup");
-    const prodCatSelect = document.getElementById("productCategorySelect");
-    const srvCatSelect = document.getElementById("serviceCategorySelect");
-    const prodFields = document.getElementById("productSpecificFields");
-    const srvFields = document.getElementById("serviceSpecificFields");
-
-    tabs.forEach(tab => {
-        tab.addEventListener("click", function () {
-            const selectedType = this.dataset.type;
-            typeInput.value = selectedType;
-
-            tabs.forEach(t => t.classList.remove("active"));
-            this.classList.add("active");
-
-            if (selectedType === "SERVICE") {
-                titleLabel.textContent = "Service Needed *";
-                prodCatGroup.classList.add("hidden-initial");
-                prodCatSelect.disabled = true;
-                srvCatGroup.classList.remove("hidden-initial");
-                srvCatSelect.disabled = false;
-                prodFields.classList.add("hidden-initial");
-                srvFields.classList.remove("hidden-initial");
-            } else {
-                titleLabel.textContent = "Product Name / Model *";
-                srvCatGroup.classList.add("hidden-initial");
-                srvCatSelect.disabled = true;
-                prodCatGroup.classList.remove("hidden-initial");
-                prodCatSelect.disabled = false;
-                srvFields.classList.add("hidden-initial");
-                prodFields.classList.remove("hidden-initial");
-            }
-        });
-    });
-});
-</script>
+    <script src="{% static 'js/pages/request_form.js' %}?v=1.0"></script>
 {% endblock %}

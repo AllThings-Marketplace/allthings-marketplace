@@ -13,7 +13,7 @@ from .smart_search import parse_search_intent
 from .validators import inspect_listing_safety
 from .recommender import log_event, get_smart_feed
 from .models import (
-    Product, Service, Category, SavedItem, ProductImage, 
+    Product, Service, Category, SavedItem, ProductImage,
     PromoBanner, ProviderInquiry, CustomerRequest, RequestMatch
 )
 from accounts.models import ProviderProfile, Follower
@@ -22,7 +22,7 @@ from feedback.models import Feedback
 
 
 def _send_platform_notification(recipient_user, notif_type, title, message, target_obj):
-    """Safely creates an in-app Bell notification for a user."""
+    """Safely creates an in-app Bell notification (and triggers Brevo email) for a user."""
     if not recipient_user or not target_obj:
         return
     try:
@@ -43,7 +43,7 @@ def _send_platform_notification(recipient_user, notif_type, title, message, targ
 def home(request):
     query = request.GET.get('q', '').strip()
     category_id = request.GET.get('category')
-    
+
     # Raw Faceted Filter Parameters from Sidebar
     req_min_price = request.GET.get('min_price', '').strip()
     req_max_price = request.GET.get('max_price', '').strip()
@@ -54,7 +54,7 @@ def home(request):
 
     # 1. Prefetch only approved images processed by Celery
     approved_images_prefetch = Prefetch(
-        'images', 
+        'images',
         queryset=ProductImage.objects.filter(processing_status='APPROVED')
     )
 
@@ -66,7 +66,7 @@ def home(request):
         avg_rating=Avg('reviews__overall_rating'),
         review_count=Count('reviews')
     ).prefetch_related(approved_images_prefetch).order_by('-id')
-    
+
     base_services_qs = Service.objects.filter(
         is_active=True,
         status=Service.ServiceStatus.APPROVED
@@ -77,10 +77,10 @@ def home(request):
 
     products = base_products_qs
     services = base_services_qs
-    
+
     categories = Category.objects.filter(is_active=True).prefetch_related('subcategories')
     banners = PromoBanner.objects.filter(is_active=True)
-    
+
     recommended = base_products_qs.order_by('?')[:4]
 
     # 3. Category Filtering (Includes Parent Category + Direct & Nested Subcategories)
@@ -108,24 +108,24 @@ def home(request):
     if query:
         intent = parse_search_intent(query)
         clean_query = intent['clean_query']
-        
+
         if clean_query:
             products = products.filter(
-                Q(name__icontains=clean_query) | 
+                Q(name__icontains=clean_query) |
                 Q(category__name__icontains=clean_query) |
                 Q(description__icontains=clean_query)
             )
             services = services.filter(
-                Q(name__icontains=clean_query) | 
+                Q(name__icontains=clean_query) |
                 Q(category__name__icontains=clean_query) |
                 Q(description__icontains=clean_query)
             )
-            
+
         if intent['min_price'] and not req_min_price:
             active_min_price = intent['min_price']
         if intent['max_price'] and not req_max_price:
             active_max_price = intent['max_price']
-            
+
         if intent['location']:
             active_location = intent['location']
             products = products.filter(
@@ -136,7 +136,7 @@ def home(request):
                 Q(provider__store_address__icontains=active_location) |
                 Q(provider__region__icontains=active_location)
             )
-            
+
         if intent['is_service_request'] and item_type == 'all':
             item_type = 'services'
 
@@ -197,8 +197,8 @@ def home(request):
 
     # Determine if we should show the Filtered Catalog view or the Multi-Shelf Smart Homepage
     has_active_filters = any([
-        query, category_id, active_min_price is not None, 
-        active_max_price is not None, min_rating, 
+        query, category_id, active_min_price is not None,
+        active_max_price is not None, min_rating,
         item_type != 'all', in_stock, sort_by
     ])
 
@@ -251,7 +251,7 @@ def home(request):
         'selected_category_obj': selected_category_obj,
         'query': query,
         'recommended': recommended,
-        'banners': banners, 
+        'banners': banners,
         'saved_product_ids': saved_product_ids,
         'smart_feed': smart_feed,
         # Filter state for UI persistence
@@ -271,29 +271,29 @@ def product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug)
 
     log_event(request, product, 'VIEW')
-    
+
     gallery_images = ProductImage.objects.filter(product=product, processing_status='APPROVED')
     variants = product.variants.all()
-    
+
     # 1. Feedback Data
     feedbacks = Feedback.objects.filter(order_item__product=product)
     avg_rating = feedbacks.aggregate(Avg('overall_rating'))['overall_rating__avg'] or 0
     review_count = feedbacks.count()
-    
+
     recent_reviews = feedbacks.select_related('customer').order_by('-created_at')[:5]
-    
+
     # 2. Recommendation Engine
     related_products = Product.objects.filter(
-        category=product.category, 
+        category=product.category,
         is_active=True,
         status=Product.ProductStatus.APPROVED
-    ).exclude(id=product.id).order_by('?')[:4] 
-    
+    ).exclude(id=product.id).order_by('?')[:4]
+
     # 3. Wishlist State
     saved_product_ids = []
     if request.user.is_authenticated:
         saved_product_ids = SavedItem.objects.filter(user=request.user).values_list('product_id', flat=True)
-    
+
     context = {
         'product': product,
         'gallery_images': gallery_images,
@@ -314,13 +314,13 @@ def service_detail(request, slug):
 
     packages = service.packages.all()
     portfolio = service.portfolio_images.all()
-    
+
     feedbacks = Feedback.objects.filter(service=service, status='APPROVED')
     avg_rating = feedbacks.aggregate(Avg('overall_rating'))['overall_rating__avg'] or 0
     review_count = feedbacks.count()
-    
+
     recent_reviews = feedbacks.select_related('customer').prefetch_related('attributes', 'photos').order_by('-created_at')[:5]
-    
+
     context = {
         'service': service,
         'packages': packages,
@@ -344,9 +344,9 @@ def get_category_attributes(request, category_id):
 def toggle_saved_item(request, product_id):
     if request.method == 'POST':
         product = get_object_or_404(Product, id=product_id)
-        
+
         saved_item = SavedItem.objects.filter(user=request.user, product=product).first()
-        
+
         if saved_item:
             saved_item.delete()
             is_saved = False
@@ -355,45 +355,53 @@ def toggle_saved_item(request, product_id):
             SavedItem.objects.create(user=request.user, product=product)
             is_saved = True
             message = "Added to saved items."
-            
+
         return JsonResponse({'is_saved': is_saved, 'message': message})
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
 @login_required
 def saved_items_list(request):
-    saved_items = SavedItem.objects.filter(user=request.user).select_related('product')
+    approved_images_prefetch = Prefetch(
+        'product__images',
+        queryset=ProductImage.objects.filter(processing_status='APPROVED')
+    )
+    saved_items = (
+        SavedItem.objects.filter(user=request.user)
+        .select_related('product', 'product__category', 'product__provider')
+        .prefetch_related(approved_images_prefetch)
+    )
     return render(request, 'marketplace/saved_items.html', {'saved_items': saved_items})
 
 
 def public_provider_profile(request, provider_id):
     provider = get_object_or_404(ProviderProfile, id=provider_id, verification_status='ACTIVE')
-    
+
     services = Service.objects.filter(
         provider=provider,
         is_active=True,
         status=Service.ServiceStatus.APPROVED
     ).order_by('-id')
-    
+
     approved_images_prefetch = Prefetch(
-        'images', 
+        'images',
         queryset=ProductImage.objects.filter(processing_status='APPROVED')
     )
     products = Product.objects.filter(
-        provider=provider, 
+        provider=provider,
         is_active=True,
         status=Product.ProductStatus.APPROVED
     ).prefetch_related(approved_images_prefetch).order_by('-id')
-    
+
     reviews = Feedback.objects.filter(
-        target_provider=provider.user, 
+        target_provider=provider.user,
         status='APPROVED'
     ).select_related('customer').order_by('-created_at')
-    
+
     review_count = reviews.count()
     avg_rating_dict = reviews.aggregate(Avg('overall_rating'))
     rating = round(avg_rating_dict['overall_rating__avg'] or 0, 1)
-    
+
     total_completed = ServiceOrder.objects.filter(
         provider=provider,
         status__in=['COMPLETED', 'CONFIRMED']
@@ -402,12 +410,12 @@ def public_provider_profile(request, provider_id):
     is_following = False
     if request.user.is_authenticated:
         is_following = Follower.objects.filter(user=request.user, provider=provider).exists()
-    
+
     context = {
         'provider': provider,
         'services': services,
         'products': products,
-        'reviews': reviews, 
+        'reviews': reviews,
         'review_count': review_count,
         'rating': rating,
         'total_completed': total_completed,
@@ -421,7 +429,7 @@ def toggle_follow_provider(request, provider_id):
     if request.method == 'POST':
         provider = get_object_or_404(ProviderProfile, id=provider_id)
         follow, created = Follower.objects.get_or_create(user=request.user, provider=provider)
-        
+
         if not created:
             follow.delete()
             is_following = False
@@ -429,7 +437,7 @@ def toggle_follow_provider(request, provider_id):
         else:
             is_following = True
             message = f"You are now following {provider.business_name}."
-            
+
         return JsonResponse({'is_following': is_following, 'message': message})
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
@@ -440,23 +448,33 @@ def submit_inquiry(request, provider_id):
         try:
             data = json.loads(request.body)
             message_text = data.get('message', '').strip()
-            
+
             if not message_text:
                 return JsonResponse({'error': 'Message cannot be empty'}, status=400)
-            
+
             provider = get_object_or_404(ProviderProfile, id=provider_id)
-            
-            ProviderInquiry.objects.create(
+
+            inquiry = ProviderInquiry.objects.create(
                 sender=request.user,
                 provider=provider,
                 message=message_text
             )
-            
+
+            if provider.user and provider.user != request.user:
+                snippet = (message_text[:60] + '...') if len(message_text) > 60 else message_text
+                _send_platform_notification(
+                    recipient_user=provider.user,
+                    notif_type='INQUIRY',
+                    title=f"New Inquiry from {request.user.username}",
+                    message=f"\"{snippet}\"",
+                    target_obj=inquiry,
+                )
+
             return JsonResponse({'success': True, 'message': 'Inquiry sent successfully!'})
-            
+
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
-            
+
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
@@ -467,7 +485,7 @@ def universal_inbox(request):
     If they are a customer, it shows the customer inbox.
     """
     user = request.user
-    
+
     # --- PROVIDER ROUTE ---
     if hasattr(user, 'provider_profile'):
         provider = user.provider_profile
@@ -475,7 +493,7 @@ def universal_inbox(request):
         active_orders = ServiceOrder.objects.filter(provider=provider).exclude(
             status__in=['COMPLETED', 'CONFIRMED', 'DECLINED', 'CANCELLED']
         ).select_related('customer', 'service').order_by('-updated_at')
-        
+
         context = {
             'is_provider': True,
             'inquiries': inquiries,
@@ -483,14 +501,14 @@ def universal_inbox(request):
             'active_orders': active_orders,
         }
         return render(request, 'marketplace/provider_inbox.html', context)
-        
+
     # --- CUSTOMER ROUTE ---
     else:
         sent_inquiries = ProviderInquiry.objects.filter(sender=user).select_related('provider').order_by('-created_at')
         active_orders = ServiceOrder.objects.filter(customer=user).exclude(
             status__in=['COMPLETED', 'CONFIRMED', 'DECLINED', 'CANCELLED']
         ).select_related('provider', 'service').order_by('-updated_at')
-        
+
         context = {
             'is_provider': False,
             'sent_inquiries': sent_inquiries,
@@ -503,13 +521,13 @@ def universal_inbox(request):
 def mark_inquiry_read(request, inquiry_id):
     if request.method == 'POST':
         inquiry = get_object_or_404(ProviderInquiry, id=inquiry_id, provider__user=request.user)
-        
+
         if not inquiry.is_read:
             inquiry.is_read = True
             inquiry.save(update_fields=['is_read'])
-            
+
         return JsonResponse({'success': True})
-        
+
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
@@ -566,7 +584,7 @@ def _run_instant_catalog_matching(customer_request):
                     'provider': prod.provider,
                     'match_source': RequestMatch.MatchSource.SYSTEM,
                     'quoted_price': prod.price,
-                    'note': 'Instant catalog alternative based on your request.',
+                    'note': 'Instant catalog match based on your request.',
                 }
             )
             matches_created += 1
@@ -622,7 +640,6 @@ def _notify_relevant_providers(customer_request):
         provider_type__in=allowed_types
     ).exclude(user=customer_request.customer).select_related('user')
 
-    # Prioritize providers in the customer's state/region or matching category
     if customer_request.region:
         regional = list(providers_qs.filter(region__icontains=customer_request.region)[:10])
     else:
@@ -658,11 +675,16 @@ def create_customer_request(request):
         req_type = request.POST.get('request_type', 'PRODUCT').upper().strip()
         if req_type not in ['PRODUCT', 'SERVICE']:
             req_type = 'PRODUCT'
+        initial_type = req_type
 
         title = request.POST.get('title', '').strip()
         category_id = request.POST.get('category_id')
         brand = request.POST.get('brand', '').strip()
-        specifications = request.POST.get('specifications', '').strip()
+
+        # Safely resolve specifications from either the active input or list of inputs
+        spec_values = [s.strip() for s in request.POST.getlist('specifications') if s.strip()]
+        specifications = spec_values[0] if spec_values else ''
+
         condition = request.POST.get('condition', 'NEW').strip()
         region = request.POST.get('region', 'Rivers State').strip()
         location_detail = request.POST.get('location_detail', '').strip()
@@ -724,7 +746,7 @@ def create_customer_request(request):
             else:
                 messages.success(
                     request,
-                    f"Request {new_req.reference} submitted! We have notified verified AllThings providers who specialize in this category."
+                    f"Request {new_req.reference} submitted! We have notified verified AllThings providers who specialize in this department."
                 )
             return redirect('marketplace:request_detail', request_id=new_req.id)
 
@@ -798,7 +820,6 @@ def customer_request_detail(request, request_id):
         messages.error(request, "You do not have permission to view that request.")
         return redirect('marketplace:my_requests')
 
-    # Order matches so human provider/admin pitches appear first, followed by instant system matches
     matches = cust_request.matches.select_related(
         'provider', 'product', 'service', 'product__category', 'service__category'
     ).order_by('match_source', '-created_at')

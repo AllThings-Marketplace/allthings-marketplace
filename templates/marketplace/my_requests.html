@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.6">
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.7">
     <link rel="stylesheet" href="{% static 'css/pages/orders.css' %}?v=3.0">
 {% endblock %}
 
@@ -14,7 +14,7 @@
             <h2 class="section-heading m-0">
                 <i class="fa-solid fa-bullhorn text-primary mr-5"></i> My Product &amp; Service Requests
             </h2>
-            <p class="text-14-muted mt-5 mb-0">Track items you've asked AllThings providers to source and review matched listings.</p>
+            <p class="text-14-muted mt-5 mb-0">Track items or services you've asked AllThings providers to source and review matched offers.</p>
         </div>
         <a href="{% url 'marketplace:create_request' %}" class="action-btn btn-primary action-sm">
             <i class="fa-solid fa-plus icon-spaced"></i> New Request
@@ -76,7 +76,7 @@
             <div class="premium-empty-state">
                 <div class="empty-icon"><i class="fa-solid fa-magnifying-glass-plus"></i></div>
                 <h3>You haven't submitted any requests yet</h3>
-                <p>Looking for a rare electrical component or a technician in your area? Post a request and let verified providers respond.</p>
+                <p>Looking for a specific product model, gadget, fashion piece, or a certified professional in your area? Post a request and let verified providers respond.</p>
                 <a href="{% url 'marketplace:create_request' %}" class="action-btn btn-primary action-sm mt-10">Create Your First Request</a>
             </div>
         {% endfor %}
