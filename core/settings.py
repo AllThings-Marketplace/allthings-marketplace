@@ -255,7 +255,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 
 # ==============================================================================
-# 6. EMAIL CONFIGURATION (Brevo HTTPS Port 443 API + SMTP/Console Fallbacks)
+# 6. EMAIL CONFIGURATION (Brevo HTTPS Port 443 API + Console Fallback)
 # ==============================================================================
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp-relay.brevo.com').strip()
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
@@ -263,7 +263,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '').strip()
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '').strip()
 BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '').strip()
-EMAIL_TIMEOUT = 8  # Strict socket/HTTP timeout so Gunicorn workers never hang
+EMAIL_TIMEOUT = 8  # Strict HTTP timeout so Gunicorn workers never hang
 
 if BREVO_API_KEY or (EMAIL_HOST_USER and EMAIL_HOST_PASSWORD):
     EMAIL_BACKEND = 'core.email_backend.BrevoAPIEmailBackend'
@@ -289,7 +289,8 @@ else:
     CELERY_BROKER_URL = 'memory://'
     CELERY_RESULT_BACKEND = 'cache+memory://'
     CELERY_TASK_ALWAYS_EAGER = True
-    CELERY_TASK_EAGER_PROPAGATES = True
+    # False ensures a background notification/image task error never crashes a live HTTP view
+    CELERY_TASK_EAGER_PROPAGATES = False
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
@@ -339,3 +340,40 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+
+
+# ==============================================================================
+# 10. PRODUCTION LOGGING (Prints 500 Tracebacks Directly to Railway Deploy Logs)
+# ==============================================================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] [{levelname}] {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+    },
+}

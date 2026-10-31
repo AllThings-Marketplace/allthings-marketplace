@@ -5,7 +5,6 @@ import requests
 from django.conf import settings
 from django.core.mail.backends.base import BaseEmailBackend
 from django.core.mail.backends.console import EmailBackend as ConsoleEmailBackend
-from django.core.mail.backends.smtp import EmailBackend as SMTPEmailBackend
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +30,8 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
     Production-grade Django EmailBackend that sends all emails over HTTPS (Port 443)
     via Brevo's v3 Transactional REST API (https://api.brevo.com/v3/smtp/email).
 
-    Fallback chain:
-    1. Brevo HTTPS API (Port 443) when BREVO_API_KEY (or an 'xkeysib-' key) is present.
-    2. Standard Django SMTP with a strict timeout if only SMTP credentials are set.
-    3. Django Console backend in local development when no credentials are set.
+    Never attempts connections over blocked outbound SMTP ports (25/465/587) on Railway,
+    and never raises unhandled exceptions that could crash a live HTTP request.
     """
     api_url = "https://api.brevo.com/v3/smtp/email"
 
@@ -53,23 +50,17 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
         if not email_messages:
             return 0
 
-        # If no Brevo API key is configured, fall back to SMTP (with timeout) or Console
+        # If no Brevo v3 API key (xkeysib-...) is set, log to console instead of hanging on SMTP Port 587
         if not self.api_key:
-            if getattr(settings, "EMAIL_HOST_USER", "") and getattr(settings, "EMAIL_HOST_PASSWORD", ""):
-                try:
-                    smtp_backend = SMTPEmailBackend(
-                        fail_silently=self.fail_silently,
-                        timeout=self.timeout,
-                    )
-                    return smtp_backend.send_messages(email_messages)
-                except Exception as exc:
-                    logger.error("Fallback SMTP backend failed: %s", exc)
-                    if not self.fail_silently:
-                        raise
-                    return 0
-
-            console_backend = ConsoleEmailBackend(fail_silently=self.fail_silently)
-            return console_backend.send_messages(email_messages)
+            logger.warning(
+                "BREVO_API_KEY (starting with 'xkeysib-') is not configured in Railway Variables. "
+                "Writing email(s) to console log instead of blocked SMTP port."
+            )
+            try:
+                console_backend = ConsoleEmailBackend(fail_silently=True)
+                return console_backend.send_messages(email_messages)
+            except Exception:
+                return 0
 
         sent_count = 0
         for message in email_messages:
@@ -87,7 +78,6 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
             "AllThings Marketplace <noreply@allthings.com>",
         )
         sender_info = parse_address(message.from_email or default_from)
-        # If message.from_email had no display name, keep the brand name
         if sender_info["name"] == sender_info["email"]:
             sender_info["name"] = "AllThings Marketplace"
 
@@ -180,12 +170,8 @@ class BrevoAPIEmailBackend(BaseEmailBackend):
                 response.status_code,
                 response.text,
             )
-            if not self.fail_silently:
-                raise RuntimeError(f"Brevo API HTTP {response.status_code}: {response.text}")
             return False
 
         except Exception as exc:
             logger.error("Brevo HTTPS API error sending '%s': %s", message.subject, exc)
-            if not self.fail_silently:
-                raise
             return False
