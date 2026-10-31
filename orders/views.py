@@ -931,10 +931,10 @@ def confirm_item_delivery(request, item_id):
         submitted_code = request.POST.get('delivery_code', '').strip()
 
         with transaction.atomic():
-            item = (
-                OrderItem.objects.select_for_update()
-                .select_related('order', 'product__provider__user')
-                .get(id=item_id, order__customer=request.user)
+            # Lock only the OrderItem row (no nullable outer joins)
+            item = OrderItem.objects.select_for_update().get(
+                id=item_id,
+                order__customer=request.user
             )
 
             if item.status == 'COMPLETED':
@@ -977,9 +977,9 @@ def confirm_item_delivery(request, item_id):
 def customer_confirm_service(request, order_id):
     if request.method == 'POST':
         with transaction.atomic():
+            # Lock only the ServiceOrder row (no nullable outer joins)
             service_order = (
                 ServiceOrder.objects.select_for_update()
-                .select_related('service', 'provider__user')
                 .filter(id=order_id, customer=request.user)
                 .first()
             )

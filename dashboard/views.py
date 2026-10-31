@@ -969,9 +969,9 @@ def update_item_status(request, item_id, new_status):
         }
 
         with transaction.atomic():
+            # Lock only the OrderItem row first (no nullable outer joins)
             item = (
                 OrderItem.objects.select_for_update()
-                .select_related('order__customer', 'product', 'variant')
                 .filter(id=item_id, product__provider=profile)
                 .first()
             )
@@ -989,33 +989,36 @@ def update_item_status(request, item_id, new_status):
             if new_status == 'READY_FOR_PICKUP':
                 dispatch_gigl_rider(item)
             elif new_status == 'CANCELLED':
-                # Reverse pending escrow from vendor wallet and restore product inventory
                 refund_item_escrow(item)
-                if item.variant:
-                    item.variant.stock = F('stock') + item.quantity
-                    item.variant.save(update_fields=['stock'])
-                if item.product:
-                    item.product.stock_count = F('stock_count') + item.quantity
-                    item.product.save(update_fields=['stock_count'])
+                if item.variant_id:
+                    ProductVariant.objects.filter(id=item.variant_id).update(
+                        stock=F('stock') + item.quantity
+                    )
+                if item.product_id:
+                    Product.objects.filter(id=item.product_id).update(
+                        stock_count=F('stock_count') + item.quantity
+                    )
 
         product_title = item.product.name if item.product else f"Item #{item.id}"
+        customer = item.order.customer
+
         if new_status == 'ACCEPTED':
             _notify_user(
-                recipient=item.order.customer,
+                recipient=customer,
                 title=f"Order Item Accepted ({item.order.reference})",
                 message=f"'{product_title}' is now being packaged by {profile.business_name}.",
                 target_obj=item.order,
             )
         elif new_status == 'READY_FOR_PICKUP':
             _notify_user(
-                recipient=item.order.customer,
+                recipient=customer,
                 title=f"Item Dispatched ({item.order.reference})",
                 message=f"'{product_title}' is ready for courier pickup! Share your 6-digit delivery PIN only when the item reaches you.",
                 target_obj=item.order,
             )
         elif new_status == 'CANCELLED':
             _notify_user(
-                recipient=item.order.customer,
+                recipient=customer,
                 title=f"Order Item Cancelled ({item.order.reference})",
                 message=f"{profile.business_name} could not fulfill '{product_title}'. Escrow for this item has been released for refund.",
                 target_obj=item.order,
