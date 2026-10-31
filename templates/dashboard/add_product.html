@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -10,7 +10,7 @@
     <div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
         <div>
             <h2 class="section-heading checkout-page-title mb-5">Add New Product</h2>
-            <p class="text-14-muted m-0">List a physical electrical product with accurate sizing for instant courier dispatch quotes.</p>
+            <p class="text-14-muted m-0">List a physical product with accurate specifications and package sizing for instant courier dispatch quotes.</p>
         </div>
         <a href="{% url 'dashboard:provider_dashboard' %}" class="action-btn btn-secondary action-sm">
             <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
@@ -32,7 +32,7 @@
                        name="name"
                        id="listingTitleInput"
                        class="form-control"
-                       placeholder="E.g., 50m 2.5mm Copper Wire Coil"
+                       placeholder="E.g., Samsung Galaxy S24 Ultra 256GB, HP EliteBook 840 G8, or 5kVA Hybrid Inverter"
                        autocomplete="off"
                        required>
                 <div id="smartCategorySuggestionBar" class="smart-cat-bar hidden-initial mt-8">
@@ -95,9 +95,9 @@
             <div class="form-group">
                 <label class="form-label-dark" for="shipping_class">Package Size / Delivery Tier *</label>
                 <select name="shipping_class" id="shipping_class" class="form-control" required>
-                    <option value="SMALL" selected>Small Parcel / Bike-Friendly (&lt; 5kg — Bulbs, Switches, Tools)</option>
-                    <option value="MEDIUM">Medium Box (5–20kg — Fans, Cable Coils, Stabilizers)</option>
-                    <option value="HEAVY">Heavy / Bulky Cargo (&gt; 20kg — Inverters, Solar Panels, Batteries)</option>
+                    <option value="SMALL" selected>Small Parcel / Bike-Friendly (&lt; 5kg — Phones, Fashion, Wigs, Cosmetics, Tools)</option>
+                    <option value="MEDIUM">Medium Box (5–20kg — Laptops, Blenders, Fans, Groceries, Cable Coils)</option>
+                    <option value="HEAVY">Heavy / Bulky Cargo (&gt; 20kg — Fridges, ACs, Furniture, Inverters, Solar Panels)</option>
                 </select>
                 <small class="text-12-muted">Determines whether dispatch bikes or cargo vans are assigned at checkout.</small>
             </div>
@@ -125,7 +125,7 @@
                     <i class="fa-solid fa-plus"></i> Add Option
                 </button>
             </div>
-            <p class="text-12-muted mb-10">Does this product come in different sizes, wattages, colors, or capacities? Add them here.</p>
+            <p class="text-12-muted mb-10">Does this product come in different sizes, colors, storage capacities, or specifications? Add them here.</p>
             
             <div id="variant-builder-container" class="variant-builder hidden-initial"></div>
         </div>
@@ -137,8 +137,8 @@
 
         <div class="form-group">
             <div class="flex-between align-center mb-8 flex-wrap gap-10">
-                <label class="form-label-dark m-0">Product Images * (Select up to 8 photos)</label>
-                <span id="productPhotoCountBadge" class="status-badge badge-pending badge-sm hidden-initial">0 / 8 Selected</span>
+                <label class="form-label-dark m-0">Product Images * (Select up to 6 photos)</label>
+                <span id="productPhotoCountBadge" class="status-badge badge-pending badge-sm hidden-initial">0 / 6 Selected</span>
             </div>
 
             <label for="addProductImagesInput" class="upload-dropzone" id="addProductDropzone">
@@ -161,7 +161,7 @@
 
         <div class="form-group mt-25">
             <label class="form-label-dark">Detailed Description *</label>
-            <textarea name="description" class="form-control" rows="4" placeholder="Describe the technical specifications, brand, warranty, and application of this product..." required></textarea>
+            <textarea name="description" class="form-control" rows="4" placeholder="Describe the key features, condition, brand, package contents, and warranty of this product..." required></textarea>
         </div>
 
         <button type="submit" class="action-btn btn-primary w-100 mt-30 py-15 text-16 font-600-block requires-auth" id="addProductSubmitBtn">

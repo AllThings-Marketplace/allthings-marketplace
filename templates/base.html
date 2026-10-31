@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>All Things | Electrical &amp; Service Marketplace</title>
+    <title>{% block title %}AllThings | Products &amp; Professional Services Marketplace{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.1">
@@ -72,9 +72,9 @@
                 {% endif %}
             </ul>
 
-            <!-- 1. Mobile Product Categories -->
+            <!-- 1. Mobile Product Departments -->
             <div class="mobile-menu-section">
-                <h4 class="menu-section-title"><i class="fa-solid fa-box text-primary mr-5"></i> PRODUCT CATEGORIES</h4>
+                <h4 class="menu-section-title"><i class="fa-solid fa-box text-primary mr-5"></i> PRODUCT DEPARTMENTS</h4>
                 <ul class="mobile-menu-list category-list" id="mobileCategoryList">
                     {% for cat in nav_categories %}
                         {% if not cat.parent and cat.category_type != 'SERVICE' %}
@@ -91,13 +91,13 @@
                 </ul>
 
                 <button type="button" id="seeMoreCategoriesBtn" class="see-more-btn">
-                    See All Categories <i class="fa-solid fa-angle-down see-more-icon"></i>
+                    See All Departments <i class="fa-solid fa-angle-down see-more-icon"></i>
                 </button>
             </div>
 
-            <!-- 2. Mobile Service Categories -->
+            <!-- 2. Mobile Service Departments -->
             <div class="mobile-menu-section">
-                <h4 class="menu-section-title"><i class="fa-solid fa-screwdriver-wrench text-primary mr-5"></i> SERVICE CATEGORIES</h4>
+                <h4 class="menu-section-title"><i class="fa-solid fa-screwdriver-wrench text-primary mr-5"></i> SERVICE DEPARTMENTS</h4>
                 <ul class="mobile-menu-list category-list" id="mobileServiceCategoryList">
                     {% for cat in nav_categories %}
                         {% if not cat.parent and cat.category_type == 'SERVICE' %}
@@ -128,12 +128,12 @@
         </div>
 
         <form method="GET" action="{% url 'marketplace:home' %}" class="nav-search" id="globalSearchForm">
-            <input type="text" name="q" id="globalSearchInput" value="{{ request.GET.q }}" placeholder="Search products &amp; services..." class="nav-search-input" autocomplete="off">
+            <input type="text" name="q" id="globalSearchInput" value="{{ request.GET.q }}" placeholder="Search products, brands &amp; services..." class="nav-search-input" autocomplete="off">
             <button type="submit" class="nav-search-btn">Search</button>
 
             <div class="search-dropdown" id="searchDropdown">
                 <div class="dropdown-section">
-                    <h4 class="dropdown-heading">Popular Categories</h4>
+                    <h4 class="dropdown-heading">Popular Departments</h4>
                     <div class="search-pills-container">
                         {% for cat in nav_categories|slice:":8" %}
                             {% if cat.category_type == 'SERVICE' %}
@@ -178,10 +178,10 @@
                 </span>
             </a>
 
-            <!-- Global Notification Bell (Distinct ID so Cart JS never overwrites it) -->
+            <!-- Global Notification Bell -->
             {% if user.is_authenticated %}
             <div class="nav-dropdown-container">
-                <button class="icon-link nav-dropdown-trigger bell-trigger">
+                <button type="button" class="icon-link nav-dropdown-trigger bell-trigger">
                     <i class="fa-regular fa-bell"></i> Alerts
                     {% if global_unread_count > 0 %}
                         <span id="navAlertBadge" class="cart-badge badge-red">{{ global_unread_count }}</span>
@@ -225,7 +225,7 @@
             {% endif %}
             
             <div class="nav-dropdown-container">
-                <button class="nav-dropdown-trigger">
+                <button type="button" class="nav-dropdown-trigger">
                     <i class="fa-regular fa-user"></i> 
                     <span class="hidden-mobile">
                         {% if user.is_authenticated %}
@@ -287,7 +287,7 @@
                         <span class="toast-message">{{ message }}</span>
                     </div>
                     
-                    <button class="toast-close" onclick="this.parentElement.remove();">
+                    <button type="button" class="toast-close" aria-label="Close notification">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                     
@@ -309,13 +309,13 @@
                     <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon footer-logo-icon">
                     <span class="brand-primary footer-logo-text">ll</span><span class="brand-accent">Things</span>
                 </a>
-                <p class="footer-text">Hardware and expertise, all in one place. Your trusted marketplace for premium electrical components and certified professionals.</p>
+                <p class="footer-text">Products and professional expertise, all in one place. Your trusted, escrow-protected marketplace for verified retail vendors and certified service professionals across Nigeria.</p>
             </div>
 
             <div class="footer-col">
                 <h4 class="footer-heading">Quick Links</h4>
                 <ul class="footer-links">
-                    <li><a href="{% url 'marketplace:home' %}">Shop Catalog</a></li>
+                    <li><a href="{% url 'marketplace:home' %}">Shop Marketplace</a></li>
                     <li><a href="{% url 'marketplace:create_request' %}">Request What You Need</a></li>
                     <li><a href="{% url 'orders:cart' %}">Your Cart</a></li>
                     <li><a href="{% url 'orders:support_center' %}">Help &amp; Resolution Center</a></li>
@@ -340,7 +340,7 @@
         </div>
         
         <div class="footer-bottom">
-            <p>&copy; 2026 All Things Marketplace. All rights reserved.</p>
+            <p>&copy; 2026 AllThings Marketplace. All rights reserved.</p>
         </div>
     </footer>
 

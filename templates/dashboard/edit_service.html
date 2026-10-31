@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -16,6 +16,17 @@
             <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
         </a>
     </div>
+
+    {% if service.moderation_note or service.status == 'REJECTED' %}
+        <div class="admin-feedback-banner mb-25">
+            <div class="admin-feedback-title">
+                <i class="fa-solid fa-triangle-exclamation"></i> Moderation Notice ({{ service.get_status_display }}):
+            </div>
+            <p class="admin-feedback-body">
+                {{ service.moderation_note|default:"Please review your service title, scope, and description, then click Save to resubmit." }}
+            </p>
+        </div>
+    {% endif %}
 
     <form method="POST" action="{% url 'dashboard:edit_service' service.id %}" enctype="multipart/form-data" class="summary-card">
         {% csrf_token %}
@@ -87,18 +98,18 @@
         <div class="form-grid-2 mb-20">
             <div class="form-group">
                 <label class="form-label-dark">Where is this service performed? *</label>
-                <select name="service_mode" class="form-control" required>
-                    <option value="CUSTOMER_LOC" {% if service.service_mode == 'CUSTOMER_LOC' %}selected{% endif %}>I travel to customer</option>
-                    <option value="PROVIDER_LOC" {% if service.service_mode == 'PROVIDER_LOC' %}selected{% endif %}>Customer comes to me</option>
-                    <option value="BOTH" {% if service.service_mode == 'BOTH' %}selected{% endif %}>Both options available</option>
-                    <option value="REMOTE" {% if service.service_mode == 'REMOTE' %}selected{% endif %}>Remote / Online Service</option>
+                <select name="service_mode" id="serviceModeSelect" class="form-control" required>
+                    <option value="CUSTOMER_LOC" {% if service.service_mode == 'CUSTOMER_LOC' %}selected{% endif %}>I travel to the customer's location</option>
+                    <option value="PROVIDER_LOC" {% if service.service_mode == 'PROVIDER_LOC' %}selected{% endif %}>Customer visits my studio, shop, or workshop</option>
+                    <option value="BOTH" {% if service.service_mode == 'BOTH' %}selected{% endif %}>Either location (On-site or Studio/Workshop)</option>
+                    <option value="REMOTE" {% if service.service_mode == 'REMOTE' %}selected{% endif %}>Remote / Online Delivery</option>
                 </select>
             </div>
             
-            <div class="form-group">
+            <div class="form-group" id="serviceRadiusGroup">
                 <label class="form-label-dark">Travel Coverage Radius (km)</label>
-                <input type="number" name="service_radius_km" class="form-control" value="{{ service.service_radius_km|default_if_none:'' }}" placeholder="e.g., 25">
-                <small class="text-12-muted">Leave blank if workshop or remote.</small>
+                <input type="number" name="service_radius_km" id="serviceRadiusInput" class="form-control" value="{{ service.service_radius_km|default_if_none:'' }}" placeholder="e.g., 25">
+                <small class="text-12-muted">Leave blank if studio/shop-based or remote.</small>
             </div>
         </div>
 
@@ -113,33 +124,98 @@
         <div class="form-grid-2 mb-20">
             <div class="form-group">
                 <label class="form-label-dark"><i class="fa-solid fa-check text-success"></i> What's Included</label>
-                <textarea name="whats_included" id="whatsIncludedInput" class="form-control" rows="3" placeholder="e.g., Inspection, Labour, Cleanup">{{ service.whats_included|join:", " }}</textarea>
+                <textarea name="whats_included" id="whatsIncludedInput" class="form-control" rows="3" placeholder="e.g., Consultation, Main service delivery, Quality check">{{ service.whats_included|join:", " }}</textarea>
                 <div id="includedPreviewPills" class="scope-preview-pills mt-8"></div>
             </div>
 
             <div class="form-group">
                 <label class="form-label-dark"><i class="fa-solid fa-xmark text-danger"></i> What's Excluded</label>
-                <textarea name="whats_excluded" id="whatsExcludedInput" class="form-control" rows="3" placeholder="e.g., Cost of spare parts, Major masonry">{{ service.whats_excluded|join:", " }}</textarea>
+                <textarea name="whats_excluded" id="whatsExcludedInput" class="form-control" rows="3" placeholder="e.g., Cost of replacement parts, Out-of-state travel">{{ service.whats_excluded|join:", " }}</textarea>
                 <div id="excludedPreviewPills" class="scope-preview-pills mt-8"></div>
             </div>
         </div>
 
-        <!-- 4. Pricing -->
+        <!-- 4. Pricing & Package Tiers -->
         <h3 class="checkout-section-title mt-40">
             <i class="fa-solid fa-tag icon-primary-spaced"></i> 4. Pricing Model
         </h3>
 
-        {% if service.pricing_type != 'QUOTE' and service.pricing_type != 'PACKAGES' %}
-            <div class="form-group mb-20">
-                <label class="form-label-dark">Base Price (NGN) * ({{ service.get_pricing_type_display }})</label>
-                <input type="number" name="base_price" class="form-control" step="0.01" value="{{ service.base_price|default_if_none:'' }}" required>
+        <div class="form-grid-2 mb-20">
+            <div class="form-group">
+                <label class="form-label-dark">Pricing Structure *</label>
+                <select name="pricing_type" id="pricingTypeSelect" class="form-control" required>
+                    <option value="FIXED" {% if service.pricing_type == 'FIXED' %}selected{% endif %}>Fixed Price</option>
+                    <option value="STARTING" {% if service.pricing_type == 'STARTING' %}selected{% endif %}>Starting From</option>
+                    <option value="HOURLY" {% if service.pricing_type == 'HOURLY' %}selected{% endif %}>Hourly Rate</option>
+                    <option value="QUOTE" {% if service.pricing_type == 'QUOTE' %}selected{% endif %}>Requires Custom Quote (Inspect First)</option>
+                    <option value="PACKAGES" {% if service.pricing_type == 'PACKAGES' %}selected{% endif %}>Tiered Packages (Basic, Standard, Premium)</option>
+                </select>
             </div>
-        {% else %}
-            <div class="warning-text-block mb-20">
-                <i class="fa-solid fa-circle-info icon-spaced"></i> 
-                This service uses the <strong>{{ service.get_pricing_type_display }}</strong> pricing model. Base price is determined by custom quotes or package tiers.
+
+            <div class="form-group {% if service.pricing_type == 'QUOTE' or service.pricing_type == 'PACKAGES' %}hidden-initial{% endif %}" id="basePriceGroup">
+                <label class="form-label-dark">Base Price (NGN)</label>
+                <input type="number" name="base_price" id="basePriceInput" class="form-control" step="0.01" min="0" value="{{ service.base_price|default_if_none:'' }}">
+                <small class="text-12-muted" id="basePriceHint">Standard rate charged into escrow upon booking.</small>
             </div>
-        {% endif %}
+        </div>
+
+        <div id="packageBuilderContainer" class="variant-builder mt-20 mb-25 {% if service.pricing_type != 'PACKAGES' %}hidden-initial{% endif %}">
+            <div class="flex-between align-center mb-10">
+                <label class="m-0 font-600-dark">Service Packages (Basic / Standard / Premium)</label>
+                <button type="button" class="action-btn btn-outline action-sm" id="add-package-btn">
+                    <i class="fa-solid fa-plus"></i> Add Package Tier
+                </button>
+            </div>
+            <p class="text-12-muted mb-10">Create or update distinct tiers with clear deliverables and durations.</p>
+
+            <div id="package-rows">
+                {% for pkg in packages %}
+                    <div class="variant-row package-row">
+                        <div>
+                            <small>Package Name</small>
+                            <input type="text" name="pkg_names[]" class="form-control" value="{{ pkg.name }}" placeholder="e.g., Basic">
+                        </div>
+                        <div>
+                            <small>Price (NGN)</small>
+                            <input type="number" name="pkg_prices[]" class="form-control" step="0.01" value="{{ pkg.price }}">
+                        </div>
+                        <div>
+                            <small>Est. Duration</small>
+                            <input type="text" name="pkg_durations[]" class="form-control" value="{{ pkg.estimated_duration }}" placeholder="e.g., 2 Days">
+                        </div>
+                        <div>
+                            <small>Features (comma separated)</small>
+                            <input type="text" name="pkg_features[]" class="form-control" value="{{ pkg.features|join:', ' }}" placeholder="Core delivery, Support">
+                        </div>
+                        <button type="button" class="btn-remove-variant" aria-label="Remove Package">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                {% empty %}
+                    <div class="variant-row package-row">
+                        <div>
+                            <small>Package Name</small>
+                            <input type="text" name="pkg_names[]" class="form-control" placeholder="e.g., Basic">
+                        </div>
+                        <div>
+                            <small>Price (NGN)</small>
+                            <input type="number" name="pkg_prices[]" class="form-control" step="0.01" placeholder="15000">
+                        </div>
+                        <div>
+                            <small>Est. Duration</small>
+                            <input type="text" name="pkg_durations[]" class="form-control" placeholder="e.g., 2 Days">
+                        </div>
+                        <div>
+                            <small>Features (comma separated)</small>
+                            <input type="text" name="pkg_features[]" class="form-control" placeholder="Core delivery, Support">
+                        </div>
+                        <button type="button" class="btn-remove-variant" aria-label="Remove Package">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
 
         <!-- 5. Cover Image & Portfolio Dropzones -->
         <h3 class="checkout-section-title mt-40">
@@ -178,6 +254,18 @@
 
             <div class="form-group">
                 <label class="form-label-dark">Add More Portfolio Photos (Optional)</label>
+                {% if service.portfolio_images.all %}
+                    <div class="existing-photo-grid mb-15">
+                        {% for p_img in service.portfolio_images.all %}
+                            <div class="existing-photo-card">
+                                <div class="photo-thumb-wrapper">
+                                    <img src="{{ p_img.image.url }}" alt="Portfolio Image">
+                                    <span class="photo-role-badge">Portfolio #{{ forloop.counter }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
                 <label for="servicePortfolioInput" class="upload-dropzone dropzone-compact">
                     <i class="fa-solid fa-images dropzone-icon"></i>
                     <strong class="dropzone-title">Upload Additional Work Photos</strong>

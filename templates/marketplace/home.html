@@ -55,8 +55,8 @@
                 <i class="fa-solid fa-user-check"></i>
             </div>
             <div>
-                <h4 class="trust-item-title">Verified Engineers</h4>
-                <p class="trust-item-desc">KYC-vetted electricians &amp; solar technicians</p>
+                <h4 class="trust-item-title">KYC-Verified Partners</h4>
+                <p class="trust-item-desc">Vetted retail merchants &amp; service professionals</p>
             </div>
         </div>
 
@@ -66,7 +66,7 @@
             </div>
             <div>
                 <h4 class="trust-item-title">Instant Dispatch Quotes</h4>
-                <p class="trust-item-desc">Live bike &amp; cargo van rates at checkout</p>
+                <p class="trust-item-desc">Live bike, courier &amp; cargo rates at checkout</p>
             </div>
         </div>
 
@@ -75,8 +75,8 @@
                 <i class="fa-solid fa-bolt"></i>
             </div>
             <div>
-                <h4 class="trust-item-title">Genuine Specifications</h4>
-                <p class="trust-item-desc">Verified gauges, capacities &amp; warranties</p>
+                <h4 class="trust-item-title">Verified Quality &amp; Specs</h4>
+                <p class="trust-item-desc">Transparent product specs, conditions &amp; warranties</p>
             </div>
         </div>
     </div>
@@ -84,7 +84,7 @@
     <!-- Mobile Filter Bar Toggle -->
     <div class="mobile-filter-bar">
         <button type="button" class="action-btn btn-outline w-100" id="mobileFilterToggleBtn">
-            <i class="fa-solid fa-sliders"></i> Filters &amp; Categories
+            <i class="fa-solid fa-sliders"></i> Filters &amp; Departments
             {% if has_active_filters %}
                 <span class="status-badge badge-accepted inline-badge">Active</span>
             {% endif %}
@@ -187,11 +187,11 @@
             <hr class="sidebar-divider">
 
             <!-- 2A. PRODUCT CATEGORIES TREE -->
-            <h3 class="sidebar-title"><i class="fa-solid fa-box text-primary mr-5"></i> Product Categories</h3>
+            <h3 class="sidebar-title"><i class="fa-solid fa-box text-primary mr-5"></i> Product Departments</h3>
             <ul class="sidebar-menu mb-20">
                 <li>
                     <a href="{% url 'marketplace:home' %}?item_type=products" class="sidebar-parent-link {% if not current_category and item_type == 'products' %}active{% endif %}">
-                        All Hardware &amp; Products
+                        All Products
                     </a>
                 </li>
                 {% for cat in categories %}
@@ -219,11 +219,11 @@
             <hr class="sidebar-divider">
 
             <!-- 2B. SERVICE CATEGORIES TREE -->
-            <h3 class="sidebar-title"><i class="fa-solid fa-screwdriver-wrench text-primary mr-5"></i> Service Categories</h3>
+            <h3 class="sidebar-title"><i class="fa-solid fa-screwdriver-wrench text-primary mr-5"></i> Service Departments</h3>
             <ul class="sidebar-menu">
                 <li>
                     <a href="{% url 'marketplace:home' %}?item_type=services" class="sidebar-parent-link {% if not current_category and item_type == 'services' %}active{% endif %}">
-                        All Technical Services
+                        All Professional Services
                     </a>
                 </li>
                 {% for cat in categories %}
@@ -255,7 +255,7 @@
                 <div class="promo-banner">
                     <div>
                         <h3>New to AllThings?</h3>
-                        <p>Create a free account for escrow-protected orders, verified technicians, and live delivery tracking.</p>
+                        <p>Create a free account for escrow-protected shopping, verified service professionals, and live delivery tracking.</p>
                     </div>
                     <a href="{% url 'accounts:register' %}" class="promo-btn">
                         Join for Free <i class="fa-solid fa-arrow-right"></i>
@@ -362,7 +362,7 @@
                     <div class="feed-section-header {% if services %}mt-40{% endif %}">
                         <h3 class="section-title-premium">
                             <span class="section-icon-badge"><i class="fa-solid fa-box"></i></span>
-                            Hardware &amp; Products ({{ products|length }})
+                            Marketplace Products ({{ products|length }})
                         </h3>
                     </div>
                     <ul class="item-list">
@@ -387,7 +387,7 @@
                             {% endif %}
                         </h3>
                         <p class="sourcing-rescue-text">
-                            Don't leave empty-handed. Post what you need and our network of verified hardware vendors and certified engineers will respond with matching listings protected by AllThings Escrow.
+                            Don't leave empty-handed. Post what you need and our network of verified retail vendors and service professionals will respond with matching offers protected by AllThings Escrow.
                         </p>
                         <div class="sourcing-rescue-actions">
                             <a href="{% url 'marketplace:create_request' %}?type=PRODUCT{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="action-btn btn-primary requires-auth">
@@ -405,8 +405,8 @@
                     <!-- LOCATION 1B: SUBTLE SOURCING STRIP BELOW SEARCH RESULTS -->
                     <div class="sourcing-inline-banner mt-40">
                         <div>
-                            <h4 class="m-0 font-700-dark">Didn't see the exact model, specification, or technician you want?</h4>
-                            <p class="text-13-muted mt-5 mb-0">Submit a custom request and let our verified vendors and service professionals come to you.</p>
+                            <h4 class="m-0 font-700-dark">Didn't see the exact item, brand, or service professional you want?</h4>
+                            <p class="text-13-muted mt-5 mb-0">Submit a custom request and let our verified vendors and service experts come to you.</p>
                         </div>
                         <div class="sourcing-inline-btns">
                             <a href="{% url 'marketplace:create_request' %}?type=PRODUCT{% if query %}&amp;q={{ query|urlencode }}{% endif %}" class="action-btn btn-primary action-sm requires-auth">
@@ -428,7 +428,7 @@
                         <h2>
                             <span class="dynamic-greeting">Welcome</span>{% if user.is_authenticated %}, {{ user.first_name|default:user.username }}{% endif %} 👋
                         </h2>
-                        <p>Discover verified electrical hardware and certified professionals protected by escrow.</p>
+                        <p>Shop quality products across every department and book verified professionals—100% protected by escrow.</p>
                     </div>
                     <div class="market-stats-pills">
                         <span class="stat-chip stat-chip-primary">
@@ -487,12 +487,12 @@
                     {% endif %}
                 {% endif %}
 
-                <!-- TIER 2: FRESH HARDWARE ARRIVALS (Newest 8 Products) -->
+                <!-- TIER 2: FRESH MARKETPLACE ARRIVALS (Newest 8 Products) -->
                 {% if new_arrivals %}
                     <div class="feed-section-header mt-40">
                         <h3 class="section-title-premium">
                             <span class="section-icon-badge"><i class="fa-solid fa-boxes-stacked"></i></span>
-                            Fresh Hardware Arrivals
+                            Fresh Marketplace Arrivals
                         </h3>
                         <a href="{% url 'marketplace:home' %}?item_type=products&amp;sort=newest" class="view-all-pill">
                             View All ({{ total_product_count }}) <i class="fa-solid fa-arrow-right"></i>
@@ -587,9 +587,9 @@
                 <!-- LOCATION 2: HOMEPAGE "LOOKING FOR SOMETHING SPECIFIC?" SOURCING CALLOUT -->
                 <div class="sourcing-home-callout mt-40">
                     <div class="sourcing-home-left">
-                        <span class="sourcing-eyebrow">CUSTOM SOURCING &amp; ENGINEER MATCHING</span>
+                        <span class="sourcing-eyebrow">CUSTOM SOURCING &amp; PROFESSIONAL MATCHING</span>
                         <h3>Looking for something specific?</h3>
-                        <p>Can't find an exact hardware model or need a certified technician in your area? Tell us what you need and our verified partners will respond with offers.</p>
+                        <p>Can't find an exact product model or need a trusted service professional in your area? Tell us what you need and our verified partners will respond with offers.</p>
                     </div>
                     <div class="sourcing-home-actions">
                         <a href="{% url 'marketplace:create_request' %}?type=PRODUCT" class="action-btn btn-primary requires-auth">

@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -51,8 +51,8 @@
                     <small class="text-12-muted">To change your legal business name, please open a Support Ticket with your CAC certificate.</small>
                 </div>
                 <div class="form-group">
-                    <label class="form-label-dark">Primary Specialty / Category *</label>
-                    <input type="text" name="business_category" class="form-control" value="{{ profile.business_category }}" placeholder="E.g., Solar &amp; Inverter Engineering, Electrical Supplies" required>
+                    <label class="form-label-dark">Primary Specialty / Department *</label>
+                    <input type="text" name="business_category" class="form-control" value="{{ profile.business_category|default:'' }}" placeholder="E.g., Smartphones &amp; Laptops, Fashion &amp; Beauty, Web Design, Solar &amp; Hardware" required>
                 </div>
             </div>
 
@@ -69,7 +69,7 @@
 
             <div class="form-group">
                 <label class="form-label-dark">About Your Business / Bio *</label>
-                <textarea name="business_description" class="form-control" rows="4" placeholder="Tell customers about your experience, warranties, and certifications..." required>{{ profile.business_description }}</textarea>
+                <textarea name="business_description" class="form-control" rows="4" placeholder="Tell customers about your products, service expertise, warranties, and certifications..." required>{{ profile.business_description }}</textarea>
             </div>
 
             <button type="submit" class="action-btn btn-primary mt-10">
@@ -95,24 +95,47 @@
                 <div class="form-group">
                     <label class="form-label-dark">Origin Dispatch State / Region *</label>
                     <select name="region" class="form-control" required>
-                        <option value="{{ profile.region }}" selected>{{ profile.region|default:"Rivers State" }} (Current)</option>
-                        <option value="Rivers State">Rivers State</option>
-                        <option value="Lagos State">Lagos State</option>
-                        <option value="Abuja (FCT)">Abuja (FCT)</option>
-                        <option value="Abia State">Abia State</option>
-                        <option value="Delta State">Delta State</option>
-                        <option value="Akwa Ibom">Akwa Ibom</option>
-                        <option value="Bayelsa State">Bayelsa State</option>
-                        <option value="Enugu State">Enugu State</option>
-                        <option value="Imo State">Imo State</option>
-                        <option value="Anambra State">Anambra State</option>
-                        <option value="Edo State">Edo State</option>
-                        <option value="Oyo State">Oyo State</option>
-                        <option value="Kano State">Kano State</option>
+                        <option value="Abia State" {% if profile.region == 'Abia State' %}selected{% endif %}>Abia State</option>
+                        <option value="Adamawa State" {% if profile.region == 'Adamawa State' %}selected{% endif %}>Adamawa State</option>
+                        <option value="Akwa Ibom State" {% if profile.region == 'Akwa Ibom State' or profile.region == 'Akwa Ibom' %}selected{% endif %}>Akwa Ibom State</option>
+                        <option value="Anambra State" {% if profile.region == 'Anambra State' %}selected{% endif %}>Anambra State</option>
+                        <option value="Bauchi State" {% if profile.region == 'Bauchi State' %}selected{% endif %}>Bauchi State</option>
+                        <option value="Bayelsa State" {% if profile.region == 'Bayelsa State' %}selected{% endif %}>Bayelsa State</option>
+                        <option value="Benue State" {% if profile.region == 'Benue State' %}selected{% endif %}>Benue State</option>
+                        <option value="Borno State" {% if profile.region == 'Borno State' %}selected{% endif %}>Borno State</option>
+                        <option value="Cross River State" {% if profile.region == 'Cross River State' %}selected{% endif %}>Cross River State</option>
+                        <option value="Delta State" {% if profile.region == 'Delta State' %}selected{% endif %}>Delta State</option>
+                        <option value="Ebonyi State" {% if profile.region == 'Ebonyi State' %}selected{% endif %}>Ebonyi State</option>
+                        <option value="Edo State" {% if profile.region == 'Edo State' %}selected{% endif %}>Edo State</option>
+                        <option value="Ekiti State" {% if profile.region == 'Ekiti State' %}selected{% endif %}>Ekiti State</option>
+                        <option value="Enugu State" {% if profile.region == 'Enugu State' %}selected{% endif %}>Enugu State</option>
+                        <option value="Abuja (FCT)" {% if profile.region == 'Abuja (FCT)' %}selected{% endif %}>Abuja (FCT)</option>
+                        <option value="Gombe State" {% if profile.region == 'Gombe State' %}selected{% endif %}>Gombe State</option>
+                        <option value="Imo State" {% if profile.region == 'Imo State' %}selected{% endif %}>Imo State</option>
+                        <option value="Jigawa State" {% if profile.region == 'Jigawa State' %}selected{% endif %}>Jigawa State</option>
+                        <option value="Kaduna State" {% if profile.region == 'Kaduna State' %}selected{% endif %}>Kaduna State</option>
+                        <option value="Kano State" {% if profile.region == 'Kano State' %}selected{% endif %}>Kano State</option>
+                        <option value="Katsina State" {% if profile.region == 'Katsina State' %}selected{% endif %}>Katsina State</option>
+                        <option value="Kebbi State" {% if profile.region == 'Kebbi State' %}selected{% endif %}>Kebbi State</option>
+                        <option value="Kogi State" {% if profile.region == 'Kogi State' %}selected{% endif %}>Kogi State</option>
+                        <option value="Kwara State" {% if profile.region == 'Kwara State' %}selected{% endif %}>Kwara State</option>
+                        <option value="Lagos State" {% if profile.region == 'Lagos State' %}selected{% endif %}>Lagos State</option>
+                        <option value="Nasarawa State" {% if profile.region == 'Nasarawa State' %}selected{% endif %}>Nasarawa State</option>
+                        <option value="Niger State" {% if profile.region == 'Niger State' %}selected{% endif %}>Niger State</option>
+                        <option value="Ogun State" {% if profile.region == 'Ogun State' %}selected{% endif %}>Ogun State</option>
+                        <option value="Ondo State" {% if profile.region == 'Ondo State' %}selected{% endif %}>Ondo State</option>
+                        <option value="Osun State" {% if profile.region == 'Osun State' %}selected{% endif %}>Osun State</option>
+                        <option value="Oyo State" {% if profile.region == 'Oyo State' %}selected{% endif %}>Oyo State</option>
+                        <option value="Plateau State" {% if profile.region == 'Plateau State' %}selected{% endif %}>Plateau State</option>
+                        <option value="Rivers State" {% if profile.region == 'Rivers State' or not profile.region %}selected{% endif %}>Rivers State</option>
+                        <option value="Sokoto State" {% if profile.region == 'Sokoto State' %}selected{% endif %}>Sokoto State</option>
+                        <option value="Taraba State" {% if profile.region == 'Taraba State' %}selected{% endif %}>Taraba State</option>
+                        <option value="Yobe State" {% if profile.region == 'Yobe State' %}selected{% endif %}>Yobe State</option>
+                        <option value="Zamfara State" {% if profile.region == 'Zamfara State' %}selected{% endif %}>Zamfara State</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label-dark">Physical Store / Workshop Address *</label>
+                    <label class="form-label-dark">Physical Store / Studio / Workshop Address *</label>
                     <input type="text" name="store_address" class="form-control" value="{{ profile.store_address }}" placeholder="Full street address for courier pickup" required>
                 </div>
             </div>

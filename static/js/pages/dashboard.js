@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (bankSelect && bankNameInput) {
         bankSelect.addEventListener('change', function () {
             const selectedOption = this.options[this.selectedIndex];
-            bankNameInput.value = selectedOption.getAttribute('data-name');
+            bankNameInput.value = selectedOption ? (selectedOption.getAttribute('data-name') || '') : '';
         });
     }
 
@@ -19,15 +19,23 @@ document.addEventListener('DOMContentLoaded', function () {
     if (locationBtn && latInput && lonInput) {
         locationBtn.addEventListener('click', function () {
             if (navigator.geolocation) {
+                const originalHtml = locationBtn.innerHTML;
+                locationBtn.disabled = true;
+                locationBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin icon-spaced"></i> Capturing GPS...';
+
                 navigator.geolocation.getCurrentPosition(
                     function (position) {
-                        latInput.value = position.coords.latitude;
-                        lonInput.value = position.coords.longitude;
+                        latInput.value = position.coords.latitude.toFixed(7);
+                        lonInput.value = position.coords.longitude.toFixed(7);
+                        locationBtn.disabled = false;
+                        locationBtn.innerHTML = '<i class="fa-solid fa-circle-check icon-spaced"></i> GPS Coordinates Captured';
                     },
                     function () {
+                        locationBtn.disabled = false;
+                        locationBtn.innerHTML = originalHtml;
                         alert("Error getting location. Please ensure location permissions are enabled for this site.");
                     },
-                    { enableHighAccuracy: true }
+                    { enableHighAccuracy: true, timeout: 10000 }
                 );
             } else {
                 alert("Geolocation is not supported by your browser.");
@@ -35,25 +43,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // === 3. Variant Builder Logic (Add Product) ===
+    // === 3. Variant Builder Logic (Add & Edit Product) ===
     const addVariantBtn = document.getElementById('add-variant-btn');
     const variantContainer = document.getElementById('variant-builder-container');
 
     if (addVariantBtn && variantContainer) {
         addVariantBtn.addEventListener('click', function () {
             variantContainer.classList.remove('hidden-initial');
-            variantContainer.style.display = 'block';
 
             const row = document.createElement('div');
             row.className = 'variant-row';
             row.innerHTML = `
                 <div class="form-group m-0">
-                    <label class="text-12-muted">Option (e.g., Color)</label>
-                    <input type="text" name="variant_names[]" class="form-control" placeholder="Size, Color, etc." required>
+                    <label class="text-12-muted">Option (e.g., Size, Color, Storage)</label>
+                    <input type="text" name="variant_names[]" class="form-control" placeholder="Size, Color, Storage" required>
                 </div>
                 <div class="form-group m-0">
-                    <label class="text-12-muted">Value (e.g., Red)</label>
-                    <input type="text" name="variant_values[]" class="form-control" placeholder="Red, XL, 256GB" required>
+                    <label class="text-12-muted">Value (e.g., XL, Black, 256GB)</label>
+                    <input type="text" name="variant_values[]" class="form-control" placeholder="XL, Black, 256GB" required>
                 </div>
                 <div class="form-group m-0">
                     <label class="text-12-muted">Price Override (NGN)</label>
@@ -61,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 <div class="form-group m-0">
                     <label class="text-12-muted">Stock</label>
-                    <input type="number" name="variant_stocks[]" class="form-control" min="0" value="0" required>
+                    <input type="number" name="variant_stocks[]" class="form-control" min="0" value="1" required>
                 </div>
                 <button type="button" class="btn-remove-variant" aria-label="Remove Option">
                     <i class="fa-solid fa-trash"></i>
@@ -71,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Delegated Removal for Variant & Package Rows (No inline onclick needed)
+    // Delegated Removal for Variant & Package Rows
     document.addEventListener('click', function (e) {
         const removeBtn = e.target.closest('.btn-remove-variant');
         if (!removeBtn) return;
@@ -80,14 +87,24 @@ document.addEventListener('DOMContentLoaded', function () {
         if (row) {
             row.remove();
             if (variantContainer && variantContainer.children.length === 0) {
-                variantContainer.style.display = 'none';
+                variantContainer.classList.add('hidden-initial');
             }
         }
     });
 
-    // === 4. Unified Category Attributes Fetching (AJAX) ===
+    // === 4. Unified Category Attributes Fetching (AJAX + Pre-fill on Edit) ===
     const categorySelector = document.getElementById('category-selector');
     const attributesContainer = document.getElementById('dynamic-attributes-container');
+    const existingAttrsScript = document.getElementById('existingProductAttributes');
+    let existingAttributes = {};
+
+    if (existingAttrsScript) {
+        try {
+            existingAttributes = JSON.parse(existingAttrsScript.textContent || '{}') || {};
+        } catch (err) {
+            existingAttributes = {};
+        }
+    }
 
     if (categorySelector && attributesContainer) {
         categorySelector.addEventListener('change', function () {
@@ -104,20 +121,35 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                         if (Array.isArray(schemaArray) && schemaArray.length > 0) {
-                            attributesContainer.innerHTML = `<h3 class="checkout-section-title" style="grid-column: 1 / -1;"><i class="fa-solid fa-list icon-primary-spaced"></i> Specifications</h3>`;
+                            const heading = document.createElement('h3');
+                            heading.className = 'checkout-section-title full-grid-span m-0';
+                            heading.innerHTML = '<i class="fa-solid fa-list icon-primary-spaced"></i> Category Specifications';
+                            attributesContainer.appendChild(heading);
 
                             schemaArray.forEach(attr => {
-                                const safeName = "attr_" + attr.name.toLowerCase().replace(/\s+/g, '_');
-                                const isRequired = attr.required ? 'required' : '';
-                                const star = attr.required ? '*' : '';
+                                const rawName = attr.name || '';
+                                const safeName = "attr_" + rawName.toLowerCase().replace(/\s+/g, '_');
+                                const savedValue = existingAttributes[rawName] || '';
 
-                                const fieldHtml = `
-                                    <div class="form-group">
-                                        <label>${attr.name} ${star}</label>
-                                        <input type="text" name="${safeName}" class="form-control" ${isRequired}>
-                                    </div>
-                                `;
-                                attributesContainer.innerHTML += fieldHtml;
+                                const group = document.createElement('div');
+                                group.className = 'form-group m-0';
+
+                                const label = document.createElement('label');
+                                label.className = 'form-label-dark';
+                                label.textContent = rawName + (attr.required ? ' *' : '');
+
+                                const input = document.createElement('input');
+                                input.type = 'text';
+                                input.name = safeName;
+                                input.className = 'form-control';
+                                input.value = savedValue;
+                                if (attr.required) {
+                                    input.required = true;
+                                }
+
+                                group.appendChild(label);
+                                group.appendChild(input);
+                                attributesContainer.appendChild(group);
                             });
                         }
                     })
@@ -132,7 +164,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // === 5. Service Pricing & Package Builder ===
+    // === 5. Service Mode & Pricing / Package Builder ===
+    const serviceModeSelect = document.getElementById('serviceModeSelect');
+    const serviceRadiusGroup = document.getElementById('serviceRadiusGroup');
+    const serviceRadiusInput = document.getElementById('serviceRadiusInput');
+
+    if (serviceModeSelect && serviceRadiusGroup) {
+        function syncServiceModeUI() {
+            const mode = serviceModeSelect.value;
+            if (mode === 'PROVIDER_LOC' || mode === 'REMOTE') {
+                serviceRadiusGroup.classList.add('hidden-initial');
+                if (serviceRadiusInput) serviceRadiusInput.value = '';
+            } else {
+                serviceRadiusGroup.classList.remove('hidden-initial');
+            }
+        }
+        serviceModeSelect.addEventListener('change', syncServiceModeUI);
+        syncServiceModeUI();
+    }
+
     const pricingSelect = document.getElementById('pricingTypeSelect');
     const basePriceGroup = document.getElementById('basePriceGroup');
     const basePriceInput = document.getElementById('basePriceInput');
@@ -143,20 +193,17 @@ document.addEventListener('DOMContentLoaded', function () {
     if (pricingSelect) {
         function syncPricingUI() {
             if (pricingSelect.value === 'PACKAGES') {
-                if (basePriceGroup) basePriceGroup.style.display = 'none';
+                if (basePriceGroup) basePriceGroup.classList.add('hidden-initial');
                 if (basePriceInput) basePriceInput.removeAttribute('required');
-                if (packageBuilder) {
-                    packageBuilder.style.display = 'block';
-                    packageBuilder.classList.remove('hidden-initial');
-                }
+                if (packageBuilder) packageBuilder.classList.remove('hidden-initial');
             } else if (pricingSelect.value === 'QUOTE') {
-                if (basePriceGroup) basePriceGroup.style.display = 'none';
+                if (basePriceGroup) basePriceGroup.classList.add('hidden-initial');
                 if (basePriceInput) basePriceInput.removeAttribute('required');
-                if (packageBuilder) packageBuilder.style.display = 'none';
+                if (packageBuilder) packageBuilder.classList.add('hidden-initial');
             } else {
-                if (basePriceGroup) basePriceGroup.style.display = 'block';
+                if (basePriceGroup) basePriceGroup.classList.remove('hidden-initial');
                 if (basePriceInput) basePriceInput.setAttribute('required', 'true');
-                if (packageBuilder) packageBuilder.style.display = 'none';
+                if (packageBuilder) packageBuilder.classList.add('hidden-initial');
             }
         }
         pricingSelect.addEventListener('change', syncPricingUI);
@@ -167,10 +214,22 @@ document.addEventListener('DOMContentLoaded', function () {
         addPackageBtn.addEventListener('click', function () {
             const rowHtml = `
                 <div class="variant-row package-row mt-15">
-                    <div><input type="text" name="pkg_names[]" class="form-control" placeholder="Package Name"></div>
-                    <div><input type="number" name="pkg_prices[]" class="form-control" step="0.01" placeholder="Price"></div>
-                    <div><input type="text" name="pkg_durations[]" class="form-control" placeholder="Duration"></div>
-                    <div><input type="text" name="pkg_features[]" class="form-control" placeholder="Features (comma separated)"></div>
+                    <div>
+                        <small>Package Name</small>
+                        <input type="text" name="pkg_names[]" class="form-control" placeholder="e.g., Standard">
+                    </div>
+                    <div>
+                        <small>Price (NGN)</small>
+                        <input type="number" name="pkg_prices[]" class="form-control" step="0.01" placeholder="25000">
+                    </div>
+                    <div>
+                        <small>Est. Duration</small>
+                        <input type="text" name="pkg_durations[]" class="form-control" placeholder="e.g., 2 Days">
+                    </div>
+                    <div>
+                        <small>Features (comma separated)</small>
+                        <input type="text" name="pkg_features[]" class="form-control" placeholder="Core delivery, Support">
+                    </div>
                     <button type="button" class="btn-remove-variant" aria-label="Remove Package">
                         <i class="fa-solid fa-trash"></i>
                     </button>
@@ -188,9 +247,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function renderPills() {
             const items = input.value.split(',').map(s => s.trim()).filter(Boolean);
-            container.innerHTML = items.map(item =>
-                `<span class="scope-pill ${pillClass}"><i class="fa-solid ${iconClass}"></i> ${item}</span>`
-            ).join('');
+            container.innerHTML = '';
+            items.forEach(item => {
+                const span = document.createElement('span');
+                span.className = `scope-pill ${pillClass}`;
+                const icon = document.createElement('i');
+                icon.className = `fa-solid ${iconClass}`;
+                span.appendChild(icon);
+                span.appendChild(document.createTextNode(' ' + item));
+                container.appendChild(span);
+            });
         }
         input.addEventListener('input', renderPills);
         renderPills();
@@ -199,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function () {
     bindScopePreview('whatsIncludedInput', 'includedPreviewPills', 'scope-pill-inc', 'fa-check');
     bindScopePreview('whatsExcludedInput', 'excludedPreviewPills', 'scope-pill-exc', 'fa-xmark');
 
-    // === 7. Unified Multi-Photo Dropzone Previews & 8-Photo Guard ===
+    // === 7. Unified Multi-Photo Dropzone Previews & Max-Photo Guard ===
     function initMultiPhotoPreview(config) {
         const fileInput = document.getElementById(config.inputId);
         const previewGrid = document.getElementById(config.gridId);
@@ -215,42 +281,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (files.length === 0) {
                 previewGrid.classList.add('hidden-initial');
-                previewGrid.style.display = 'none';
-                if (warningBox) {
-                    warningBox.classList.add('hidden-initial');
-                    warningBox.style.display = 'none';
-                }
-                if (countBadge) {
-                    countBadge.classList.add('hidden-initial');
-                    countBadge.style.display = 'none';
-                }
+                if (warningBox) warningBox.classList.add('hidden-initial');
+                if (countBadge) countBadge.classList.add('hidden-initial');
                 if (submitBtn) submitBtn.disabled = false;
                 return;
             }
 
             if (countBadge) {
                 countBadge.classList.remove('hidden-initial');
-                countBadge.style.display = 'inline-block';
                 countBadge.textContent = `${files.length} / ${config.maxFiles} Selected`;
             }
 
             if (config.maxFiles && files.length > config.maxFiles) {
                 if (warningBox) {
-                    warningBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> You selected ${files.length} photos. Please select a maximum of ${config.maxFiles} photos.`;
+                    warningBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> You selected ${files.length} photos. Maximum allowed is ${config.maxFiles} photos.`;
                     warningBox.classList.remove('hidden-initial');
-                    warningBox.style.display = 'block';
                 }
                 if (submitBtn) submitBtn.disabled = true;
             } else {
-                if (warningBox) {
-                    warningBox.classList.add('hidden-initial');
-                    warningBox.style.display = 'none';
-                }
+                if (warningBox) warningBox.classList.add('hidden-initial');
                 if (submitBtn) submitBtn.disabled = false;
             }
 
             previewGrid.classList.remove('hidden-initial');
-            previewGrid.style.display = 'grid';
 
             const limit = config.maxFiles || files.length;
             files.slice(0, limit).forEach((file, idx) => {
@@ -264,9 +317,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         <span class="photo-role-badge">${roleLabel}</span>
                     </div>
                     <div class="photo-meta-bar">
-                        <small class="text-12-muted truncate-text block">${file.name}</small>
+                        <small class="text-12-muted truncate-text block"></small>
                     </div>
                 `;
+                card.querySelector('small').textContent = file.name;
                 previewGrid.appendChild(card);
 
                 reader.onload = function (e) {
@@ -278,32 +332,32 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Bind Add Product Photos (Max 8, First = Main Cover)
+    // Bind Add Product Photos (Matches MAX_PRODUCT_IMAGES = 6 in validators.py)
     initMultiPhotoPreview({
         inputId: 'addProductImagesInput',
         gridId: 'addProductPreviewGrid',
         warningId: 'addProductUploadWarning',
         badgeId: 'productPhotoCountBadge',
         submitId: 'addProductSubmitBtn',
-        maxFiles: 8,
+        maxFiles: 6,
         roleFormatter: idx => (idx === 0 ? 'Main Cover' : `Gallery #${idx + 1}`)
     });
 
-    // Bind Manage Product Photos Page (Max 8)
+    // Bind Manage Product Photos Page (Max 6)
     initMultiPhotoPreview({
         inputId: 'productImagesInput',
         gridId: 'uploadPreviewGrid',
         warningId: 'uploadCountWarning',
         submitId: 'uploadSubmitBtn',
-        maxFiles: 8,
+        maxFiles: 6,
         roleFormatter: () => 'Ready'
     });
 
-    // Bind Service Portfolio Photos
+    // Bind Service Portfolio Photos (Matches MAX_PORTFOLIO_IMAGES = 8 in validators.py)
     initMultiPhotoPreview({
         inputId: 'servicePortfolioInput',
         gridId: 'portfolioPreviewGrid',
-        maxFiles: 12,
+        maxFiles: 8,
         roleFormatter: idx => `Portfolio #${idx + 1}`
     });
 
@@ -318,7 +372,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const file = this.files && this.files[0];
             if (!file) {
                 coverBox.classList.add('hidden-initial');
-                coverBox.style.display = 'none';
                 return;
             }
             if (coverName) coverName.textContent = file.name;
@@ -326,7 +379,6 @@ document.addEventListener('DOMContentLoaded', function () {
             reader.onload = function (e) {
                 coverImg.src = e.target.result;
                 coverBox.classList.remove('hidden-initial');
-                coverBox.style.display = 'block';
             };
             reader.readAsDataURL(file);
         });
@@ -345,9 +397,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 tabSections.forEach(sec => {
                     if (target === 'all' || sec.dataset.section === target) {
-                        sec.style.display = 'block';
+                        sec.classList.remove('hidden-initial');
                     } else {
-                        sec.style.display = 'none';
+                        sec.classList.add('hidden-initial');
                     }
                 });
             });
@@ -360,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const query = this.value.trim().toLowerCase();
             document.querySelectorAll('.catalog-product-row').forEach(row => {
                 const haystack = row.dataset.search || '';
-                row.style.display = haystack.includes(query) ? '' : 'none';
+                row.classList.toggle('hidden-initial', !haystack.includes(query));
             });
         });
     }
@@ -380,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const rowSearch = row.dataset.search || '';
                 const statusMatch = activeStatuses === 'ALL' || activeStatuses.split(',').includes(rowStatus);
                 const searchMatch = !q || rowSearch.includes(q);
-                row.style.display = (statusMatch && searchMatch) ? '' : 'none';
+                row.classList.toggle('hidden-initial', !(statusMatch && searchMatch));
             });
         }
 
@@ -397,9 +449,8 @@ document.addEventListener('DOMContentLoaded', function () {
             vendorOrderSearch.addEventListener('input', applyVendorOrderFilters);
         }
     }
-});
 
-// === 10. Max Withdrawal Amount Button ===
+    // === 10. Max Withdrawal Amount Button ===
     const maxWithdrawBtn = document.getElementById('maxWithdrawBtn');
     const withdrawAmountInput = document.getElementById('withdrawAmountInput');
 
@@ -409,7 +460,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-// === 11. Smart Category Auto-Guesser & Live Category Search ===
+    // === 11. Smart Category Auto-Guesser & Live Category Search ===
     const titleInput = document.getElementById('listingTitleInput') || document.querySelector('input[name="name"]');
     const catSelect = document.getElementById('category-selector');
     const catSearchInput = document.getElementById('categorySearchInput');
@@ -418,20 +469,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const matchStatus = document.getElementById('categoryMatchStatus');
 
     if (catSelect) {
-        // Built-in electrical & service domain synonym dictionary
+        // Multi-department synonym dictionary covering all 13 product & 8 service departments
         const DOMAIN_SYNONYMS = {
-            wire: ['cable', 'wires', 'cables', 'wiring', 'coil', 'copper', 'armoured', 'mm', 'coleman', 'cutix', 'trunking', 'conduit'],
-            solar: ['inverter', 'battery', 'panel', 'mppt', 'charge', 'tubular', 'lithium', 'felicity', 'luminous', 'kva', 'hybrid'],
-            lighting: ['bulb', 'led', 'chandelier', 'floodlight', 'lamp', 'spotlight', 'strip', 'ceiling', 'downlight', 'watt'],
-            breaker: ['distribution', 'mcb', 'mccb', 'changeover', 'gear', 'fuse', 'isolator', 'contactor', 'stabilizer', 'avr', 'surge'],
-            socket: ['switch', 'switches', 'sockets', 'extension', 'plug', 'wall', 'dimmer', 'gang'],
-            tool: ['multimeter', 'tester', 'drill', 'plier', 'crimping', 'screwdriver', 'meter', 'clamp'],
-            appliance: ['fan', 'heater', 'ac', 'air', 'conditioner', 'hvac', 'fridge', 'freezer', 'pump', 'extractor'],
-            installation: ['install', 'wiring', 'rewiring', 'setup', 'mounting', 'earthing', 'piping', 'conduit'],
-            repair: ['fix', 'fault', 'diagnosis', 'troubleshooting', 'maintenance', 'servicing', 'refill', 'compressor']
+            phone: ['iphone', 'samsung', 'galaxy', 'redmi', 'xiaomi', 'tecno', 'infinix', 'itel', 'smartphone', 'android', 'ios', 'tablet', 'ipad', 'earbuds', 'airpods', 'powerbank', 'charger', 'oraimo', 'smartwatch'],
+            laptop: ['macbook', 'hp', 'dell', 'lenovo', 'thinkpad', 'elitebook', 'pavilion', 'asus', 'acer', 'pc', 'desktop', 'monitor', 'ssd', 'ram', 'keyboard', 'mouse', 'router', 'mifi', 'starlink', 'printer'],
+            electronics: ['tv', 'television', 'qled', 'oled', 'hisense', 'lg', 'sony', 'soundbar', 'speaker', 'home theatre', 'ps5', 'ps4', 'playstation', 'xbox', 'nintendo', 'camera', 'canon', 'drone', 'gimbal'],
+            appliance: ['fridge', 'refrigerator', 'freezer', 'dispenser', 'ac', 'air conditioner', 'split', 'fan', 'rechargeable', 'washing machine', 'blender', 'microwave', 'air fryer', 'cooker', 'gas', 'kettle', 'iron'],
+            solar: ['inverter', 'battery', 'panel', 'mppt', 'tubular', 'lithium', 'lifepo4', 'felicity', 'luminous', 'deye', 'growatt', 'kva', 'hybrid', 'charge controller'],
+            wire: ['cable', 'wires', 'cables', 'wiring', 'coil', 'copper', 'armoured', 'mm', 'coleman', 'cutix', 'trunking', 'conduit', 'breaker', 'mcb', 'mccb', 'changeover', 'stabilizer', 'avr', 'socket', 'switch', 'chandelier', 'led', 'floodlight'],
+            fashion: ['shirt', 'trouser', 'jeans', 'senator', 'kaftan', 'agbada', 'dress', 'gown', 'abaya', 'ankara', 'lace', 'aso ebi', 'sneakers', 'shoes', 'heels', 'loafers', 'handbag', 'bag', 'watch', 'jewelry', 'sunglasses'],
+            beauty: ['wig', 'frontal', 'closure', 'human hair', 'bone straight', 'braids', 'perfume', 'fragrance', 'skincare', 'cream', 'serum', 'makeup', 'lipstick', 'foundation', 'lashes', 'nails', 'clipper', 'spa'],
+            grocery: ['rice', 'beans', 'garri', 'yam', 'noodles', 'indomie', 'pasta', 'spaghetti', 'oil', 'groundnut', 'palm oil', 'tomato', 'seasoning', 'maggi', 'milk', 'milo', 'cereal', 'juice', 'wine', 'water', 'biscuit'],
+            furniture: ['sofa', 'couch', 'chair', 'table', 'desk', 'bed', 'mattress', 'mouka', 'wardrobe', 'shelf', 'curtain', 'blind', 'rug', 'carpet', 'bedsheet', 'duvet', 'pillow'],
+            baby: ['diaper', 'pampers', 'huggies', 'wipes', 'stroller', 'cot', 'walker', 'feeding bottle', 'formula', 'toy', 'lego'],
+            auto: ['tyre', 'tire', 'engine oil', 'mobil', 'total', 'castrol', 'car battery', 'wiper', 'brake pad', 'spark plug', 'dashcam', 'helmet', 'motorcycle'],
+            software: ['website', 'web', 'django', 'python', 'react', 'frontend', 'backend', 'fullstack', 'app', 'mobile app', 'ui', 'ux', 'graphic', 'logo', 'flyer', 'branding', 'video editing', 'seo', 'marketing'],
+            salon: ['hair', 'braiding', 'wig installation', 'barbing', 'haircut', 'locks', 'dreadlocks', 'gele', 'bridal', 'pedicure', 'manicure', 'microblading', 'tailor', 'tailoring', 'bespoke'],
+            cleaning: ['deep cleaning', 'fumigation', 'pest control', 'laundry', 'dry cleaning', 'ironing', 'janitorial', 'post construction'],
+            catering: ['catering', 'cake', 'small chops', 'chef', 'food tray', 'event', 'decorator', 'dj', 'mc', 'photography', 'videography'],
+            mechanic: ['mechanic', 'mechatronics', 'obd', 'diagnostics', 'car wash', 'detailing', 'panel beating', 'painting', 'haulage', 'relocation', 'dispatch', 'delivery'],
+            tutoring: ['tutor', 'tutoring', 'mentorship', 'coding', 'training', 'lesson', 'waec', 'jamb', 'ielts', 'music', 'driving', 'cac', 'tax', 'legal', 'architect', 'interior design']
         };
 
-        // Snapshot all original options for live search filtering
         const allOptions = Array.from(catSelect.options).map(opt => ({
             value: opt.value,
             text: opt.text,
@@ -441,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function () {
             isSubcategory: opt.text.trim().startsWith('-')
         }));
 
-        let userManuallySelectedCategory = false;
+        let userManuallySelectedCategory = Boolean(catSelect.value);
         catSelect.addEventListener('change', function (e) {
             if (e.isTrusted) {
                 userManuallySelectedCategory = true;
@@ -496,11 +555,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (tokens.length === 0) {
                     suggestionBar.classList.add('hidden-initial');
-                    suggestionBar.style.display = 'none';
                     return;
                 }
 
-                // Expand tokens using domain synonyms
                 const expandedTokens = new Set(tokens);
                 tokens.forEach(token => {
                     Object.entries(DOMAIN_SYNONYMS).forEach(([groupKey, words]) => {
@@ -511,7 +568,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 });
 
-                // Score each category option
                 const scored = [];
                 allOptions.forEach(item => {
                     if (!item.value) return;
@@ -520,19 +576,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     tokens.forEach(tok => {
                         if (item.cleanName.toLowerCase().includes(tok)) {
-                            score += 6; // Direct category name hit
+                            score += 6;
                         } else if (haystack.includes(tok)) {
-                            score += 4; // Explicit keyword hit
+                            score += 4;
                         }
                     });
 
                     expandedTokens.forEach(syn => {
                         if (haystack.includes(syn)) {
-                            score += 2; // Synonym group hit
+                            score += 2;
                         }
                     });
 
-                    // Slight preference for specific subcategories over broad parent categories
                     if (score > 0 && item.isSubcategory) {
                         score += 1;
                     }
@@ -547,26 +602,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (topMatches.length === 0) {
                     suggestionBar.classList.add('hidden-initial');
-                    suggestionBar.style.display = 'none';
                     return;
                 }
 
-                // Render clickable Smart Suggestion Pills
                 suggestionPills.innerHTML = '';
                 topMatches.forEach((match, idx) => {
                     const pill = document.createElement('button');
                     pill.type = 'button';
                     pill.className = `smart-cat-pill ${catSelect.value === match.value ? 'active' : ''}`;
-                    pill.innerHTML = `<i class="fa-solid ${idx === 0 ? 'fa-bolt' : 'fa-tag'}"></i> ${match.cleanName}`;
+                    pill.innerHTML = `<i class="fa-solid ${idx === 0 ? 'fa-bolt' : 'fa-tag'}"></i> `;
+                    pill.appendChild(document.createTextNode(match.cleanName));
+
                     pill.addEventListener('click', function () {
                         userManuallySelectedCategory = true;
-                        // Reset search filter if option was hidden
                         if (catSearchInput && catSearchInput.value) {
                             catSearchInput.value = '';
                             catSearchInput.dispatchEvent(new Event('input'));
                         }
                         catSelect.value = match.value;
-                        catSelect.dispatchEvent(new Event('change')); // Triggers dynamic attributes AJAX!
+                        catSelect.dispatchEvent(new Event('change'));
                         suggestionPills.querySelectorAll('.smart-cat-pill').forEach(p => p.classList.remove('active'));
                         pill.classList.add('active');
                     });
@@ -574,9 +628,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 suggestionBar.classList.remove('hidden-initial');
-                suggestionBar.style.display = 'flex';
 
-                // Auto-select top high-confidence category if user hasn't manually picked one yet
                 if (!userManuallySelectedCategory && topMatches[0].score >= 6 && catSelect.value !== topMatches[0].value) {
                     catSelect.value = topMatches[0].value;
                     catSelect.dispatchEvent(new Event('change'));
@@ -585,4 +637,5 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         }
-    } 
+    }
+});

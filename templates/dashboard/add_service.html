@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -31,7 +31,7 @@
                        name="name"
                        id="listingTitleInput"
                        class="form-control"
-                       placeholder="E.g., Complete Inverter &amp; Solar Panel Installation"
+                       placeholder="E.g., Full-Stack Web App Development, Bridal Makeup &amp; Gele, or Split AC Installation"
                        autocomplete="off"
                        required>
                 <div id="smartCategorySuggestionBar" class="smart-cat-bar hidden-initial mt-8">
@@ -74,7 +74,7 @@
 
         <div class="form-group">
             <label class="form-label-dark">Service Description *</label>
-            <textarea name="description" class="form-control" rows="4" placeholder="Detail your certifications, workflow, and what the client can expect..." required></textarea>
+            <textarea name="description" class="form-control" rows="4" placeholder="Detail your experience, deliverables, workflow, and what the client can expect..." required></textarea>
         </div>
 
         <!-- 2. Location & Fulfillment -->
@@ -85,15 +85,15 @@
             <div class="form-group">
                 <label class="form-label-dark">Where is this service performed? *</label>
                 <select name="service_mode" id="serviceModeSelect" class="form-control" required>
-                    <option value="CUSTOMER_LOC">I travel to the customer's site</option>
-                    <option value="PROVIDER_LOC">The customer brings item to my workshop</option>
-                    <option value="BOTH">Either location (On-site or Workshop)</option>
-                    <option value="REMOTE">Remote / Online Consultation</option>
+                    <option value="CUSTOMER_LOC">I travel to the customer's location</option>
+                    <option value="PROVIDER_LOC">Customer visits my studio, shop, or workshop</option>
+                    <option value="BOTH">Either location (On-site or Studio/Workshop)</option>
+                    <option value="REMOTE">Remote / Online Delivery</option>
                 </select>
             </div>
             <div class="form-group" id="serviceRadiusGroup">
                 <label class="form-label-dark">Travel Coverage Radius (km)</label>
-                <input type="number" name="service_radius_km" id="serviceRadiusInput" class="form-control" min="1" placeholder="E.g., 25 (Leave blank if workshop/remote)">
+                <input type="number" name="service_radius_km" id="serviceRadiusInput" class="form-control" min="1" placeholder="E.g., 25 (Leave blank if studio/remote)">
                 <small class="text-12-muted">Maximum distance you travel for on-site bookings.</small>
             </div>
         </div>
@@ -108,12 +108,12 @@
         <div class="form-grid-2">
             <div class="form-group">
                 <label class="form-label-dark"><i class="fa-solid fa-check text-success"></i> What's Included</label>
-                <textarea name="whats_included" id="whatsIncludedInput" class="form-control" rows="3" placeholder="E.g., Initial site inspection, Fault diagnosis, Labor, Post-job cleanup"></textarea>
+                <textarea name="whats_included" id="whatsIncludedInput" class="form-control" rows="3" placeholder="E.g., Initial consultation, Main service delivery, Quality check, Post-service cleanup"></textarea>
                 <div id="includedPreviewPills" class="scope-preview-pills mt-8"></div>
             </div>
             <div class="form-group">
                 <label class="form-label-dark"><i class="fa-solid fa-xmark text-danger"></i> What's Excluded</label>
-                <textarea name="whats_excluded" id="whatsExcludedInput" class="form-control" rows="3" placeholder="E.g., Replacement spare parts, Refrigerant gas refill, Major masonry work"></textarea>
+                <textarea name="whats_excluded" id="whatsExcludedInput" class="form-control" rows="3" placeholder="E.g., Replacement spare parts or hardware, Out-of-state travel, Third-party fees"></textarea>
                 <div id="excludedPreviewPills" class="scope-preview-pills mt-8"></div>
             </div>
         </div>
@@ -162,11 +162,11 @@
                     </div>
                     <div>
                         <small>Est. Duration</small>
-                        <input type="text" name="pkg_durations[]" class="form-control" placeholder="e.g., 2 Hours">
+                        <input type="text" name="pkg_durations[]" class="form-control" placeholder="e.g., 2 Days">
                     </div>
                     <div>
                         <small>Features (comma separated)</small>
-                        <input type="text" name="pkg_features[]" class="form-control" placeholder="Fault tracing, Safety check">
+                        <input type="text" name="pkg_features[]" class="form-control" placeholder="Core delivery, Testing, Support">
                     </div>
                     <button type="button" class="btn-remove-variant" aria-label="Remove Package">
                         <i class="fa-solid fa-trash"></i>

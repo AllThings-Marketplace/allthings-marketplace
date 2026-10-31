@@ -14,6 +14,7 @@ from django.contrib import messages
 
 # Models from your other apps
 from accounts.models import ProviderProfile, VendorWallet, VendorTransaction
+from orders.tasks import trigger_escrow_auto_clear_if_due
 from orders.models import Order, OrderItem, ServiceOrder, ServiceQuote, SupportTicket
 from orders.paystack import PaystackAPI
 from marketplace.models import (
@@ -78,6 +79,7 @@ def _check_active_provider_gate(request):
 @login_required
 def provider_dashboard(request):
     profile, gate_redirect = _check_active_provider_gate(request)
+    trigger_escrow_auto_clear_if_due()
     if gate_redirect:
         return gate_redirect
 

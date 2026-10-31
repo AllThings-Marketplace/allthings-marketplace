@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -21,6 +21,17 @@
             </a>
         </div>
     </div>
+
+    {% if product.moderation_note or product.status == 'REJECTED' %}
+        <div class="admin-feedback-banner mb-25">
+            <div class="admin-feedback-title">
+                <i class="fa-solid fa-triangle-exclamation"></i> Moderation Notice ({{ product.get_status_display }}):
+            </div>
+            <p class="admin-feedback-body">
+                {{ product.moderation_note|default:"Please review your product title, description, and specifications, then click Save to resubmit for approval." }}
+            </p>
+        </div>
+    {% endif %}
 
     <form method="POST" action="{% url 'dashboard:edit_product' product.id %}" class="summary-card">
         {% csrf_token %}
@@ -79,6 +90,9 @@
             </div>
         </div>
 
+        <div id="dynamic-attributes-container" class="form-grid-2 mt-20 mb-20"></div>
+        {{ product.attributes|json_script:"existingProductAttributes" }}
+
         <!-- 2. Pricing, Stock & Logistics Sizing -->
         <h3 class="checkout-section-title mt-40">
             <i class="fa-solid fa-tags icon-primary-spaced"></i> 2. Pricing, Inventory &amp; Delivery Sizing
@@ -86,7 +100,7 @@
 
         <div class="form-grid-2 mb-20">
             <div class="form-group">
-                <label class="form-label-dark">Price (NGN) *</label>
+                <label class="form-label-dark">Base Price (NGN) *</label>
                 <input type="number" name="price" class="form-control" step="0.01" value="{{ product.price }}" required>
             </div>
 
@@ -102,13 +116,13 @@
                 <label class="form-label-dark" for="shipping_class">Package Size / Delivery Tier *</label>
                 <select name="shipping_class" id="shipping_class" class="form-control" required>
                     <option value="SMALL" {% if product.shipping_class == 'SMALL' %}selected{% endif %}>
-                        Small Parcel / Bike-Friendly (&lt; 5kg — Bulbs, Switches, Tools)
+                        Small Parcel / Bike-Friendly (&lt; 5kg — Phones, Fashion, Wigs, Cosmetics, Tools)
                     </option>
                     <option value="MEDIUM" {% if product.shipping_class == 'MEDIUM' %}selected{% endif %}>
-                        Medium Box (5–20kg — Fans, Cable Coils, Stabilizers)
+                        Medium Box (5–20kg — Laptops, Blenders, Fans, Groceries, Cable Coils)
                     </option>
                     <option value="HEAVY" {% if product.shipping_class == 'HEAVY' %}selected{% endif %}>
-                        Heavy / Bulky Cargo (&gt; 20kg — Inverters, Solar Panels, Batteries)
+                        Heavy / Bulky Cargo (&gt; 20kg — Fridges, ACs, Furniture, Inverters, Solar Panels)
                     </option>
                 </select>
                 <small class="text-12-muted">Determines bike vs. cargo van dispatch pricing at checkout.</small>
@@ -129,7 +143,44 @@
             </div>
         </div>
 
-        <!-- 3. Description -->
+        <!-- 3. Product Options (Variants) -->
+        <div class="form-group mt-25">
+            <div class="flex-between align-center mb-10">
+                <label class="form-label-dark m-0">Product Options (Variants)</label>
+                <button type="button" class="action-btn btn-outline action-sm" id="add-variant-btn">
+                    <i class="fa-solid fa-plus"></i> Add Option
+                </button>
+            </div>
+            <p class="text-12-muted mb-10">Manage sizes, colors, storage capacities, or specifications for this product.</p>
+
+            <div id="variant-builder-container" class="variant-builder {% if not variants %}hidden-initial{% endif %}">
+                {% for variant in variants %}
+                    <div class="variant-row">
+                        <div>
+                            <small>Option Name</small>
+                            <input type="text" name="variant_names[]" class="form-control" value="{{ variant.attribute_name }}" placeholder="e.g., Size or Storage">
+                        </div>
+                        <div>
+                            <small>Option Value</small>
+                            <input type="text" name="variant_values[]" class="form-control" value="{{ variant.attribute_value }}" placeholder="e.g., XL or 256GB">
+                        </div>
+                        <div>
+                            <small>Price Override (NGN)</small>
+                            <input type="number" name="variant_prices[]" class="form-control" step="0.01" value="{{ variant.price_override|default_if_none:'' }}" placeholder="Optional">
+                        </div>
+                        <div>
+                            <small>Stock</small>
+                            <input type="number" name="variant_stocks[]" class="form-control" min="0" value="{{ variant.stock }}">
+                        </div>
+                        <button type="button" class="btn-remove-variant" aria-label="Remove Variant">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 4. Description -->
         <h3 class="checkout-section-title mt-40">
             <i class="fa-solid fa-align-left icon-primary-spaced"></i> 3. Product Description
         </h3>
