@@ -9,22 +9,30 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.urls import reverse
 from django.db.models import F, Q, Sum
+from django.db.models.functions import Greatest
 from django.shortcuts import redirect, get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 
-from accounts.models import VendorTransaction
+from accounts.models import VendorWallet, VendorTransaction
 from .models import (
-    Order, OrderItem, ShippingAddress, Cart, CartItem, 
+    Order, OrderItem, ShippingAddress, Cart, CartItem,
     PaymentAttempt, ServiceOrder, OrderMessage, ServiceDispute,
     SupportTicket, TicketMessage
 )
 from marketplace.models import Product, Service, ProductVariant, ServicePackage, UserInteraction
 from .paystack import PaystackAPI
-from .tasks import process_webhook_payment
-from .utils import process_order_commissions, release_item_escrow, create_service_escrow, release_service_escrow
+from .tasks import trigger_escrow_auto_clear_if_due
+from .utils import (
+    process_order_commissions,
+    release_item_escrow,
+    refund_item_escrow,
+    create_service_escrow,
+    release_service_escrow,
+    refund_service_escrow,
+)
 from .logistics import LogisticsEngine, normalize_location
 
 
@@ -108,11 +116,11 @@ def _fulfill_paid_product_order(order_id, reference=None):
                 item.generate_handshake_codes()
 
                 if item.variant:
-                    item.variant.stock = F('stock') - item.quantity
-                    item.variant.save()
+                    item.variant.stock = Greatest(F('stock') - item.quantity, 0)
+                    item.variant.save(update_fields=['stock'])
                 if item.product:
-                    item.product.stock_count = F('stock_count') - item.quantity
-                    item.product.save()
+                    item.product.stock_count = Greatest(F('stock_count') - item.quantity, 0)
+                    item.product.save(update_fields=['stock_count'])
 
                     UserInteraction.objects.create(
                         user=order.customer,
@@ -205,7 +213,7 @@ def add_to_cart(request, product_id):
         return redirect('marketplace:product_detail', slug=product.slug)
 
     cart, _ = Cart.objects.get_or_create(customer=request.user)
-    
+
     variant = None
     qty_to_add = 1
 
@@ -219,14 +227,14 @@ def add_to_cart(request, product_id):
             qty_to_add = 1
 
     cart_item, _ = CartItem.objects.get_or_create(
-        cart=cart, 
+        cart=cart,
         product=product,
         variant=variant,
         defaults={'quantity': 0}
     )
-    
+
     available_stock = variant.stock if variant else product.stock_count
-    
+
     if available_stock <= 0:
         msg = f"Sorry, {product.name} is currently out of stock."
         if _is_ajax(request):
@@ -237,7 +245,7 @@ def add_to_cart(request, product_id):
     if (cart_item.quantity + qty_to_add) <= available_stock:
         cart_item.quantity += qty_to_add
         cart_item.save()
-        
+
         # Log High-Intent CART Signal (Weight = 8)
         UserInteraction.objects.create(
             user=request.user,
@@ -246,7 +254,7 @@ def add_to_cart(request, product_id):
             interaction_type=UserInteraction.InteractionType.CART,
             weight=8
         )
-        
+
         msg = f"{product.name} added to cart!"
         if _is_ajax(request):
             return JsonResponse({
@@ -256,14 +264,14 @@ def add_to_cart(request, product_id):
                 'item_total': float(cart_item.get_total),
                 **_get_cart_metrics(cart)
             })
-        
+
         messages.success(request, msg)
     else:
         msg = f"Cannot add more. Only {available_stock} in stock."
         if _is_ajax(request):
             return JsonResponse({'status': 'error', 'message': msg, **_get_cart_metrics(cart)}, status=400)
         messages.error(request, msg)
-        
+
     return redirect('orders:cart')
 
 
@@ -297,7 +305,7 @@ def clear_cart(request):
 def increase_quantity(request, item_id):
     item = get_object_or_404(CartItem, id=item_id, cart__customer=request.user)
     available_stock = item.variant.stock if item.variant else item.product.stock_count
-    
+
     if item.quantity < available_stock:
         item.quantity += 1
         item.save()
@@ -347,7 +355,7 @@ def decrease_quantity(request, item_id):
 @login_required
 def process_service_booking(request, service_id):
     service = get_object_or_404(Service, id=service_id)
-    
+
     if request.method == 'POST':
         preferred_date = request.POST.get('preferred_date')
         preferred_time = request.POST.get('preferred_time')
@@ -362,7 +370,7 @@ def process_service_booking(request, service_id):
             if not package_id:
                 messages.error(request, "Please select a service package.")
                 return redirect('marketplace:service_detail', slug=service.slug)
-            
+
             selected_package = get_object_or_404(ServicePackage, id=package_id)
             agreed_price = selected_package.price
 
@@ -382,9 +390,18 @@ def process_service_booking(request, service_id):
             status=ServiceOrder.ServiceStatus.REQUESTED
         )
 
+        if service.provider and service.provider.user:
+            _notify(
+                recipient=service.provider.user,
+                title=f"New Service Booking Request ({service_order.reference_code})",
+                message=f"{request.user.username} requested '{service.name}'. Review and accept or send a quote.",
+                target_obj=service_order,
+                notif_type='ORDER'
+            )
+
         messages.success(request, f"Your request for '{service.name}' has been sent to the provider!")
         return redirect('orders:service_booking_success', reference=service_order.reference_code)
-        
+
     return redirect('marketplace:service_detail', slug=service.slug)
 
 
@@ -411,15 +428,15 @@ def service_checkout(request, order_id):
                 service_order.quote.save(update_fields=['status'])
                 service_order.agreed_price = service_order.quote.total_amount
             service_order.save(update_fields=['status', 'agreed_price'])
-        
+
         paystack = PaystackAPI()
         dynamic_callback = request.build_absolute_uri(reverse('orders:verify_payment'))
-        
+
         metadata = {
             "order_id": service_order.id,
             "type": "service"
         }
-        
+
         response = paystack.initialize_transaction(
             email=request.user.email,
             amount=service_order.agreed_price,
@@ -427,7 +444,7 @@ def service_checkout(request, order_id):
             callback_url=dynamic_callback,
             metadata=metadata
         )
-        
+
         if response.get('status'):
             service_order.paystack_reference = response['data']['reference']
             service_order.save(update_fields=['paystack_reference'])
@@ -489,7 +506,7 @@ def get_shipping_quotes_ajax(request):
 @login_required
 def checkout_view(request):
     cart = get_object_or_404(Cart, customer=request.user)
-    
+
     if not cart.items.exists():
         return redirect('marketplace:home')
 
@@ -497,7 +514,7 @@ def checkout_view(request):
 
     if request.method == 'GET':
         selected_products = request.GET.getlist('selected_products')
-        
+
         if not selected_products:
             messages.error(request, "Please select at least one item to checkout.")
             return redirect('orders:cart')
@@ -521,13 +538,13 @@ def checkout_view(request):
         quotes = quote_data.get('quotes', [])
         default_quote = quotes[0] if quotes else None
         initial_shipping = Decimal(str(default_quote['amount'])) if default_quote else Decimal('0.00')
-        
+
         context = {
             'checkout_items': checkout_items,
             'checkout_subtotal': subtotal,
             'initial_shipping': initial_shipping,
             'checkout_total': subtotal + initial_shipping,
-            'selected_products': selected_products, 
+            'selected_products': selected_products,
             'saved_addresses': saved_addresses,
             'quotes': quotes,
             'shipment_groups': quote_data.get('shipment_groups', []),
@@ -544,7 +561,7 @@ def checkout_view(request):
         if not checkout_items:
             messages.error(request, "No valid items found for checkout.")
             return redirect('orders:cart')
-        
+
         for item in checkout_items:
             available_stock = item.variant.stock if item.variant else item.product.stock_count
             if item.quantity > available_stock:
@@ -580,7 +597,7 @@ def checkout_view(request):
             if not (first_name and last_name and phone and region and street_address):
                 messages.error(request, "Please fill in all required delivery address fields.")
                 return redirect('orders:cart')
-            
+
             if save_for_future or not saved_addresses.exists():
                 ShippingAddress.objects.create(
                     user=request.user,
@@ -680,7 +697,7 @@ def checkout_view(request):
             "order_id": order.id,
             "type": "product"
         }
-        
+
         response = paystack.initialize_transaction(
             email=request.user.email,
             amount=order.total_amount,
@@ -716,7 +733,7 @@ def verify_payment(request):
         metadata = response['data'].get('metadata', {})
         order_type = metadata.get('type', 'product')
         order_id = metadata.get('order_id')
-        
+
         # --- SUCCESSFUL PAYMENT ---
         if response['data']['status'] == 'success':
             if order_type == 'service':
@@ -725,12 +742,12 @@ def verify_payment(request):
                 service_name = service_order.service.name if service_order.service else service_order.reference_code
                 messages.success(request, f"Payment successful! Your booking for {service_name} is confirmed.")
                 return redirect('orders:order_history')
-                
+
             else:
                 order = get_object_or_404(Order, id=order_id, customer=request.user)
                 _fulfill_paid_product_order(order.id, reference=reference)
                 return redirect('orders:order_success', order_id=order.id)
-        
+
         # --- CANCELLED OR FAILED PAYMENT ---
         else:
             if order_type == 'service':
@@ -740,7 +757,7 @@ def verify_payment(request):
                 PaymentAttempt.objects.filter(reference=reference).update(status='failed')
                 messages.error(request, "Payment was cancelled or failed. You can retry the payment below.")
                 return redirect('orders:order_details', order_id=order_id)
-    
+
     # --- API FAILURE FALLBACK ---
     PaymentAttempt.objects.filter(reference=reference).update(status='failed')
     messages.error(request, "We could not verify the payment status with our provider. If you were debited, please use our Instant Payment Recovery tool.")
@@ -797,7 +814,6 @@ def paystack_webhook(request):
         elif order_type == 'product' and order_id:
             _fulfill_paid_product_order(order_id, reference=reference)
         else:
-            # Fallback lookup by reference if metadata was omitted
             attempt = PaymentAttempt.objects.filter(reference=reference).first()
             if attempt:
                 _fulfill_paid_product_order(attempt.order_id, reference=reference)
@@ -819,22 +835,23 @@ def paystack_webhook(request):
             ).first()
             if txn and txn.status == 'PENDING':
                 txn.status = 'COMPLETED'
-                txn.save(update_fields=['status'])
+                txn.cleared_at = timezone.now()
+                txn.save(update_fields=['status', 'cleared_at'])
 
     elif event in ['transfer.failed', 'transfer.reversed']:
         with transaction.atomic():
-            txn = VendorTransaction.objects.select_for_update().select_related('wallet').filter(
+            txn = VendorTransaction.objects.select_for_update().filter(
                 reference=reference,
                 transaction_type='PAYOUT'
             ).first()
             if txn and txn.status == 'PENDING':
-                wallet = txn.wallet
+                wallet = VendorWallet.objects.select_for_update().get(id=txn.wallet_id)
                 wallet.available_balance += Decimal(str(txn.net_amount))
                 wallet.total_withdrawn = max(
                     Decimal('0.00'),
                     wallet.total_withdrawn - Decimal(str(txn.net_amount))
                 )
-                wallet.save(update_fields=['available_balance', 'total_withdrawn'])
+                wallet.save(update_fields=['available_balance', 'total_withdrawn', 'last_updated'])
 
                 txn.status = 'FAILED'
                 txn.save(update_fields=['status'])
@@ -846,15 +863,15 @@ def paystack_webhook(request):
 def retry_payment(request, order_id):
     if request.method == 'POST':
         order = get_object_or_404(Order, id=order_id, customer=request.user, status='unpaid')
-        
+
         paystack = PaystackAPI()
         dynamic_callback = request.build_absolute_uri(reverse('orders:verify_payment'))
-        
+
         metadata = {
             "order_id": order.id,
             "type": "product"
         }
-        
+
         response = paystack.initialize_transaction(
             email=request.user.email,
             amount=order.total_amount,
@@ -874,7 +891,7 @@ def retry_payment(request, order_id):
         else:
             messages.error(request, "Payment gateway unavailable. Please try again.")
             return redirect('orders:order_details', order_id=order.id)
-            
+
     return redirect('orders:order_details', order_id=order_id)
 
 
@@ -888,12 +905,11 @@ def order_success(request, order_id):
 
 @login_required
 def order_history(request):
-    if request.user.role == 'PROVIDER':
-        return redirect('dashboard:provider_dashboard')
-        
+    trigger_escrow_auto_clear_if_due()
+
     orders = Order.objects.filter(customer=request.user).order_by('-created_at')
     service_bookings = ServiceOrder.objects.filter(customer=request.user).order_by('-created_at')
-    
+
     return render(request, 'orders/order_history.html', {
         'orders': orders,
         'service_bookings': service_bookings
@@ -908,61 +924,86 @@ def order_details(request, order_id):
 
 @login_required
 def confirm_item_delivery(request, item_id):
+    item_preview = get_object_or_404(OrderItem, id=item_id, order__customer=request.user)
+    order_id = item_preview.order_id
+
     if request.method == 'POST':
-        item = get_object_or_404(OrderItem, id=item_id, order__customer=request.user)
         submitted_code = request.POST.get('delivery_code', '').strip()
-        
-        if item.status == 'COMPLETED':
-            messages.info(request, "This item has already been marked as completed.")
-            return redirect('orders:order_details', order_id=item.order.id)
-        if item.status in ['DISPUTED', 'REFUNDED', 'CANCELLED']:
-            messages.error(request, f"This item is currently {item.get_status_display()} and cannot be confirmed via PIN.")
-            return redirect('orders:order_details', order_id=item.order.id)
-            
-        if submitted_code == item.delivery_code:
-            with transaction.atomic():
-                item.status = 'COMPLETED'
-                item.save(update_fields=['status'])
-                
-                all_completed = not item.order.items.exclude(status='COMPLETED').exists()
-                if all_completed:
-                    item.order.status = 'completed'
-                    item.order.save(update_fields=['status'])
-                    
-                release_item_escrow(item)
 
-            if item.product and item.product.provider and item.product.provider.user:
-                _notify(
-                    recipient=item.product.provider.user,
-                    title=f"Escrow Released: {item.product.name}",
-                    message=f"Customer confirmed delivery for '{item.product.name}' ({item.order.reference}). Funds have been credited to your wallet!",
-                    target_obj=item.order,
-                    notif_type='ORDER'
-                )
+        with transaction.atomic():
+            item = (
+                OrderItem.objects.select_for_update()
+                .select_related('order', 'product__provider__user')
+                .get(id=item_id, order__customer=request.user)
+            )
 
-            messages.success(request, f"Delivery confirmed for {item.product.name}! The vendor has been credited.")
-        else:
-            messages.error(request, "Invalid delivery code. Please check the code provided for this item.")
-            
-    return redirect('orders:order_details', order_id=item.order.id)
+            if item.status == 'COMPLETED':
+                messages.info(request, "This item has already been marked as completed.")
+                return redirect('orders:order_details', order_id=order_id)
+
+            if item.status in ['DISPUTED', 'REFUNDED', 'CANCELLED', 'PENDING']:
+                messages.error(request, f"This item is currently {item.get_status_display()} and cannot be confirmed via PIN.")
+                return redirect('orders:order_details', order_id=order_id)
+
+            if submitted_code != item.delivery_code:
+                messages.error(request, "Invalid delivery code. Please check the 6-digit PIN provided for this item.")
+                return redirect('orders:order_details', order_id=order_id)
+
+            item.status = 'COMPLETED'
+            item.save(update_fields=['status'])
+
+            all_completed = not item.order.items.exclude(status='COMPLETED').exists()
+            if all_completed and item.order.status != 'completed':
+                item.order.status = 'completed'
+                item.order.save(update_fields=['status'])
+
+            escrow_released = release_item_escrow(item)
+
+        if escrow_released and item.product and item.product.provider and item.product.provider.user:
+            _notify(
+                recipient=item.product.provider.user,
+                title=f"Escrow Released: {item.product.name}",
+                message=f"Customer confirmed delivery for '{item.product.name}' ({item.order.reference}). Funds have been credited to your available balance!",
+                target_obj=item.order,
+                notif_type='ORDER'
+            )
+
+        messages.success(request, f"Delivery confirmed for {item.product.name}! The vendor has been credited.")
+
+    return redirect('orders:order_details', order_id=order_id)
 
 
 @login_required
 def customer_confirm_service(request, order_id):
     if request.method == 'POST':
-        service_order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user, status='COMPLETED')
-        
         with transaction.atomic():
+            service_order = (
+                ServiceOrder.objects.select_for_update()
+                .select_related('service', 'provider__user')
+                .filter(id=order_id, customer=request.user)
+                .first()
+            )
+            if not service_order:
+                return redirect('orders:order_history')
+
+            if service_order.status == 'CONFIRMED':
+                messages.info(request, "This service has already been confirmed.")
+                return redirect('orders:order_history')
+
+            if service_order.status != 'COMPLETED':
+                messages.error(request, "Only services marked as completed by the provider can be confirmed.")
+                return redirect('orders:order_history')
+
             service_order.status = 'CONFIRMED'
             service_order.save(update_fields=['status'])
-            release_service_escrow(service_order)
-        
+            escrow_released = release_service_escrow(service_order)
+
         service_name = service_order.service.name if service_order.service else service_order.reference_code
-        if service_order.provider and service_order.provider.user:
+        if escrow_released and service_order.provider and service_order.provider.user:
             _notify(
                 recipient=service_order.provider.user,
                 title=f"Service Escrow Released ({service_order.reference_code})",
-                message=f"{request.user.username} confirmed completion of '{service_name}'. Your payout has been credited to your wallet!",
+                message=f"{request.user.username} confirmed completion of '{service_name}'. Your payout has been credited to your available wallet!",
                 target_obj=service_order,
                 notif_type='ORDER'
             )
@@ -975,14 +1016,14 @@ def customer_confirm_service(request, order_id):
 def reject_quote(request, order_id):
     if request.method == 'POST':
         order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user, status='QUOTE_SENT')
-        
+
         order.status = 'DECLINED'
         order.save(update_fields=['status'])
-        
+
         if hasattr(order, 'quote'):
             order.quote.status = 'REJECTED'
             order.quote.save(update_fields=['status'])
-            
+
         service_name = order.service.name if order.service else order.reference_code
         if order.provider and order.provider.user:
             _notify(
@@ -994,7 +1035,7 @@ def reject_quote(request, order_id):
             )
 
         messages.info(request, f"You rejected the quote for {service_name}.")
-        
+
     return redirect('orders:order_history')
 
 
@@ -1002,16 +1043,16 @@ def reject_quote(request, order_id):
 def send_order_message(request, order_id):
     if request.method == 'POST':
         order = get_object_or_404(ServiceOrder, id=order_id)
-        
+
         is_customer = request.user == order.customer
         is_provider = hasattr(request.user, 'provider_profile') and request.user.provider_profile == order.provider
-        
+
         if not (is_customer or is_provider):
             return HttpResponseForbidden("You are not authorized to send messages for this order.")
-            
+
         body = request.POST.get('body', '').strip()
         attachment = request.FILES.get('attachment')
-        
+
         if body or attachment:
             message = OrderMessage.objects.create(
                 order=order,
@@ -1019,7 +1060,7 @@ def send_order_message(request, order_id):
                 body=body,
                 attachment=attachment
             )
-            
+
             recipient = order.provider.user if is_customer else order.customer
             snippet = (body[:60] + '...') if len(body) > 60 else (body or 'Sent an attachment')
             _notify(
@@ -1029,7 +1070,7 @@ def send_order_message(request, order_id):
                 target_obj=order,
                 notif_type='MESSAGE'
             )
-            
+
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse({
                     'status': 'success',
@@ -1037,25 +1078,25 @@ def send_order_message(request, order_id):
                     'attachment_url': message.attachment.url if message.attachment else None,
                     'time': timezone.localtime(message.created_at).strftime("%I:%M %p")
                 })
-                
+
         return redirect(request.META.get('HTTP_REFERER', 'marketplace:home'))
 
 
 @login_required
 def order_chat(request, order_id):
     order = get_object_or_404(ServiceOrder, id=order_id)
-    
+
     is_customer = request.user == order.customer
     is_provider = hasattr(request.user, 'provider_profile') and request.user.provider_profile == order.provider
-    
+
     if not (is_customer or is_provider):
         return HttpResponseForbidden("You are not authorized to view this conversation.")
-        
+
     unread_messages = order.messages.exclude(sender=request.user).filter(is_read=False)
     unread_messages.update(is_read=True)
-    
+
     chat_partner = order.provider.business_name if is_customer else order.customer.get_full_name() or order.customer.username
-        
+
     context = {
         'order': order,
         'chat_messages': order.messages.all(),
@@ -1068,7 +1109,7 @@ def order_chat(request, order_id):
 @login_required
 def report_dispute(request, order_id):
     order = get_object_or_404(ServiceOrder, id=order_id, customer=request.user)
-    
+
     if order.status in ['CONFIRMED', 'CANCELLED', 'DECLINED']:
         messages.error(request, "This order cannot be disputed at this time.")
         return redirect('orders:order_history')
@@ -1097,7 +1138,7 @@ def report_dispute(request, order_id):
                     description=description,
                     evidence=evidence
                 )
-                
+
                 order.status = 'DISPUTED'
                 order.save(update_fields=['status'])
 
@@ -1131,7 +1172,7 @@ def report_dispute(request, order_id):
 
             messages.success(request, f"Dispute Ticket {ticket.ticket_reference} opened. Escrow is now frozen while our team reviews your evidence.")
             return redirect('orders:ticket_detail', reference=ticket.ticket_reference)
-            
+
         except Exception as e:
             messages.error(request, f"Error submitting dispute: {str(e)}")
 
@@ -1153,7 +1194,7 @@ def support_center(request):
         subject = request.POST.get('subject', '').strip()
         description = request.POST.get('description', '').strip()
         evidence = request.FILES.get('evidence')
-        
+
         order_id = request.POST.get('order_id')
         order_item_id = request.POST.get('order_item_id')
         service_order_id = request.POST.get('service_order_id')
@@ -1498,7 +1539,7 @@ def resolve_ticket(request, reference):
     """
     1-Click Admin Escrow Arbitration:
     Allows staff/admins to release frozen escrow funds to the provider,
-    refund the customer, or close general support tickets.
+    refund the customer (deducting pending_balance cleanly), or close general support tickets.
     """
     if not (request.user.is_staff or request.user.is_superuser):
         return HttpResponseForbidden("Only marketplace administrators can arbitrate support tickets.")
@@ -1526,19 +1567,19 @@ def resolve_ticket(request, reference):
     with transaction.atomic():
         if decision == 'release_provider':
             if ticket.order_item and ticket.order_item.status != 'COMPLETED':
-                item = ticket.order_item
+                item = OrderItem.objects.select_for_update().get(id=ticket.order_item.id)
                 item.status = 'COMPLETED'
                 item.save(update_fields=['status'])
 
                 all_completed = not item.order.items.exclude(status='COMPLETED').exists()
-                if all_completed:
+                if all_completed and item.order.status != 'completed':
                     item.order.status = 'completed'
                     item.order.save(update_fields=['status'])
 
                 release_item_escrow(item)
 
             if ticket.service_order and ticket.service_order.status != 'CONFIRMED':
-                s_order = ticket.service_order
+                s_order = ServiceOrder.objects.select_for_update().get(id=ticket.service_order.id)
                 s_order.status = 'CONFIRMED'
                 s_order.save(update_fields=['status'])
                 if hasattr(s_order, 'dispute'):
@@ -1552,13 +1593,14 @@ def resolve_ticket(request, reference):
             summary_msg = f"ARBITRATION DECISION: Escrow released to provider. {resolution_notes}"
 
         elif decision == 'refund_customer':
-            if ticket.order_item:
-                item = ticket.order_item
+            if ticket.order_item and ticket.order_item.status != 'REFUNDED':
+                item = OrderItem.objects.select_for_update().get(id=ticket.order_item.id)
                 item.status = 'REFUNDED'
                 item.save(update_fields=['status'])
+                refund_item_escrow(item)
 
-            if ticket.service_order:
-                s_order = ticket.service_order
+            if ticket.service_order and ticket.service_order.status != 'CANCELLED':
+                s_order = ServiceOrder.objects.select_for_update().get(id=ticket.service_order.id)
                 s_order.status = 'CANCELLED'
                 s_order.save(update_fields=['status'])
                 if hasattr(s_order, 'dispute'):
@@ -1566,9 +1608,10 @@ def resolve_ticket(request, reference):
                     s_order.dispute.resolved_at = timezone.now()
                     s_order.dispute.admin_notes = resolution_notes
                     s_order.dispute.save(update_fields=['status', 'resolved_at', 'admin_notes'])
+                refund_service_escrow(s_order)
 
             ticket.status = SupportTicket.Status.RESOLVED_CUSTOMER
-            summary_msg = f"ARBITRATION DECISION: Disputed item/service ruled in favor of customer (Refund Approved). {resolution_notes}"
+            summary_msg = f"ARBITRATION DECISION: Disputed item/service ruled in favor of customer (Refund Approved & Escrow Reversed). {resolution_notes}"
 
         else:
             ticket.status = SupportTicket.Status.CLOSED

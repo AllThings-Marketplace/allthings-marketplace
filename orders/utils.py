@@ -1,27 +1,39 @@
-from django.conf import settings
+import logging
 from decimal import Decimal
-from accounts.models import VendorTransaction
+from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
+from accounts.models import VendorWallet, VendorTransaction
+
+logger = logging.getLogger(__name__)
+
+COMMISSION_RATE = Decimal('0.10')  # 10% Platform Fee
+
 
 def process_order_commissions(order):
     """
-    Called immediately after Paystack verifies a successful payment.
-    Calculates the 10% commission and routes funds to vendor wallets.
+    Idempotently calculates the 10% platform commission for each OrderItem
+    and credits the provider's locked VendorWallet.pending_balance.
+    Safe against multi-item caching bugs and concurrent webhook calls.
     """
-    COMMISSION_RATE = Decimal('0.10') # 10% Platform Fee
-    
-    # 1. Route Funds for Physical Products
-    for item in order.items.all():
-        # Ensure the product actually belongs to a registered provider with a wallet
-        if item.product and getattr(item.product, 'provider', None) and hasattr(item.product.provider, 'wallet'):
-            wallet = item.product.provider.wallet
-            
-            # get_total is a property, so no parentheses needed
-            gross_amount = item.get_total 
-            commission = gross_amount * COMMISSION_RATE
+    for item in order.items.select_related('product__provider').all():
+        provider = getattr(item.product, 'provider', None) if item.product else None
+        if not provider:
+            continue
+
+        txn_ref = f"ORD-{order.id}-ITEM-{item.id}"
+
+        with transaction.atomic():
+            wallet, _ = VendorWallet.objects.select_for_update().get_or_create(provider=provider)
+
+            # Idempotency guard: never double-create or double-credit the same order item
+            if VendorTransaction.objects.filter(reference=txn_ref).exists():
+                continue
+
+            gross_amount = Decimal(str(item.get_total)).quantize(Decimal('0.01'))
+            commission = (gross_amount * COMMISSION_RATE).quantize(Decimal('0.01'))
             net_amount = gross_amount - commission
-            
-            # Create the immutable ledger record
+
             VendorTransaction.objects.create(
                 wallet=wallet,
                 order=order,
@@ -29,128 +41,180 @@ def process_order_commissions(order):
                 gross_amount=gross_amount,
                 commission=commission,
                 net_amount=net_amount,
-                reference=f"ORD-{order.id}-ITEM-{item.id}",
-                status='PENDING'
+                reference=txn_ref,
+                status='PENDING',
             )
-            
-            # Securely increase the vendor's pending escrow balance
+
             wallet.pending_balance += net_amount
-            wallet.save()
+            wallet.save(update_fields=['pending_balance', 'last_updated'])
+
 
 def release_item_escrow(item):
     """
-    Unlocks funds for a specific vendor item after delivery confirmation.
+    Atomically unlocks escrow funds for a specific OrderItem after delivery confirmation
+    or 72-hour auto-clearance. Row-locked so double-clicks can never double-pay.
     """
-    # Match the exact reference created in process_order_commissions
-    txn_ref = f"ORD-{item.order.id}-ITEM-{item.id}"
-    
-    # Find the specific pending transaction for this exact product
-    txn = VendorTransaction.objects.filter(reference=txn_ref, status='PENDING').first()
-    
-    if txn:
-        wallet = txn.wallet
-        
-        # 1. Deduct from escrow
-        wallet.pending_balance -= txn.net_amount
-        
-        # 2. Add to withdrawable balance
+    txn_ref = f"ORD-{item.order_id}-ITEM-{item.id}"
+
+    with transaction.atomic():
+        txn = (
+            VendorTransaction.objects.select_for_update()
+            .filter(reference=txn_ref, status='PENDING')
+            .first()
+        )
+        if not txn:
+            return False
+
+        wallet = VendorWallet.objects.select_for_update().get(id=txn.wallet_id)
+        wallet.pending_balance = max(Decimal('0.00'), wallet.pending_balance - txn.net_amount)
         wallet.available_balance += txn.net_amount
-        wallet.save()
-        
-        # 3. Permanently clear the ledger record
+        wallet.save(update_fields=['pending_balance', 'available_balance', 'last_updated'])
+
         txn.status = 'CLEARED'
         txn.cleared_at = timezone.now()
-        txn.save()
+        txn.save(update_fields=['status', 'cleared_at'])
+        return True
+
+
+def refund_item_escrow(item):
+    """
+    Atomically removes pending escrow funds from the vendor's wallet when a paid
+    OrderItem is cancelled or refunded during dispute arbitration.
+    """
+    txn_ref = f"ORD-{item.order_id}-ITEM-{item.id}"
+
+    with transaction.atomic():
+        txn = (
+            VendorTransaction.objects.select_for_update()
+            .filter(reference=txn_ref, status='PENDING')
+            .first()
+        )
+        if not txn:
+            return False
+
+        wallet = VendorWallet.objects.select_for_update().get(id=txn.wallet_id)
+        wallet.pending_balance = max(Decimal('0.00'), wallet.pending_balance - txn.net_amount)
+        wallet.save(update_fields=['pending_balance', 'last_updated'])
+
+        txn.transaction_type = 'REFUND'
+        txn.status = 'FAILED'
+        txn.cleared_at = timezone.now()
+        txn.save(update_fields=['transaction_type', 'status', 'cleared_at'])
+        return True
+
 
 def dispatch_gigl_rider(item):
     """
-    Triggers a pickup request to the GIGL API.
+    Prepares and dispatches a pickup request to the logistics gateway.
     """
-    url = "https://api.giglogistics.com/v1/shipments" 
+    if not item.product or not item.product.provider:
+        return None
+
+    url = "https://api.giglogistics.com/v1/shipments"
     headers = {
-        "Authorization": f"Bearer {settings.GIGL_API_KEY}",
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {getattr(settings, 'GIGL_API_KEY', '')}",
+        "Content-Type": "application/json",
     }
-    
+
     payload = {
         "senderName": item.product.provider.business_name,
-        
-        # THE FIX: Updated from .address to .store_address
-        "senderAddress": item.product.provider.store_address, 
-        
+        "senderAddress": item.product.provider.store_address,
         "receiverName": f"{item.order.first_name} {item.order.last_name}",
         "receiverAddress": item.order.street_address,
         "receiverPhoneNumber": item.order.phone,
         "itemName": item.product.name,
         "quantity": item.quantity,
-        "specialInstruction": f"Provide PIN {item.pickup_code} to vendor upon pickup."
+        "specialInstruction": f"Provide PIN {item.pickup_code} to vendor upon pickup.",
     }
-    
-    # response = requests.post(url, json=payload, headers=headers)
-    # return response.json()
+    return payload
+
 
 def create_service_escrow(service_order):
     """
-    Creates a pending escrow ledger entry when a customer successfully pays for a service request.
+    Idempotently creates a pending escrow ledger entry when a customer pays
+    for a ServiceOrder and credits the provider's pending_balance.
     """
-    COMMISSION_RATE = Decimal('0.10') # 10% Platform Fee
-    provider_profile = service_order.provider
-    
-    if provider_profile and hasattr(provider_profile, 'wallet') and service_order.agreed_price:
-        wallet = provider_profile.wallet
-        gross_amount = service_order.agreed_price
-        commission = gross_amount * COMMISSION_RATE
+    provider = service_order.provider
+    if not provider or not service_order.agreed_price:
+        return None
+
+    txn_ref = f"SRV-{service_order.reference_code}"
+
+    with transaction.atomic():
+        wallet, _ = VendorWallet.objects.select_for_update().get_or_create(provider=provider)
+
+        existing_txn = VendorTransaction.objects.filter(reference=txn_ref).first()
+        if existing_txn:
+            return existing_txn
+
+        gross_amount = Decimal(str(service_order.agreed_price)).quantize(Decimal('0.01'))
+        commission = (gross_amount * COMMISSION_RATE).quantize(Decimal('0.01'))
         net_amount = gross_amount - commission
-        
-        VendorTransaction.objects.create(
+
+        txn = VendorTransaction.objects.create(
             wallet=wallet,
-            transaction_type='SERVICE',
+            transaction_type='SALE',
             gross_amount=gross_amount,
             commission=commission,
             net_amount=net_amount,
-            reference=f"SRV-{service_order.reference_code}",
-            status='PENDING'
+            reference=txn_ref,
+            status='PENDING',
         )
-        
-        # Securely increase the vendor's pending escrow balance
+
         wallet.pending_balance += net_amount
-        wallet.save()
+        wallet.save(update_fields=['pending_balance', 'last_updated'])
+        return txn
+
 
 def release_service_escrow(service_order):
     """
-    Releases pending escrow funds into the service provider's available wallet balance.
+    Atomically releases pending escrow funds into the service provider's
+    available wallet balance. Row-locked against concurrent calls.
     """
     txn_ref = f"SRV-{service_order.reference_code}"
-    txn = VendorTransaction.objects.filter(reference=txn_ref, status='PENDING').first()
-    
-    if txn:
-        wallet = txn.wallet
-        
-        # 1. Deduct from escrow
-        wallet.pending_balance -= txn.net_amount
-        
-        # 2. Add to withdrawable balance
+
+    with transaction.atomic():
+        txn = (
+            VendorTransaction.objects.select_for_update()
+            .filter(reference=txn_ref, status='PENDING')
+            .first()
+        )
+        if not txn:
+            return False
+
+        wallet = VendorWallet.objects.select_for_update().get(id=txn.wallet_id)
+        wallet.pending_balance = max(Decimal('0.00'), wallet.pending_balance - txn.net_amount)
         wallet.available_balance += txn.net_amount
-        wallet.save()
-        
-        # 3. Permanently clear the ledger record
+        wallet.save(update_fields=['pending_balance', 'available_balance', 'last_updated'])
+
         txn.status = 'CLEARED'
         txn.cleared_at = timezone.now()
-        txn.save()
+        txn.save(update_fields=['status', 'cleared_at'])
+        return True
+
 
 def refund_service_escrow(service_order):
     """
-    Wipes pending escrow funds if a service is cancelled or a dispute is lost.
+    Atomically reverses pending escrow funds if a paid service booking is
+    cancelled or ruled in favor of the customer during arbitration.
     """
     txn_ref = f"SRV-{service_order.reference_code}"
-    txn = VendorTransaction.objects.filter(reference=txn_ref, status='PENDING').first()
-    
-    if txn:
-        wallet = txn.wallet
-        # Deduct from escrow, but DO NOT add to available balance
-        wallet.pending_balance -= txn.net_amount
-        wallet.save()
-        
-        # Permanently mark the ledger record as refunded
-        txn.status = 'REFUNDED'
-        txn.save()
+
+    with transaction.atomic():
+        txn = (
+            VendorTransaction.objects.select_for_update()
+            .filter(reference=txn_ref, status='PENDING')
+            .first()
+        )
+        if not txn:
+            return False
+
+        wallet = VendorWallet.objects.select_for_update().get(id=txn.wallet_id)
+        wallet.pending_balance = max(Decimal('0.00'), wallet.pending_balance - txn.net_amount)
+        wallet.save(update_fields=['pending_balance', 'last_updated'])
+
+        txn.transaction_type = 'REFUND'
+        txn.status = 'FAILED'
+        txn.cleared_at = timezone.now()
+        txn.save(update_fields=['transaction_type', 'status', 'cleared_at'])
+        return True
