@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.5">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
 {% endblock %}
 
 {% block content %}
@@ -338,7 +338,7 @@
                             {% elif job.status == 'ACCEPTED' %}
                                 <p class="text-12-muted m-0"><i class="fa-solid fa-clock text-warning"></i> Waiting for client to pay into escrow before you begin.</p>
                             {% elif job.status == 'PAID' %}
-                                <p class="text-12-muted m-0"><i class="fa-solid fa-shield-halved text-success"></i> Escrow funded! Click "Start Work" when you arrive on site.</p>
+                                <p class="text-12-muted m-0"><i class="fa-solid fa-shield-halved text-success"></i> Escrow funded! Click "Start Work" when you begin the service.</p>
                             {% elif job.status == 'IN_PROGRESS' %}
                                 <p class="text-12-muted m-0"><i class="fa-solid fa-screwdriver-wrench text-primary"></i> Job in progress. Mark completed once finished to trigger your payout.</p>
                             {% endif %}
@@ -666,6 +666,8 @@
                             <span class="transaction-title">
                                 {% if txn.transaction_type == 'PAYOUT' %}
                                     <i class="fa-solid fa-building-columns icon-spaced text-blue"></i>
+                                {% elif txn.transaction_type == 'REFUND' %}
+                                    <i class="fa-solid fa-rotate-left icon-spaced text-danger"></i>
                                 {% else %}
                                     <i class="fa-solid fa-shield-halved icon-spaced text-success"></i>
                                 {% endif %}
@@ -674,10 +676,10 @@
                             <span class="transaction-meta">{{ txn.created_at|date:"M d, Y - h:i A" }} &bull; Ref: {{ txn.reference }}</span>
                         </div>
                         <div class="transaction-amount-status">
-                            <span class="{% if txn.transaction_type == 'PAYOUT' %}amount-negative{% else %}amount-positive{% endif %}">
-                                {% if txn.transaction_type == 'PAYOUT' %}-{% else %}+{% endif %} NGN {{ txn.net_amount|floatformat:2|intcomma }}
+                            <span class="{% if txn.transaction_type in 'PAYOUT,REFUND' %}amount-negative{% else %}amount-positive{% endif %}">
+                                {% if txn.transaction_type in 'PAYOUT,REFUND' %}-{% else %}+{% endif %} NGN {{ txn.net_amount|floatformat:2|intcomma }}
                             </span>
-                            <span class="status-badge {% if txn.status == 'CLEARED' or txn.status == 'COMPLETED' %}badge-completed{% else %}badge-pending{% endif %} badge-sm">
+                            <span class="status-badge {% if txn.status in 'CLEARED,COMPLETED' %}badge-completed{% elif txn.status == 'FAILED' or txn.transaction_type == 'REFUND' %}badge-danger{% else %}badge-pending{% endif %} badge-sm">
                                 {{ txn.get_status_display }}
                             </span>
                         </div>
@@ -694,5 +696,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}?v=3.2"></script>
 {% endblock %}
