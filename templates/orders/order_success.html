@@ -18,7 +18,7 @@
         <span class="order-ref-chip">Order #{{ order.reference }}</span>
         <h1 class="success-title">Payment Confirmed!</h1>
         <p class="success-message">
-            Your payment is now safely locked in <strong>AllThings Escrow</strong> while the vendor prepares your hardware for courier dispatch.
+            Your payment is now safely locked in <strong>AllThings Escrow</strong> while the vendor prepares your order for courier dispatch.
         </p>
 
         <!-- High-Contrast 6-Digit PIN Vault -->
@@ -33,7 +33,7 @@
             <div class="pin-vault-list mt-12">
                 {% for item in order.items.all %}
                     <div class="pin-vault-row">
-                        <span class="pin-item-title">{{ item.quantity }}x {{ item.product.name|truncatechars:32 }}</span>
+                        <span class="pin-item-title">{{ item.quantity }}x {{ item.product.name|default:"Order Item"|truncatechars:32 }}</span>
                         <span class="pin-code-badge">{{ item.delivery_code }}</span>
                     </div>
                 {% endfor %}

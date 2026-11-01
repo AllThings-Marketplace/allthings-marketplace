@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}?v=2.5">
+    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}?v=2.6">
 {% endblock %}
 
 {% block content %}
@@ -29,7 +29,7 @@
             <div class="booking-step-line"></div>
             <div class="booking-step">
                 <div class="step-dot">2</div>
-                <span>2. Engineer Confirms</span>
+                <span>2. Provider Confirms</span>
             </div>
             <div class="booking-step-line"></div>
             <div class="booking-step">
@@ -58,7 +58,7 @@
             </div>
             {% if order.service_location %}
             <div class="dossier-row">
-                <span class="dossier-label">Site Location</span>
+                <span class="dossier-label">Service Location</span>
                 <strong class="dossier-value">{{ order.service_location }}</strong>
             </div>
             {% endif %}

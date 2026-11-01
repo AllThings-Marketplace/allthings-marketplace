@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}?v=2.5">
+    <link rel="stylesheet" href="{% static 'css/pages/checkout.css' %}?v=2.6">
 {% endblock %}
 
 {% block content %}
@@ -56,7 +56,7 @@
                                         {% elif item.product.image %}
                                             <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="cart-thumbnail">
                                         {% else %}
-                                            <div class="cart-thumbnail-fallback"><i class="fa-solid fa-bolt"></i></div>
+                                            <div class="cart-thumbnail-fallback"><i class="fa-solid fa-box"></i></div>
                                         {% endif %}
                                     {% endwith %}
                                 </a>
@@ -115,7 +115,7 @@
 
                     <div class="checkout-cost-breakdown">
                         <div class="cost-row">
-                            <span>Selected Hardware</span>
+                            <span>Selected Items</span>
                             <strong id="cartTotalDisplay" class="summary-subtotal-val">NGN {{ cart.get_cart_total|floatformat:0|intcomma }}</strong>
                         </div>
                         <div class="cost-row">
@@ -145,9 +145,9 @@
         <div class="empty-state-wrapper empty-state-lg">
             <i class="fa-solid fa-cart-arrow-down empty-state-icon text-muted"></i>
             <h3 class="empty-state-title">Your shopping cart is empty</h3>
-            <p class="empty-state-text">Browse verified electrical components, solar hardware, and cables to start building your order.</p>
+            <p class="empty-state-text">Browse verified gadgets, fashion, home appliances, groceries, and hardware to start building your order.</p>
             <a href="{% url 'marketplace:home' %}?item_type=products" class="action-btn btn-primary mt-15">
-                <i class="fa-solid fa-magnifying-glass icon-white-spaced"></i> Explore Hardware Catalog
+                <i class="fa-solid fa-magnifying-glass icon-white-spaced"></i> Explore Marketplace
             </a>
         </div>
     {% endif %}

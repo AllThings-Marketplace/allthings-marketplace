@@ -13,7 +13,7 @@
             <h2 class="section-heading m-0">
                 <i class="fa-solid fa-layer-group text-primary mr-5"></i> My Bookings &amp; Orders
             </h2>
-            <p class="text-14-muted mt-5 mb-0">Track physical hardware deliveries, review custom engineer quotes, and manage escrow releases.</p>
+            <p class="text-14-muted mt-5 mb-0">Track product deliveries, review custom service quotes, and manage escrow releases.</p>
         </div>
         <a href="{% url 'orders:support_center' %}" class="action-btn btn-outline action-sm">
             <i class="fa-solid fa-headset icon-spaced"></i> Help &amp; Resolution Center
@@ -152,7 +152,7 @@
             <div class="premium-empty-state">
                 <div class="empty-icon"><i class="fa-solid fa-toolbox"></i></div>
                 <h3>No service bookings yet</h3>
-                <p>Book certified electricians, solar installers, and HVAC technicians protected by AllThings Escrow.</p>
+                <p>Book verified professionals across tech, beauty, repairs, cleaning, catering, and engineering protected by AllThings Escrow.</p>
                 <a href="{% url 'marketplace:home' %}?item_type=services" class="action-btn btn-outline action-sm mt-10">Explore Services</a>
             </div>
         {% endfor %}
@@ -164,10 +164,10 @@
     <div class="history-section-header mt-40">
         <h3 class="premium-category-title m-0">
             <span class="icon-circle"><i class="fa-solid fa-box"></i></span>
-            <span>Physical Hardware Orders ({{ orders|length }})</span>
+            <span>Product Orders ({{ orders|length }})</span>
         </h3>
         <a href="{% url 'marketplace:home' %}?item_type=products" class="text-13 text-primary font-600">
-            Shop Hardware &rarr;
+            Shop Products &rarr;
         </a>
     </div>
     
@@ -191,7 +191,7 @@
                         {% for item in order.items.all %}
                             <li>
                                 <div class="item-details">
-                                    <span class="item-name">{{ item.product.name }}</span>
+                                    <span class="item-name">{{ item.product.name|default:"Product Item" }}</span>
                                     {% if item.variant %}
                                         <span class="item-variant text-muted text-12">
                                             ({{ item.variant.attribute_name }}: {{ item.variant.attribute_value }})
@@ -226,9 +226,9 @@
         {% empty %}
             <div class="premium-empty-state">
                 <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
-                <h3>No hardware orders yet</h3>
-                <p>You haven't placed any electrical hardware or component orders yet.</p>
-                <a href="{% url 'marketplace:home' %}?item_type=products" class="action-btn btn-primary action-sm mt-10">Browse Hardware</a>
+                <h3>No product orders yet</h3>
+                <p>You haven't placed any product orders on AllThings yet.</p>
+                <a href="{% url 'marketplace:home' %}?item_type=products" class="action-btn btn-primary action-sm mt-10">Browse Marketplace</a>
             </div>
         {% endfor %}
     </div>

@@ -49,7 +49,7 @@
 
         <!-- 2. Physical Products & Item-Level Stepper -->
         <h4 class="history-section-title mt-0 mb-15">
-            <i class="fa-solid fa-boxes-stacked text-primary mr-5"></i> Ordered Hardware ({{ order.items.count }})
+            <i class="fa-solid fa-boxes-stacked text-primary mr-5"></i> Ordered Items ({{ order.items.count }})
         </h4>
         
         {% if order.items.all %}
@@ -63,16 +63,20 @@
                                         <img src="{{ first_img.processed_image.url }}" alt="{{ item.product.name }}" class="order-item-thumb">
                                     {% elif first_img and first_img.original_image %}
                                         <img src="{{ first_img.original_image.url }}" alt="{{ item.product.name }}" class="order-item-thumb">
-                                    {% elif item.product.image %}
+                                    {% elif item.product and item.product.image %}
                                         <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="order-item-thumb">
                                     {% else %}
-                                        <div class="order-item-thumb-fallback"><i class="fa-solid fa-bolt"></i></div>
+                                        <div class="order-item-thumb-fallback"><i class="fa-solid fa-box"></i></div>
                                     {% endif %}
                                 {% endwith %}
 
                                 <div>
                                     <h4 class="item-tracking-title">
-                                        <a href="{% url 'marketplace:product_detail' item.product.slug %}">{{ item.product.name }}</a>
+                                        {% if item.product %}
+                                            <a href="{% url 'marketplace:product_detail' item.product.slug %}">{{ item.product.name }}</a>
+                                        {% else %}
+                                            Order Item #{{ item.id }}
+                                        {% endif %}
                                         {% if item.variant %}
                                             <span class="text-variant-muted">
                                                 ({{ item.variant.attribute_name }}: {{ item.variant.attribute_value }})
@@ -82,7 +86,7 @@
                                     <p class="text-12-muted m-0">
                                         Qty: <strong>{{ item.quantity }}</strong> &bull;
                                         Line Total: <strong>NGN {{ item.get_total|floatformat:0|intcomma }}</strong>
-                                        {% if item.product.provider %}
+                                        {% if item.product and item.product.provider %}
                                             &bull; Seller: <strong>{{ item.product.provider.business_name }}</strong>
                                         {% endif %}
                                     </p>
@@ -182,7 +186,7 @@
         <div class="order-receipt-breakdown mt-25">
             {% if order.subtotal %}
             <div class="receipt-row">
-                <span>Hardware Subtotal</span>
+                <span>Items Subtotal</span>
                 <strong>NGN {{ order.subtotal|floatformat:0|intcomma }}</strong>
             </div>
             {% endif %}

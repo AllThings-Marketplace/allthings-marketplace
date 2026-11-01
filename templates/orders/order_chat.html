@@ -64,7 +64,7 @@
             <div class="chat-empty-box">
                 <i class="fa-regular fa-comments chat-empty-icon"></i>
                 <h4>Start the Conversation</h4>
-                <p class="text-13-muted m-0">Discuss site access, technical requirements, or share inspection photos here. All messages are logged for escrow protection.</p>
+                <p class="text-13-muted m-0">Discuss booking details, project requirements, or share reference photos here. All messages are logged for escrow protection.</p>
             </div>
         {% endfor %}
     </div>
@@ -80,7 +80,7 @@
         <form action="{% url 'orders:send_order_message' order.id %}" method="POST" enctype="multipart/form-data" class="chat-composer-row" id="chatForm">
             {% csrf_token %}
             
-            <label for="chat-file" class="chat-attach-btn" title="Attach Site Photo">
+            <label for="chat-file" class="chat-attach-btn" title="Attach Photo">
                 <i class="fa-solid fa-paperclip"></i>
             </label>
             <input type="file" name="attachment" id="chat-file" class="hidden-initial" accept="image/*">
