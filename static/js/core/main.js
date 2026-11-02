@@ -1,143 +1,150 @@
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
+
+    // === 1. Global Search Dropdown & Recent Searches (LocalStorage) ===
     const searchInput = document.getElementById('globalSearchInput');
     const searchDropdown = document.getElementById('searchDropdown');
     const searchForm = document.getElementById('globalSearchForm');
     const recentContainer = document.getElementById('recentSearchesContainer');
     const clearBtn = document.getElementById('clearSearchesBtn');
 
-    if (!searchInput || !searchDropdown) return;
-
-    // 1. UI Toggle Logic
-    searchInput.addEventListener('focus', () => {
-        searchDropdown.classList.add('active');
-        renderRecentSearches();
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
-            searchDropdown.classList.remove('active');
-        }
-    });
-
-    // 2. LocalStorage Logic for Recent Searches
     function renderRecentSearches() {
-        // Grab searches from browser storage, or start an empty array
+        if (!recentContainer) return;
         const searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
-        recentContainer.innerHTML = ''; // Clear container
+        recentContainer.innerHTML = '';
 
         if (searches.length === 0) {
-            recentContainer.innerHTML = '<span style="color: #9ca3af; font-size: 13px;">No recent searches</span>';
-            clearBtn.style.display = 'none';
+            const emptySpan = document.createElement('span');
+            emptySpan.className = 'text-12-muted';
+            emptySpan.textContent = 'No recent searches';
+            recentContainer.appendChild(emptySpan);
+            if (clearBtn) clearBtn.classList.add('hidden-initial');
             return;
         }
 
-        clearBtn.style.display = 'block';
-        
-        // Build the pills
+        if (clearBtn) clearBtn.classList.remove('hidden-initial');
+
         searches.forEach(term => {
             const pill = document.createElement('a');
-            pill.href = `/?q=${encodeURIComponent(term)}`; // Link back to home search
+            pill.href = `/?q=${encodeURIComponent(term)}`;
             pill.className = 'search-pill';
             pill.textContent = term;
             recentContainer.appendChild(pill);
         });
     }
 
-    // Save search term on form submission
-    searchForm.addEventListener('submit', (e) => {
-        const term = searchInput.value.trim();
-        if (term) {
-            let searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
-            // Remove it if it already exists to avoid duplicates
-            searches = searches.filter(t => t.toLowerCase() !== term.toLowerCase());
-            // Add to the front of the line
-            searches.unshift(term);
-            // Keep only the top 8 recent searches
-            searches = searches.slice(0, 8);
-            localStorage.setItem('recentSearches', JSON.stringify(searches));
-        }
-    });
+    if (searchInput && searchDropdown) {
+        searchInput.addEventListener('focus', () => {
+            searchDropdown.classList.add('active');
+            renderRecentSearches();
+        });
 
-    // Clear all recent searches
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchDropdown.contains(e.target)) {
+                searchDropdown.classList.remove('active');
+            }
+        });
+    }
+
+    if (searchForm && searchInput) {
+        searchForm.addEventListener('submit', () => {
+            const term = searchInput.value.trim();
+            if (term) {
+                let searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+                searches = searches.filter(t => t.toLowerCase() !== term.toLowerCase());
+                searches.unshift(term);
+                searches = searches.slice(0, 8);
+                localStorage.setItem('recentSearches', JSON.stringify(searches));
+            }
+        });
+    }
+
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             localStorage.removeItem('recentSearches');
             renderRecentSearches();
         });
     }
-});
 
-// === Mobile Drawer Logic ===
-document.addEventListener("DOMContentLoaded", function() {
+    // === 2. Mobile Drawer Toggle Logic ===
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const closeDrawerBtn = document.getElementById('closeDrawerBtn');
     const mobileDrawer = document.getElementById('mobileDrawer');
     const mobileOverlay = document.getElementById('mobileOverlay');
 
-    if (mobileMenuBtn && mobileDrawer) {
+    if (mobileMenuBtn && mobileDrawer && mobileOverlay) {
         function toggleDrawer() {
             mobileDrawer.classList.toggle('active');
             mobileOverlay.classList.toggle('active');
-            // Prevent background scrolling when menu is open
             document.body.style.overflow = mobileDrawer.classList.contains('active') ? 'hidden' : '';
         }
-        
+
         mobileMenuBtn.addEventListener('click', toggleDrawer);
-        closeDrawerBtn.addEventListener('click', toggleDrawer);
+        if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', toggleDrawer);
         mobileOverlay.addEventListener('click', toggleDrawer);
     }
-});
 
-document.addEventListener('DOMContentLoaded', function() {
+    // === 3. Smart Mobile Department "See All / Show Less" Toggle ===
     const seeMoreBtn = document.getElementById('seeMoreCategoriesBtn');
-    
-    if (seeMoreBtn) {
-        seeMoreBtn.addEventListener('click', function() {
-            // FIX: Select items that actually have the 'hidden-initial' class
-            const hiddenItems = document.querySelectorAll('.mobile-cat-item.hidden-initial');
-            
-            if (hiddenItems.length > 0) {
-                // Reveal them by removing the class and enforcing display block
-                hiddenItems.forEach(item => {
-                    item.classList.remove('hidden-initial');
-                    item.style.display = 'block';
-                });
-                
-                // Update the button text to show it is fully expanded
-                this.innerHTML = 'All Categories Loaded <i class="fa-solid fa-check" style="margin-left: 5px;"></i>';
-                this.style.color = '#10b981'; // Turn green to indicate success
-                this.disabled = true; // Prevent further clicks
-            }
-        });
-    }
-});
+    const mobileProductList = document.getElementById('mobileCategoryList');
+    const VISIBLE_DEPT_LIMIT = 6;
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Select all dropdown triggers (Bell and User Profile)
+    if (seeMoreBtn && mobileProductList) {
+        const deptItems = Array.from(mobileProductList.querySelectorAll(':scope > li.mobile-cat-item'));
+        const extraItems = deptItems.slice(VISIBLE_DEPT_LIMIT);
+
+        if (extraItems.length === 0) {
+            // If 6 or fewer departments exist, show all and hide the toggle button
+            deptItems.forEach(item => item.classList.remove('hidden-initial'));
+            seeMoreBtn.classList.add('hidden-initial');
+        } else {
+            // Ensure first 6 are visible and the rest start collapsed
+            deptItems.slice(0, VISIBLE_DEPT_LIMIT).forEach(item => item.classList.remove('hidden-initial'));
+            extraItems.forEach(item => item.classList.add('hidden-initial'));
+
+            let isExpanded = false;
+
+            function updateSeeMoreUI() {
+                if (isExpanded) {
+                    extraItems.forEach(item => item.classList.remove('hidden-initial'));
+                    seeMoreBtn.innerHTML = 'Show Fewer Departments <i class="fa-solid fa-angle-up see-more-icon"></i>';
+                } else {
+                    extraItems.forEach(item => item.classList.add('hidden-initial'));
+                    seeMoreBtn.innerHTML = `See All Departments (${deptItems.length}) <i class="fa-solid fa-angle-down see-more-icon"></i>`;
+                }
+            }
+
+            updateSeeMoreUI();
+
+            seeMoreBtn.addEventListener('click', function () {
+                isExpanded = !isExpanded;
+                updateSeeMoreUI();
+            });
+        }
+    }
+
+    // === 4. Navbar Dropdowns (Notification Bell & User Account Menu) ===
     const dropdownTriggers = document.querySelectorAll('.nav-dropdown-trigger');
 
     dropdownTriggers.forEach(trigger => {
         trigger.addEventListener('click', (e) => {
-            e.preventDefault(); // Stop links/buttons from jumping the page
-            e.stopPropagation(); // Prevent the document click listener from firing immediately
-            
-            // Find the specific menu belonging to this trigger's container
+            e.preventDefault();
+            e.stopPropagation();
+
             const container = trigger.closest('.nav-dropdown-container');
+            if (!container) return;
             const menu = container.querySelector('.nav-dropdown-menu');
-            
+            if (!menu) return;
+
             const isCurrentlyOpen = menu.classList.contains('active');
 
-            // Close ALL open dropdowns first
             document.querySelectorAll('.nav-dropdown-menu').forEach(m => m.classList.remove('active'));
 
-            // If the clicked one wasn't open, open it
             if (!isCurrentlyOpen) {
                 menu.classList.add('active');
             }
         });
     });
 
-    // Close dropdowns when clicking anywhere outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.nav-dropdown-container')) {
             document.querySelectorAll('.nav-dropdown-menu').forEach(menu => {
