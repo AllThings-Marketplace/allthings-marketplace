@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.1">
 {% endblock %}
 
 {% block content %}
@@ -51,7 +51,7 @@
     <div class="dashboard-tabs-bar border-none p-0" id="orderStatusFilters">
         <button type="button" class="dash-tab-btn active" data-status="ALL">All ({{ vendor_items|length }})</button>
         <button type="button" class="dash-tab-btn" data-status="PAID,ACCEPTED">Needs Action</button>
-        <button type="button" class="dash-tab-btn" data-status="READY_FOR_PICKUP,RIDER_ASSIGNED,PICKED_UP,SHIPPED">In Transit / Pickup</button>
+        <button type="button" class="dash-tab-btn" data-status="READY_FOR_PICKUP,RIDER_ASSIGNED,PICKED_UP">In Transit / Pickup</button>
         <button type="button" class="dash-tab-btn" data-status="DELIVERED,COMPLETED">Delivered &amp; Paid</button>
         <button type="button" class="dash-tab-btn" data-status="DISPUTED">Disputed</button>
     </div>
@@ -152,7 +152,7 @@
                                             </button>
                                         </form>
                                     
-                                    {% elif item.status in 'READY_FOR_PICKUP,RIDER_ASSIGNED,PICKED_UP,SHIPPED' %}
+                                    {% elif item.status in 'READY_FOR_PICKUP,RIDER_ASSIGNED' %}
                                         <div class="pickup-code-box mt-10">
                                             <span class="text-12-muted block">Give PIN to Dispatch Rider</span>
                                             <strong class="font-700-block text-lg letter-spacing-2 text-blue">{{ item.pickup_code }}</strong>
@@ -181,5 +181,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}?v=3.2"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
 {% endblock %}
