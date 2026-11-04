@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 
 from .smart_search import parse_search_intent
@@ -212,13 +213,23 @@ def home(request):
     # 10. Build Rich Homepage Department Shelves (when no filters are active)
     new_arrivals = []
     category_sections = []
-    total_product_count = 0
-    total_service_count = 0
+    total_product_count = base_products_qs.count()
+    total_service_count = base_services_qs.count()
+    filtered_product_total = 0
+    filtered_service_total = 0
+    page_obj = None
 
-    if not has_active_filters:
+    if has_active_filters:
+        filtered_product_total = products.count()
+        filtered_service_total = services.count()
+        # Cap services to 12 on mixed filter views, or paginate products (24 per page)
+        services = services[:12]
+        paginator = Paginator(products, 24)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+        products = page_obj
+    else:
         new_arrivals = list(base_products_qs[:8])
-        total_product_count = base_products_qs.count()
-        total_service_count = base_services_qs.count()
 
         parent_product_cats = Category.objects.filter(
             parent__isnull=True,
@@ -238,9 +249,20 @@ def home(request):
                     'category': p_cat,
                     'products': dept_products,
                 })
+        # Show up to 6 active department shelves on the landing page
+        category_sections = category_sections[:6]
+
+    # Build clean query string without 'page' for pagination links
+    query_params = request.GET.copy()
+    query_params.pop('page', None)
+    pagination_query = query_params.urlencode()
 
     context = {
         'products': products,
+        'page_obj': page_obj,
+        'pagination_query': pagination_query,
+        'filtered_product_total': filtered_product_total,
+        'filtered_service_total': filtered_service_total,
         'services': services,
         'new_arrivals': new_arrivals,
         'category_sections': category_sections,
@@ -254,7 +276,6 @@ def home(request):
         'banners': banners,
         'saved_product_ids': saved_product_ids,
         'smart_feed': smart_feed,
-        # Filter state for UI persistence
         'has_active_filters': has_active_filters,
         'active_min_price': int(active_min_price) if active_min_price is not None else '',
         'active_max_price': int(active_max_price) if active_max_price is not None else '',

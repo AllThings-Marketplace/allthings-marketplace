@@ -4,7 +4,7 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/home.css' %}?v=3.6">
-    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.6">
+    <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}?v=3.8">
 {% endblock %}
 
 {% block content %}
@@ -92,7 +92,7 @@
     </div>
 
     <div class="marketplace-layout">
-        <!-- Left Sidebar: Smart Faceted Filters + Split Product/Service Categories -->
+        <!-- Left Sidebar: Smart Faceted Filters + Collapsible Product/Service Categories -->
         <aside class="category-sidebar" id="marketplaceSidebar">
             <div class="sidebar-mobile-header">
                 <h3 class="sidebar-title m-0">Filter &amp; Browse</h3>
@@ -100,7 +100,7 @@
             </div>
 
             <!-- 1. FACETED FILTER ENGINE -->
-            <form method="GET" action="{% url 'marketplace:home' %}" class="filter-form">
+            <form method="GET" action="{% url 'marketplace:home' %}" class="filter-form" id="catalogFilterForm">
                 {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
                 {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
 
@@ -114,7 +114,7 @@
                 <!-- Sort By -->
                 <div class="filter-group">
                     <label class="filter-label">Sort By</label>
-                    <select name="sort" class="filter-select" onchange="this.form.submit()">
+                    <select name="sort" class="filter-select js-auto-submit-filter">
                         <option value="" {% if not sort_by %}selected{% endif %}>Relevance</option>
                         <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest Arrivals</option>
                         <option value="price_asc" {% if sort_by == 'price_asc' %}selected{% endif %}>Price: Low to High</option>
@@ -128,15 +128,15 @@
                     <label class="filter-label">Show Me</label>
                     <div class="filter-radio-list">
                         <label class="filter-radio-item">
-                            <input type="radio" name="item_type" value="all" {% if item_type == 'all' or not item_type %}checked{% endif %} onchange="this.form.submit()">
+                            <input type="radio" name="item_type" value="all" class="js-auto-submit-filter" {% if item_type == 'all' or not item_type %}checked{% endif %}>
                             <span>Everything</span>
                         </label>
                         <label class="filter-radio-item">
-                            <input type="radio" name="item_type" value="products" {% if item_type == 'products' %}checked{% endif %} onchange="this.form.submit()">
+                            <input type="radio" name="item_type" value="products" class="js-auto-submit-filter" {% if item_type == 'products' %}checked{% endif %}>
                             <span>Physical Products</span>
                         </label>
                         <label class="filter-radio-item">
-                            <input type="radio" name="item_type" value="services" {% if item_type == 'services' %}checked{% endif %} onchange="this.form.submit()">
+                            <input type="radio" name="item_type" value="services" class="js-auto-submit-filter" {% if item_type == 'services' %}checked{% endif %}>
                             <span>Professional Services</span>
                         </label>
                     </div>
@@ -157,15 +157,15 @@
                     <label class="filter-label">Minimum Rating</label>
                     <div class="filter-radio-list">
                         <label class="filter-radio-item">
-                            <input type="radio" name="min_rating" value="" {% if not min_rating %}checked{% endif %} onchange="this.form.submit()">
+                            <input type="radio" name="min_rating" value="" class="js-auto-submit-filter" {% if not min_rating %}checked{% endif %}>
                             <span>Any Rating</span>
                         </label>
                         <label class="filter-radio-item">
-                            <input type="radio" name="min_rating" value="4" {% if min_rating == '4' %}checked{% endif %} onchange="this.form.submit()">
+                            <input type="radio" name="min_rating" value="4" class="js-auto-submit-filter" {% if min_rating == '4' %}checked{% endif %}>
                             <span><i class="fa-solid fa-star text-yellow"></i> 4.0 &amp; above</span>
                         </label>
                         <label class="filter-radio-item">
-                            <input type="radio" name="min_rating" value="3" {% if min_rating == '3' %}checked{% endif %} onchange="this.form.submit()">
+                            <input type="radio" name="min_rating" value="3" class="js-auto-submit-filter" {% if min_rating == '3' %}checked{% endif %}>
                             <span><i class="fa-solid fa-star text-yellow"></i> 3.0 &amp; above</span>
                         </label>
                     </div>
@@ -174,7 +174,7 @@
                 <!-- Stock Availability -->
                 <div class="filter-group">
                     <label class="filter-checkbox-item">
-                        <input type="checkbox" name="in_stock" value="1" {% if in_stock %}checked{% endif %} onchange="this.form.submit()">
+                        <input type="checkbox" name="in_stock" value="1" class="js-auto-submit-filter" {% if in_stock %}checked{% endif %}>
                         <span>In-Stock Products Only</span>
                     </label>
                 </div>
@@ -186,9 +186,9 @@
 
             <hr class="sidebar-divider">
 
-            <!-- 2A. PRODUCT CATEGORIES TREE -->
+            <!-- 2A. COLLAPSIBLE PRODUCT CATEGORIES TREE -->
             <h3 class="sidebar-title"><i class="fa-solid fa-box text-primary mr-5"></i> Product Departments</h3>
-            <ul class="sidebar-menu mb-20">
+            <ul class="sidebar-menu" id="sidebarProductDeptList">
                 <li>
                     <a href="{% url 'marketplace:home' %}?item_type=products" class="sidebar-parent-link {% if not current_category and item_type == 'products' %}active{% endif %}">
                         All Products
@@ -196,15 +196,22 @@
                 </li>
                 {% for cat in categories %}
                     {% if not cat.parent and cat.category_type != 'SERVICE' %}
-                        <li>
-                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=products{% if query %}&q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
-                                {{ cat.name }}
-                            </a>
+                        <li class="sidebar-dept-item">
+                            <div class="sidebar-parent-row">
+                                <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&amp;item_type=products{% if query %}&amp;q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
+                                    {{ cat.name }}
+                                </a>
+                                {% if cat.subcategories.all %}
+                                    <button type="button" class="sidebar-sub-toggle" aria-label="Toggle {{ cat.name }} subcategories">
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
                             {% if cat.subcategories.all %}
                                 <ul class="sidebar-submenu">
                                     {% for sub in cat.subcategories.all %}
                                         <li>
-                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}&item_type=products{% if query %}&q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
+                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}&amp;item_type=products{% if query %}&amp;q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
                                                 {{ sub.name }}
                                             </a>
                                         </li>
@@ -215,12 +222,15 @@
                     {% endif %}
                 {% endfor %}
             </ul>
+            <button type="button" id="sidebarSeeMoreDeptsBtn" class="sidebar-more-btn hidden-initial">
+                See All Departments <i class="fa-solid fa-angle-down"></i>
+            </button>
 
             <hr class="sidebar-divider">
 
-            <!-- 2B. SERVICE CATEGORIES TREE -->
+            <!-- 2B. COLLAPSIBLE SERVICE CATEGORIES TREE -->
             <h3 class="sidebar-title"><i class="fa-solid fa-screwdriver-wrench text-primary mr-5"></i> Service Departments</h3>
-            <ul class="sidebar-menu">
+            <ul class="sidebar-menu" id="sidebarServiceDeptList">
                 <li>
                     <a href="{% url 'marketplace:home' %}?item_type=services" class="sidebar-parent-link {% if not current_category and item_type == 'services' %}active{% endif %}">
                         All Professional Services
@@ -228,15 +238,22 @@
                 </li>
                 {% for cat in categories %}
                     {% if not cat.parent and cat.category_type == 'SERVICE' %}
-                        <li>
-                            <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&item_type=services{% if query %}&q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
-                                {{ cat.name }}
-                            </a>
+                        <li class="sidebar-dept-item">
+                            <div class="sidebar-parent-row">
+                                <a href="{% url 'marketplace:home' %}?category={{ cat.id }}&amp;item_type=services{% if query %}&amp;q={{ query }}{% endif %}" class="sidebar-parent-link {% if current_category == cat.id %}active{% endif %}">
+                                    {{ cat.name }}
+                                </a>
+                                {% if cat.subcategories.all %}
+                                    <button type="button" class="sidebar-sub-toggle" aria-label="Toggle {{ cat.name }} subcategories">
+                                        <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
                             {% if cat.subcategories.all %}
                                 <ul class="sidebar-submenu">
                                     {% for sub in cat.subcategories.all %}
                                         <li>
-                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}&item_type=services{% if query %}&q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
+                                            <a href="{% url 'marketplace:home' %}?category={{ sub.id }}&amp;item_type=services{% if query %}&amp;q={{ query }}{% endif %}" class="sidebar-child-link {% if current_category == sub.id %}active{% endif %}">
                                                 {{ sub.name }}
                                             </a>
                                         </li>
@@ -305,7 +322,7 @@
                     <div class="feed-section-header">
                         <h3 class="section-title-premium">
                             <span class="section-icon-badge"><i class="fa-solid fa-screwdriver-wrench"></i></span>
-                            Available Services ({{ services|length }})
+                            Available Services ({{ filtered_service_total|default:services|length }})
                         </h3>
                     </div>
                     <div class="services-modern-grid mb-30">
@@ -362,14 +379,37 @@
                     <div class="feed-section-header {% if services %}mt-40{% endif %}">
                         <h3 class="section-title-premium">
                             <span class="section-icon-badge"><i class="fa-solid fa-box"></i></span>
-                            Marketplace Products ({{ products|length }})
+                            Marketplace Products ({{ filtered_product_total|default:products|length }})
                         </h3>
+                        {% if page_obj and page_obj.paginator.num_pages > 1 %}
+                            <span class="text-12-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                        {% endif %}
                     </div>
                     <ul class="item-list">
                         {% for product in products %}
                             {% include 'partials/product_card.html' %}
                         {% endfor %}
                     </ul>
+
+                    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+                        <nav class="catalog-pagination" aria-label="Catalog pagination">
+                            {% if page_obj.has_previous %}
+                                <a href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" class="action-btn btn-outline action-sm">
+                                    <i class="fa-solid fa-chevron-left"></i> Previous
+                                </a>
+                            {% endif %}
+
+                            <span class="pagination-status-pill">
+                                Page <strong>{{ page_obj.number }}</strong> of <strong>{{ page_obj.paginator.num_pages }}</strong>
+                            </span>
+
+                            {% if page_obj.has_next %}
+                                <a href="?{% if pagination_query %}{{ pagination_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}" class="action-btn btn-primary action-sm">
+                                    Next <i class="fa-solid fa-chevron-right"></i>
+                                </a>
+                            {% endif %}
+                        </nav>
+                    {% endif %}
                 {% endif %}
 
                 {% if not services and not products %}
@@ -609,7 +649,7 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/home.js' %}?v=3"></script>
+    <script src="{% static 'js/pages/home.js' %}?v=3.2"></script>
     <script src="{% static 'js/pages/cart.js' %}"></script>
     <script src="{% static 'js/pages/saved_items.js' %}"></script>
 {% endblock %}
