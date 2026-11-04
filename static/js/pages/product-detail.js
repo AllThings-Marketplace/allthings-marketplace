@@ -1,26 +1,5 @@
 // static/js/pages/product-detail.js
 
-// 1. Scroll to a specific slide when a thumbnail is tapped
-function scrollToGallerySlide(index, thumbElement) {
-    const track = document.getElementById("productGalleryTrack");
-    if (track) {
-        const slideWidth = track.clientWidth;
-        track.scrollTo({
-            left: slideWidth * index,
-            behavior: "smooth"
-        });
-    }
-    setActiveThumbnail(index, thumbElement);
-}
-
-// Backward-compatible helper in case changeImage() is called directly
-function changeImage(newSrc, thumbElement) {
-    const idx = thumbElement && thumbElement.dataset.index
-        ? parseInt(thumbElement.dataset.index, 10)
-        : 0;
-    scrollToGallerySlide(idx, thumbElement);
-}
-
 function setActiveThumbnail(activeIndex, clickedThumb) {
     const thumbnails = document.querySelectorAll(".thumbnail");
     thumbnails.forEach((thumb, idx) => {
@@ -38,9 +17,23 @@ function setActiveThumbnail(activeIndex, clickedThumb) {
     }
 }
 
-// 2. Dynamic Variant Price Updater
+function scrollToGallerySlide(index, thumbElement) {
+    const track = document.getElementById("productGalleryTrack");
+    if (track) {
+        const slideWidth = track.clientWidth;
+        track.scrollTo({
+            left: slideWidth * index,
+            behavior: "smooth"
+        });
+    }
+    setActiveThumbnail(index, thumbElement);
+}
+
 function updatePrice(selectElement) {
+    if (!selectElement) return;
     const selectedOption = selectElement.options[selectElement.selectedIndex];
+    if (!selectedOption) return;
+
     const rawPrice = selectedOption.getAttribute("data-price");
     const priceDisplay = document.getElementById("displayProductPrice");
 
@@ -50,8 +43,29 @@ function updatePrice(selectElement) {
     }
 }
 
-// 3. Touch-Swipe & Mouse-Drag Carousel Controller
 document.addEventListener("DOMContentLoaded", function () {
+    // 1. Bind Thumbnail Clicks (Zero Inline onclick)
+    const thumbnails = document.querySelectorAll(".thumbnail");
+    thumbnails.forEach((thumb, index) => {
+        thumb.addEventListener("click", function () {
+            const targetIdx = this.dataset.index !== undefined
+                ? parseInt(this.dataset.index, 10)
+                : index;
+            scrollToGallerySlide(targetIdx, this);
+        });
+    });
+
+    // 2. Bind Variant Dropdown Price Switcher (Zero Inline onchange)
+    const variantSelects = document.querySelectorAll(
+        'select[name="variant_id"], select[name="variant"], #variantSelect, .js-variant-select'
+    );
+    variantSelects.forEach(selectEl => {
+        selectEl.addEventListener("change", function () {
+            updatePrice(this);
+        });
+    });
+
+    // 3. Touch-Swipe & Mouse-Drag Carousel Controller
     const track = document.getElementById("productGalleryTrack");
     const prevBtn = document.getElementById("galleryPrevBtn");
     const nextBtn = document.getElementById("galleryNextBtn");
@@ -62,7 +76,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const totalSlides = slides.length;
     let currentIndex = 0;
 
-    // Update active thumbnail & counter as user swipes with their finger
     let scrollTimeout;
     track.addEventListener("scroll", function () {
         clearTimeout(scrollTimeout);
@@ -77,7 +90,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }, 40);
     }, { passive: true });
 
-    // Prev / Next Arrow Buttons
     if (prevBtn) {
         prevBtn.addEventListener("click", function () {
             const targetIndex = currentIndex > 0 ? currentIndex - 1 : totalSlides - 1;
@@ -92,7 +104,6 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Desktop Mouse Drag-to-Scroll Support
     let isDown = false;
     let startX = 0;
     let scrollStart = 0;

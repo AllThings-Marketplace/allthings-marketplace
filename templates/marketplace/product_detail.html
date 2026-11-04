@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/product-detail.css' %}?v=4.6">
+    <link rel="stylesheet" href="{% static 'css/pages/product-detail.css' %}?v=4.7">
 {% endblock %}
 
 {% block content %}
@@ -59,7 +59,7 @@
                     </div>
                 {% else %}
                     <div class="fallback-image">
-                        <i class="fa-solid fa-bolt"></i>
+                        <i class="fa-solid fa-box"></i>
                     </div>
                 {% endif %}
             </div>
@@ -71,8 +71,7 @@
                     <img src="{% if img.processed_image %}{{ img.processed_image.url }}{% else %}{{ img.original_image.url }}{% endif %}"
                          alt="{{ product.name }} thumbnail {{ forloop.counter }}"
                          class="thumbnail {% if forloop.first %}active-thumb{% endif %}"
-                         data-index="{{ forloop.counter0 }}"
-                         onclick="scrollToGallerySlide({{ forloop.counter0 }}, this)">
+                         data-index="{{ forloop.counter0 }}">
                 {% endfor %}
             </div>
             {% endif %}
@@ -159,7 +158,7 @@
                 {% if variants %}
                 <div class="variant-group">
                     <label for="product-variant" class="variant-label">Select Specification / Option:</label>
-                    <select name="variant_id" id="product-variant" class="form-control" onchange="updatePrice(this)">
+                    <select name="variant_id" id="product-variant" class="form-control js-variant-select">
                         <option value="" data-price="{{ product.price }}">
                             Standard — NGN {{ product.price|floatformat:0|intcomma }}
                         </option>
@@ -219,7 +218,7 @@
             <!-- Description -->
             <div class="product-description">
                 <h3 class="detail-section-subtitle">Product Overview</h3>
-                <p class="m-0">{{ product.description|linebreaksbr|default:"Genuine electrical component built for reliability and safety. Add to cart for tracked delivery and escrow protection." }}</p>
+                <p class="m-0">{{ product.description|linebreaksbr|default:"Genuine item built for quality and reliability. Add to cart for tracked delivery and escrow protection." }}</p>
             </div>
 
             <!-- Technical Specifications Table -->
@@ -315,7 +314,7 @@
             {% else %}
                 <div class="reviews-empty-box">
                     <i class="fa-regular fa-star text-muted reviews-empty-icon"></i>
-                    <p class="text-14-muted m-0">No buyer reviews yet. Purchase this hardware and be the first to rate it!</p>
+                    <p class="text-14-muted m-0">No buyer reviews yet. Purchase this item and be the first to rate it!</p>
                 </div>
             {% endif %}
         </div>
@@ -338,7 +337,7 @@
                             {% elif related.image %}
                                 <img src="{{ related.image.url }}" alt="{{ related.name }}" class="related-img">
                             {% else %}
-                                <div class="related-fallback"><i class="fa-solid fa-bolt"></i></div>
+                                <div class="related-fallback"><i class="fa-solid fa-box"></i></div>
                             {% endif %}
                         </div>
                         <div class="related-card-body">
@@ -358,6 +357,6 @@
 
 {% block extra_js %}
     <script src="{% static 'js/pages/cart.js' %}"></script>
-    <script src="{% static 'js/pages/product-detail.js' %}?v=4.6"></script>
+    <script src="{% static 'js/pages/product-detail.js' %}?v=4.7"></script>
     <script src="{% static 'js/pages/saved_items.js' %}"></script>
 {% endblock %}

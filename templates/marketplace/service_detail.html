@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/pages/service-detail.css' %}?v=2.5">
+<link rel="stylesheet" href="{% static 'css/pages/service-detail.css' %}?v=2.6">
 {% endblock %}
 
 {% block content %}
@@ -62,7 +62,7 @@
                             </a>
                         </strong>
                         <span class="text-12-muted block mt-5">
-                            <i class="fa-solid fa-circle-check text-success"></i> KYC Verified Engineering Partner
+                            <i class="fa-solid fa-circle-check text-success"></i> KYC Verified Professional Partner
                             {% if service.provider.region %} &bull; <i class="fa-solid fa-location-dot text-primary"></i> {{ service.provider.region }}{% endif %}
                         </span>
                     </div>
@@ -279,9 +279,8 @@
                         <div class="saved-location-pills">
                             {% for addr in user.addresses.all|slice:":3" %}
                                 <button type="button"
-                                        class="saved-loc-pill"
-                                        data-full-address="{{ addr.street_address }}{% if addr.city %}, {{ addr.city }}{% endif %}, {{ addr.region }}{% if addr.landmark %} (Near {{ addr.landmark }}){% endif %}"
-                                        onclick="document.getElementById('serviceLocationInput').value = this.dataset.fullAddress;">
+                                        class="saved-loc-pill js-saved-loc-btn"
+                                        data-full-address="{{ addr.street_address }}{% if addr.city %}, {{ addr.city }}{% endif %}, {{ addr.region }}{% if addr.landmark %} (Near {{ addr.landmark }}){% endif %}">
                                     <i class="fa-solid fa-location-arrow"></i> Use {{ addr.label|default:"Saved" }}
                                 </button>
                             {% endfor %}
@@ -291,7 +290,7 @@
                                name="service_location"
                                id="serviceLocationInput"
                                class="form-control"
-                               placeholder="E.g., 14 Aba Road, Oyigbo, Rivers State"
+                               placeholder="E.g., 14 Aba Road, Port Harcourt, Rivers State"
                                required>
                     </div>
 
@@ -321,5 +320,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/pages/service-detail.js' %}"></script>
+<script src="{% static 'js/pages/service-detail.js' %}?v=2.6"></script>
 {% endblock %}
