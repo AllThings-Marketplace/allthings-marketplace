@@ -473,6 +473,17 @@ def submit_inquiry(request, provider_id):
             if not message_text:
                 return JsonResponse({'error': 'Message cannot be empty'}, status=400)
 
+            # Anti-leakage guardrail: block phone numbers, emails, WhatsApp links, and bank details
+            is_flagged, flag_reason = inspect_listing_safety(
+                title="Customer Inquiry",
+                description=message_text,
+            )
+            if is_flagged:
+                return JsonResponse(
+                    {'error': 'For your escrow protection, please do not share phone numbers, email addresses, or bank details in messages.'},
+                    status=400
+                )
+
             provider = get_object_or_404(ProviderProfile, id=provider_id)
 
             inquiry = ProviderInquiry.objects.create(
@@ -493,6 +504,56 @@ def submit_inquiry(request, provider_id):
 
             return JsonResponse({'success': True, 'message': 'Inquiry sent successfully!'})
 
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@login_required
+def reply_to_inquiry(request, inquiry_id):
+    """
+    Allows a provider to reply to a customer's inquiry strictly inside AllThings
+    without ever exposing the customer's email address or phone number.
+    """
+    if request.method == 'POST':
+        try:
+            inquiry = get_object_or_404(ProviderInquiry, id=inquiry_id, provider__user=request.user)
+            data = json.loads(request.body)
+            reply_text = data.get('reply', '').strip()
+
+            if not reply_text:
+                return JsonResponse({'error': 'Reply message cannot be empty.'}, status=400)
+
+            is_flagged, _ = inspect_listing_safety(
+                title="Provider Inquiry Reply",
+                description=reply_text,
+                provider=inquiry.provider,
+            )
+            if is_flagged:
+                return JsonResponse(
+                    {'error': 'Off-platform contact details (phone numbers, emails, WhatsApp, or bank accounts) are not permitted.'},
+                    status=400
+                )
+
+            updated_thread = f"{inquiry.message}\n\n[Reply from {inquiry.provider.business_name}]: {reply_text}"
+            inquiry.message = updated_thread
+            inquiry.is_read = True
+            inquiry.save(update_fields=['message', 'is_read'])
+
+            _send_platform_notification(
+                recipient_user=inquiry.sender,
+                notif_type='INQUIRY',
+                title=f"New Reply from {inquiry.provider.business_name}",
+                message=reply_text[:90],
+                target_obj=inquiry,
+            )
+
+            return JsonResponse({
+                'success': True,
+                'updated_message': updated_thread,
+                'message': 'Reply sent to customer via AllThings Inbox!'
+            })
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 

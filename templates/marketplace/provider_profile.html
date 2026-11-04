@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}?v=2.5">
+    <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}?v=2.6">
 {% endblock %}
 
 {% block content %}
@@ -68,10 +68,10 @@
                                 <span>CAC Registered Business</span>
                             </li>
                         {% endif %}
-                        {% if provider.store_address or provider.region %}
+                        {% if provider.region %}
                             <li>
                                 <span class="trust-check-icon icon-amber"><i class="fa-solid fa-location-dot"></i></span>
-                                <span>Verified Dispatch Base ({{ provider.region|default:"Nigeria" }})</span>
+                                <span>Verified Dispatch Base ({{ provider.region }})</span>
                             </li>
                         {% endif %}
                         <li>
@@ -83,7 +83,7 @@
 
                 <div class="sidebar-actions">
                     <!-- Secure Internal Messaging Trigger -->
-                    <button type="button" class="action-btn btn-primary w-100 mb-10 text-center requires-auth" onclick="openInquiryModal()">
+                    <button type="button" class="action-btn btn-primary w-100 mb-10 text-center requires-auth" id="openInquiryModalBtn">
                         <i class="fa-regular fa-message icon-spaced"></i> Message {{ provider.business_name|truncatechars:18 }}
                     </button>
                     
@@ -101,7 +101,7 @@
                         </button>
                         
                         <!-- Share Icon -->
-                        <button type="button" class="action-btn btn-outline btn-share-profile" onclick="copyProfileLink()" title="Copy Store Link">
+                        <button type="button" class="action-btn btn-outline btn-share-profile" id="copyProfileLinkBtn" title="Copy Store Link">
                             <i class="fa-solid fa-share-nodes"></i>
                         </button>
                     </div>
@@ -112,17 +112,15 @@
                 </div>
             </div>
             
-            {% if provider.store_address or provider.region %}
+            {% if provider.region %}
             <div class="provider-info-card mt-20">
-                <h4 class="sidebar-heading"><i class="fa-solid fa-map-location-dot text-primary mr-5"></i> Store &amp; Dispatch Base</h4>
-                {% if provider.store_address %}
-                    <p class="store-address-text">{{ provider.store_address }}</p>
-                {% endif %}
-                {% if provider.region %}
-                    <div class="region-tag-row mt-10">
-                        <span class="region-tag"><i class="fa-solid fa-truck-fast"></i> Dispatches from {{ provider.region }}</span>
-                    </div>
-                {% endif %}
+                <h4 class="sidebar-heading"><i class="fa-solid fa-truck-fast text-primary mr-5"></i> Dispatch &amp; Coverage</h4>
+                <div class="region-tag-row mt-10">
+                    <span class="region-tag"><i class="fa-solid fa-location-dot"></i> Dispatches from {{ provider.region }}</span>
+                </div>
+                <p class="text-12-muted mt-10 mb-0">
+                    All deliveries and bookings are coordinated through AllThings Escrow and verified couriers.
+                </p>
             </div>
             {% endif %}
         </aside>
@@ -148,7 +146,7 @@
                 
                 {% if provider.provider_type in 'VENDOR, BOTH' %}
                     <button type="button" class="tab-btn {% if provider.provider_type == 'VENDOR' %}active{% endif %}" data-tab="products">
-                        <i class="fa-solid fa-box-open"></i> Hardware Catalog
+                        <i class="fa-solid fa-box-open"></i> Product Catalog
                         <span class="tab-count-badge">{{ products|length }}</span>
                     </button>
                 {% endif %}
@@ -224,7 +222,7 @@
                                     {% elif product.image %}
                                         <img src="{{ product.image.url }}" alt="{{ product.name }}" class="store-card-img contain-fit">
                                     {% else %}
-                                        <div class="store-card-fallback"><i class="fa-solid fa-bolt"></i></div>
+                                        <div class="store-card-fallback"><i class="fa-solid fa-box"></i></div>
                                     {% endif %}
                                 {% endwith %}
 
@@ -242,7 +240,7 @@
                                 <div class="store-product-price">NGN {{ product.price|floatformat:0|intcomma }}</div>
                                 <div class="store-card-footer">
                                     <a href="{% url 'marketplace:product_detail' product.slug %}" class="action-btn btn-outline action-sm w-100 text-center">
-                                        View Hardware
+                                        View Product
                                     </a>
                                 </div>
                             </div>
@@ -251,7 +249,7 @@
                         <div class="premium-empty-state">
                             <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
                             <h3>No store products yet</h3>
-                            <p>This vendor has not published any hardware in their catalog yet.</p>
+                            <p>This vendor has not published any products in their catalog yet.</p>
                         </div>
                     {% endfor %}
                 </div>
@@ -308,13 +306,14 @@
                 <h3 class="m-0 font-600-dark">
                     <i class="fa-regular fa-paper-plane text-primary mr-5"></i> Message {{ provider.business_name }}
                 </h3>
-                <button type="button" class="btn-close-naked" onclick="closeInquiryModal()"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" class="btn-close-naked" id="closeInquiryModalBtn"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p class="text-14-muted mb-15">Ask about availability, custom specifications, or bulk orders. Replies will appear in your AllThings Inbox.</p>
-                <form id="inquiryForm" data-provider-id="{{ provider.id }}" onsubmit="submitInquiry(event)">
+                <p class="text-14-muted mb-15">Ask about availability, custom specifications, or bulk orders. For your protection, do not share phone numbers or emails.</p>
+                <form id="inquiryForm" data-provider-id="{{ provider.id }}">
                     {% csrf_token %}
-                    <textarea id="inquiryMessage" class="form-control mb-15" rows="4" placeholder="Hi {{ provider.business_name }}, I would like to inquire about..." required></textarea>
+                    <textarea id="inquiryMessage" class="form-control mb-10" rows="4" placeholder="Hi {{ provider.business_name }}, I would like to inquire about..." required></textarea>
+                    <p id="inquiryErrorMsg" class="text-12-muted text-danger font-600 mb-10 hidden-initial"></p>
                     <button type="submit" class="action-btn btn-primary w-100" id="sendInquiryBtn">
                         <i class="fa-solid fa-paper-plane icon-spaced"></i> Send Secure Inquiry
                     </button>
@@ -326,5 +325,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/provider.js' %}"></script>
+    <script src="{% static 'js/pages/provider.js' %}?v=2.0"></script>
 {% endblock %}
