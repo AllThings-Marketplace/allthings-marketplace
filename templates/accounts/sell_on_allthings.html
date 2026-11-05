@@ -141,14 +141,20 @@
     <section class="sell-bottom-cta">
         <div>
             <h2>Ready to Open Your Storefront?</h2>
-            <p>Have your phone, valid ID, and bank account number handy—application takes less than 5 minutes.</p>
+            <p>Have your phone, valid ID, and bank account number handy—application takes less than 5 minutes. Review our <a href="{% url 'marketplace:provider_agreement' %}" class="cookie-inline-link">Vendor &amp; Provider Agreement</a> anytime.</p>
         </div>
         <div>
             {% if user.is_authenticated %}
                 {% if user.provider_profile %}
-                    <a href="{% url 'accounts:provider_status' %}" class="sell-cta-btn sell-cta-primary">
-                        Open Provider Application &rarr;
-                    </a>
+                    {% if user.provider_profile.verification_status == 'ACTIVE' %}
+                        <a href="{% url 'dashboard:provider_dashboard' %}" class="sell-cta-btn sell-cta-primary">
+                            Go to Your Provider Portal &rarr;
+                        </a>
+                    {% else %}
+                        <a href="{% url 'accounts:provider_status' %}" class="sell-cta-btn sell-cta-primary">
+                            Continue Verification &rarr;
+                        </a>
+                    {% endif %}
                 {% else %}
                     <a href="{% url 'accounts:apply_provider' %}" class="sell-cta-btn sell-cta-primary">
                         Begin Provider Registration &rarr;

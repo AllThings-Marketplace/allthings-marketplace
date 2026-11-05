@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/profile.css' %}?v=2.2">
+    <link rel="stylesheet" href="{% static 'css/pages/profile.css' %}?v=2.3">
 {% endblock %}
 
 {% block content %}
@@ -160,7 +160,7 @@
 
                     <div class="form-grid-2">
                         <div class="form-group">
-                            <label class="form-label-dark">Label (Home, Office, Site) *</label>
+                            <label class="form-label-dark">Label (Home, Office, Shop) *</label>
                             <input type="text" name="label" class="form-control" value="Home" required>
                         </div>
                         <div class="form-group">
@@ -184,19 +184,43 @@
                         <div class="form-group">
                             <label class="form-label-dark">State / Region *</label>
                             <select name="region" class="form-control" required>
-                                <option value="Rivers State" selected>Rivers State</option>
-                                <option value="Lagos State">Lagos State</option>
-                                <option value="Abuja (FCT)">Abuja (FCT)</option>
                                 <option value="Abia State">Abia State</option>
-                                <option value="Delta State">Delta State</option>
-                                <option value="Akwa Ibom">Akwa Ibom</option>
-                                <option value="Bayelsa State">Bayelsa State</option>
-                                <option value="Enugu State">Enugu State</option>
-                                <option value="Imo State">Imo State</option>
+                                <option value="Adamawa State">Adamawa State</option>
+                                <option value="Akwa Ibom State">Akwa Ibom State</option>
                                 <option value="Anambra State">Anambra State</option>
+                                <option value="Bauchi State">Bauchi State</option>
+                                <option value="Bayelsa State">Bayelsa State</option>
+                                <option value="Benue State">Benue State</option>
+                                <option value="Borno State">Borno State</option>
+                                <option value="Cross River State">Cross River State</option>
+                                <option value="Delta State">Delta State</option>
+                                <option value="Ebonyi State">Ebonyi State</option>
                                 <option value="Edo State">Edo State</option>
-                                <option value="Oyo State">Oyo State</option>
+                                <option value="Ekiti State">Ekiti State</option>
+                                <option value="Enugu State">Enugu State</option>
+                                <option value="Abuja (FCT)">Abuja (FCT)</option>
+                                <option value="Gombe State">Gombe State</option>
+                                <option value="Imo State">Imo State</option>
+                                <option value="Jigawa State">Jigawa State</option>
+                                <option value="Kaduna State">Kaduna State</option>
                                 <option value="Kano State">Kano State</option>
+                                <option value="Katsina State">Katsina State</option>
+                                <option value="Kebbi State">Kebbi State</option>
+                                <option value="Kogi State">Kogi State</option>
+                                <option value="Kwara State">Kwara State</option>
+                                <option value="Lagos State">Lagos State</option>
+                                <option value="Nasarawa State">Nasarawa State</option>
+                                <option value="Niger State">Niger State</option>
+                                <option value="Ogun State">Ogun State</option>
+                                <option value="Ondo State">Ondo State</option>
+                                <option value="Osun State">Osun State</option>
+                                <option value="Oyo State">Oyo State</option>
+                                <option value="Plateau State">Plateau State</option>
+                                <option value="Rivers State" selected>Rivers State</option>
+                                <option value="Sokoto State">Sokoto State</option>
+                                <option value="Taraba State">Taraba State</option>
+                                <option value="Yobe State">Yobe State</option>
+                                <option value="Zamfara State">Zamfara State</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -327,7 +351,7 @@
             <h2 class="rating-score">{{ avg_rating }}</h2>
             <div class="star-display-outer">
                 <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
-                <div class="star-display-inner" style="width: {{ star_percentage }};">
+                <div class="star-display-inner" id="providerStarFill" data-star-width="{{ star_percentage }}">
                     <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
                 </div>
             </div>
@@ -357,5 +381,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/profile.js' %}"></script>
+    <script src="{% static 'js/pages/profile.js' %}?v=2.3"></script>
 {% endblock %}
