@@ -1,5 +1,5 @@
 /* ==========================================================================
-   COOKIE CONSENT BANNER & PREFERENCES MODAL (cookie-consent.css v1.0)
+   COOKIE CONSENT BANNER & PREFERENCES MODAL (cookie-consent.css v1.1)
    ========================================================================== */
 .cookie-banner {
     position: fixed;
@@ -14,7 +14,8 @@
     border-radius: 16px;
     padding: 20px 24px;
     z-index: 1500;
-    box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.45);
+    box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.5);
+    box-sizing: border-box;
 }
 
 .cookie-banner-inner {
@@ -41,12 +42,13 @@
     width: 28px;
     height: 28px;
     border-radius: 8px;
-    background: rgba(37, 99, 235, 0.2);
+    background: rgba(37, 99, 235, 0.22);
     color: #60a5fa;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
+    flex-shrink: 0;
 }
 
 .cookie-banner-title {
@@ -67,6 +69,11 @@
     color: #60a5fa;
     text-decoration: underline;
     font-weight: 600;
+    transition: color 0.15s ease;
+}
+
+.cookie-inline-link:hover {
+    color: #93c5fd;
 }
 
 .cookie-banner-actions {
@@ -77,9 +84,47 @@
     flex-shrink: 0;
 }
 
+/* High-contrast button overrides for the dark #0f172a banner surface */
+.cookie-banner-actions .btn-outline {
+    background-color: transparent;
+    color: #f8fafc;
+    border: 1px solid #475569;
+}
+
+.cookie-banner-actions .btn-outline:hover {
+    background-color: #1e293b;
+    border-color: #94a3b8;
+    color: #ffffff;
+}
+
+.cookie-banner-actions .btn-secondary {
+    background-color: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+}
+
+.cookie-banner-actions .btn-secondary:hover {
+    background-color: #334155;
+    color: #ffffff;
+}
+
+/* Cookie Preferences Modal (Always sits above .cookie-banner) */
+#cookiePreferencesModal {
+    z-index: 1600;
+}
+
 .cookie-modal-card {
     max-width: 540px;
     width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    background-color: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 24px 26px;
+    box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.35);
+    box-sizing: border-box;
 }
 
 .cookie-category-list {
@@ -110,6 +155,7 @@
     padding: 4px 10px;
     border-radius: 999px;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .cookie-switch {
@@ -132,7 +178,7 @@
     inset: 0;
     background-color: #cbd5e1;
     border-radius: 999px;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .cookie-slider::before {
@@ -145,10 +191,15 @@
     background-color: #ffffff;
     border-radius: 50%;
     transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
 }
 
 .cookie-switch input:checked + .cookie-slider {
     background-color: #2563eb;
+}
+
+.cookie-switch input:focus-visible + .cookie-slider {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28);
 }
 
 .cookie-switch input:checked + .cookie-slider::before {
@@ -158,6 +209,8 @@
 .cookie-modal-footer {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     border-top: 1px solid #e2e8f0;
     padding-top: 16px;
@@ -170,6 +223,14 @@
     color: inherit;
     font: inherit;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.18s ease;
+}
+
+.footer-link-btn:hover {
+    color: #60a5fa;
     text-decoration: underline;
 }
 
@@ -188,6 +249,63 @@
 
     .cookie-banner-actions .action-btn {
         flex: 1;
+        justify-content: center;
         text-align: center;
     }
+
+    .cookie-modal-card {
+        padding: 20px 18px;
+    }
+
+    .cookie-modal-footer .action-btn {
+        flex: 1;
+        justify-content: center;
+        text-align: center;
+    }
+}
+
+/* ==========================================================================
+   LEGAL & AGREEMENT ACCEPTANCE CHECKBOXES (Register & Provider Onboarding)
+   ========================================================================== */
+.legal-consent-box {
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 13px 15px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.legal-consent-box:focus-within {
+    border-color: #2563eb;
+    background-color: #eff6ff;
+}
+
+.legal-consent-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #334155;
+    cursor: pointer;
+    margin: 0;
+}
+
+.legal-consent-label input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    margin-top: 2px;
+    accent-color: #2563eb;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.legal-consent-label a {
+    color: #2563eb;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.legal-consent-label a:hover {
+    color: #1d4ed8;
 }

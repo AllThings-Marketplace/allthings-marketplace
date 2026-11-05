@@ -171,6 +171,20 @@
                 </div>
             </div>
 
+            <!-- 3. Mandatory Provider Agreement & Policy Acceptance -->
+            <div class="legal-consent-box mt-20">
+                <label class="legal-consent-label" for="acceptProviderAgreement">
+                    <input type="checkbox"
+                           name="accept_provider_agreement"
+                           id="acceptProviderAgreement"
+                           value="1"
+                           required>
+                    <span>
+                        I have read and agree to the <a href="{% url 'marketplace:provider_agreement' %}" target="_blank" rel="noopener">Vendor &amp; Service Provider Agreement</a>, <a href="{% url 'marketplace:legal_policy' 'payments-and-payouts' %}" target="_blank" rel="noopener">Payments, Escrow &amp; Payouts Policy</a>, and <a href="{% url 'marketplace:legal_policy' 'acceptable-use' %}" target="_blank" rel="noopener">Acceptable Use &amp; Prohibited Items Policy</a>, including the ban on off-platform contact sharing. *
+                    </span>
+                </label>
+            </div>
+
             <input type="hidden" id="isEmailVerifiedFlag" value="{{ email_already_verified|yesno:'true,false' }}">
             <input type="hidden" id="isPhoneVerifiedFlag" value="{% if verified_phone %}true{% else %}false{% endif %}">
 
