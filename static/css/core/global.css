@@ -860,3 +860,16 @@ body {
     object-fit: contain;
     margin-right: -1px;
 }
+
+@media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    .main-container {
+        padding: 16px 12px;
+        box-sizing: border-box;
+        width: 100%;
+        overflow-x: hidden;
+    }
+}
