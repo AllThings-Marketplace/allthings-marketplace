@@ -1,16 +1,49 @@
 document.addEventListener("DOMContentLoaded", function () {
 
-    // === 1. Global Search Dropdown & Recent Searches (LocalStorage) ===
+    // === 1. Global Search Dropdown & Recent Searches (LocalStorage + Consent Guard) ===
     const searchInput = document.getElementById('globalSearchInput');
     const searchDropdown = document.getElementById('searchDropdown');
     const searchForm = document.getElementById('globalSearchForm');
     const recentContainer = document.getElementById('recentSearchesContainer');
     const clearBtn = document.getElementById('clearSearchesBtn');
 
+    function isFunctionalStorageAllowed() {
+        if (window.AllThingsCookieConsent && typeof window.AllThingsCookieConsent.functional === 'boolean') {
+            return window.AllThingsCookieConsent.functional;
+        }
+        const match = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('allthings_cookie_consent='));
+        if (!match) {
+            return true;
+        }
+        try {
+            const parsed = JSON.parse(decodeURIComponent(match.split('=')[1]));
+            return parsed.functional !== false;
+        } catch (e) {
+            return true;
+        }
+    }
+
     function renderRecentSearches() {
         if (!recentContainer) return;
-        const searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
         recentContainer.innerHTML = '';
+
+        if (!isFunctionalStorageAllowed()) {
+            const pausedSpan = document.createElement('span');
+            pausedSpan.className = 'text-12-muted';
+            pausedSpan.textContent = 'Recent search memory is paused by your cookie preferences.';
+            recentContainer.appendChild(pausedSpan);
+            if (clearBtn) clearBtn.classList.add('hidden-initial');
+            return;
+        }
+
+        let searches = [];
+        try {
+            searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        } catch (e) {
+            searches = [];
+        }
 
         if (searches.length === 0) {
             const emptySpan = document.createElement('span');
@@ -47,20 +80,31 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (searchForm && searchInput) {
         searchForm.addEventListener('submit', () => {
+            if (!isFunctionalStorageAllowed()) {
+                return;
+            }
             const term = searchInput.value.trim();
             if (term) {
-                let searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
-                searches = searches.filter(t => t.toLowerCase() !== term.toLowerCase());
-                searches.unshift(term);
-                searches = searches.slice(0, 8);
-                localStorage.setItem('recentSearches', JSON.stringify(searches));
+                try {
+                    let searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+                    searches = searches.filter(t => t.toLowerCase() !== term.toLowerCase());
+                    searches.unshift(term);
+                    searches = searches.slice(0, 8);
+                    localStorage.setItem('recentSearches', JSON.stringify(searches));
+                } catch (e) {
+                    // Ignore storage quota or private-mode errors
+                }
             }
         });
     }
 
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
-            localStorage.removeItem('recentSearches');
+            try {
+                localStorage.removeItem('recentSearches');
+            } catch (e) {
+                // Ignore storage errors
+            }
             renderRecentSearches();
         });
     }
@@ -93,11 +137,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const extraItems = deptItems.slice(VISIBLE_DEPT_LIMIT);
 
         if (extraItems.length === 0) {
-            // If 6 or fewer departments exist, show all and hide the toggle button
             deptItems.forEach(item => item.classList.remove('hidden-initial'));
             seeMoreBtn.classList.add('hidden-initial');
         } else {
-            // Ensure first 6 are visible and the rest start collapsed
             deptItems.slice(0, VISIBLE_DEPT_LIMIT).forEach(item => item.classList.remove('hidden-initial'));
             extraItems.forEach(item => item.classList.add('hidden-initial'));
 

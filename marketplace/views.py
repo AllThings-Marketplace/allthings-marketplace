@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 
 from .smart_search import parse_search_intent
 from .validators import inspect_listing_safety
@@ -1031,3 +1031,65 @@ def submit_provider_match(request, request_id):
             messages.error(request, error_msg)
 
     return redirect('marketplace:request_detail', request_id=request_id)
+
+
+# ==============================================================================
+# LEGAL, PRIVACY & OPERATIONAL POLICIES HUB
+# ==============================================================================
+LEGAL_SECTIONS = {
+    'privacy-policy': {
+        'title': 'Privacy Policy',
+        'subtitle': 'How AllThings collects, processes, and protects your personal data under the Nigeria Data Protection Act (NDPA).',
+        'icon': 'fa-user-shield',
+    },
+    'cookie-policy': {
+        'title': 'Cookie & Tracking Policy',
+        'subtitle': 'How cookies and browser storage work on AllThings and how to manage your consent preferences.',
+        'icon': 'fa-cookie-bite',
+    },
+    'terms-and-conditions': {
+        'title': 'Terms and Conditions',
+        'subtitle': 'Rules governing accounts, listings, orders, service bookings, and use of AllThings Digital Marketplace.',
+        'icon': 'fa-scale-balanced',
+    },
+    'provider-agreement': {
+        'title': 'Vendor & Service Provider Agreement',
+        'subtitle': 'KYC verification, listing standards, order fulfilment, commission structure, and escrow payout rules.',
+        'icon': 'fa-store',
+    },
+    'returns-and-refunds': {
+        'title': 'Returns, Refunds & Cancellation Policy',
+        'subtitle': 'Transparent procedures for order cancellations, disputes, escrow freezes, and buyer refunds.',
+        'icon': 'fa-rotate-left',
+    },
+    'shipping-and-delivery': {
+        'title': 'Shipping & Delivery Policy',
+        'subtitle': 'Multi-courier rate calculation, dispatch timelines, 6-digit PIN handshakes, and delivery resolution.',
+        'icon': 'fa-truck-fast',
+    },
+    'payments-and-payouts': {
+        'title': 'Payments, Escrow & Payouts Policy',
+        'subtitle': 'Customer checkout payments, escrow protection windows, platform commissions, and vendor bank settlements.',
+        'icon': 'fa-shield-halved',
+    },
+    'acceptable-use': {
+        'title': 'Acceptable Use & Prohibited Items Policy',
+        'subtitle': 'Prohibited conduct, restricted product categories, and Verified Review & Rating integrity standards.',
+        'icon': 'fa-ban',
+    },
+}
+
+
+def legal_policy(request, policy_slug='privacy-policy'):
+    """
+    Renders the unified AllThings Operational & Legal Policy Hub for any requested section.
+    """
+    if policy_slug not in LEGAL_SECTIONS:
+        raise Http404("Policy document not found.")
+
+    context = {
+        'active_slug': policy_slug,
+        'active_policy': LEGAL_SECTIONS[policy_slug],
+        'all_policies': LEGAL_SECTIONS,
+    }
+    return render(request, 'marketplace/legal_policy.html', context)

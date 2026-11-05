@@ -1,0 +1,420 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ active_policy.title }} | AllThings Marketplace{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/legal.css' %}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="legal-page-shell animate-fade-in">
+
+    <!-- Top Executive Compliance Header -->
+    <header class="legal-hero-card">
+        <div class="legal-hero-badge">
+            <i class="fa-solid fa-scale-balanced"></i> ALLTHINGS LEGAL, PRIVACY &amp; OPERATIONAL GOVERNANCE
+        </div>
+        <h1 class="legal-hero-title">
+            <i class="fa-solid {{ active_policy.icon }} text-primary mr-5"></i> {{ active_policy.title }}
+        </h1>
+        <p class="legal-hero-subtitle">{{ active_policy.subtitle }}</p>
+        <div class="legal-meta-strip">
+            <span><i class="fa-regular fa-calendar-check text-primary"></i> Effective: 2026 Operational Edition</span>
+            <span><i class="fa-solid fa-shield-halved text-success"></i> Nigeria Data Protection Act (NDPA) &amp; NDPC GAID Compliant</span>
+            <span><i class="fa-solid fa-location-dot text-primary"></i> Jurisdiction: Federal Republic of Nigeria</span>
+        </div>
+    </header>
+
+    <div class="legal-layout-grid">
+
+        <!-- Left Column: Sticky Policy Directory Sidebar -->
+        <aside class="legal-sidebar">
+            <div class="legal-nav-card">
+                <h3 class="legal-nav-heading">Policy Directory</h3>
+                <ul class="legal-nav-list">
+                    {% for slug, info in all_policies.items %}
+                        <li>
+                            <a href="{% url 'marketplace:legal_policy' slug %}"
+                               class="legal-nav-link {% if slug == active_slug %}active{% endif %}">
+                                <i class="fa-solid {{ info.icon }} legal-nav-icon"></i>
+                                <span>{{ info.title }}</span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+
+                <div class="legal-sidebar-callout">
+                    <h4 class="legal-callout-title">
+                        <i class="fa-solid fa-sliders text-primary"></i> Manage Cookie Consent
+                    </h4>
+                    <p class="legal-callout-text">
+                        Update or withdraw your optional Functional, Analytics, or Marketing cookie preferences at any time.
+                    </p>
+                    <button type="button" class="action-btn btn-outline action-sm w-100 js-open-cookie-settings">
+                        <i class="fa-solid fa-cookie-bite icon-spaced"></i> Open Cookie Settings
+                    </button>
+                </div>
+
+                <div class="legal-sidebar-callout mt-15">
+                    <h4 class="legal-callout-title">
+                        <i class="fa-solid fa-headset text-primary"></i> Need Assistance?
+                    </h4>
+                    <p class="legal-callout-text">
+                        Have a privacy inquiry, order dispute, or compliance question? Reach our support team directly.
+                    </p>
+                    <a href="{% url 'orders:support_center' %}" class="action-btn btn-primary action-sm w-100 text-center">
+                        Resolution Center &rarr;
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Column: Active Policy Document Body -->
+        <article class="legal-document-card">
+
+            {% if active_slug == 'privacy-policy' %}
+                <!-- =========================================================
+                     1. PRIVACY POLICY (Section 2 of Operational Policy)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. Purpose and Scope</h2>
+                    <p>
+                        AllThings Digital Marketplace ("AllThings") respects the privacy of its customers, retail vendors, service providers, employees, and other individuals whose personal information it processes. This Privacy Policy explains what information the platform collects, why it collects it, how it is used, when it is shared, how it is protected, and how individuals may exercise their data protection rights under the Nigeria Data Protection Act 2023 (NDPA) and applicable regulations.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. Categories of Personal Information Collected</h2>
+                    <p>AllThings may collect and process the following categories of personal data:</p>
+                    <ul class="legal-bullet-list">
+                        <li><strong>Account Information:</strong> Legal names, email addresses, Nigerian telephone numbers, usernames, encrypted account credentials, dates of birth, and profile details.</li>
+                        <li><strong>Vendor &amp; Service Provider KYC Information:</strong> Registered business names, business contact details, government-issued identification documents (NIN, Driver's License, International Passport, or Voter's Card), live verification selfies, CAC registration certificates, shop/studio verification photos, and settlement bank account details (NUBAN) required for approved payouts.</li>
+                        <li><strong>Transaction Information:</strong> Physical product orders, service bookings, custom quotes, invoices, Paystack payment references, escrow status, refunds, dispute tickets, and transaction ledger histories.</li>
+                        <li><strong>Location Information:</strong> Customer delivery addresses, landmarks, service site locations, vendor dispatch states/regions, and GPS coordinates where authorised for courier rate estimation or store verification.</li>
+                        <li><strong>Technical &amp; Usage Information:</strong> IP addresses, device and browser metadata, security logs, cookies, and platform interaction records.</li>
+                        <li><strong>Communication Information:</strong> Pre-booking inquiries, order chat transcripts, customer support tickets, verified product/service reviews, ratings, and dispute evidence.</li>
+                    </ul>
+                    <div class="legal-highlight-box">
+                        <strong>Payment Card Security:</strong> Payment card credentials and bank authorization flows are handled directly through approved payment processors (such as Paystack). AllThings does not store raw credit or debit card numbers on its servers.
+                    </div>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. Purposes of Processing &amp; Lawful Basis</h2>
+                    <p>We process personal information under documented lawful bases (contractual necessity, legal obligation, legitimate business interests, and informed consent) to:</p>
+                    <ul class="legal-bullet-list">
+                        <li>Create, verify, and manage customer, vendor, and service provider accounts.</li>
+                        <li>Connect customers with relevant verified vendors and service professionals across Nigeria.</li>
+                        <li>Process orders, service bookings, escrow locks, delivery PIN handshakes, payouts, and refunds.</li>
+                        <li>Coordinate parcel and cargo dispatch with integrated logistics partners.</li>
+                        <li>Perform KYC identity verification, prevent off-platform fraud, and arbitrate escrow disputes.</li>
+                        <li>Improve marketplace search, category recommendations, and platform security.</li>
+                        <li>Meet applicable Nigerian legal, regulatory, tax, and financial accounting obligations.</li>
+                        <li>Send transactional alerts (OTP codes, order updates, escrow notices) and, where legally permitted with opt-out controls, promotional communications.</li>
+                    </ul>
+                </section>
+
+                <section class="legal-section">
+                    <h2>4. Location Privacy</h2>
+                    <p>
+                        Location data is used to display nearby vendors, identify service coverage radii, calculate multi-courier shipping fees, and verify physical vendor operating bases. Where technically feasible, AllThings provides users with a choice between manual address selection and device-based GPS capture. Continuous background location tracking is never performed, and users may revoke device-level location permissions at any time through their browser or mobile operating system settings.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>5. Information Sharing &amp; Third-Party Safeguards</h2>
+                    <p>AllThings does not sell personal information. Data is shared strictly on a need-to-know basis with:</p>
+                    <ul class="legal-bullet-list">
+                        <li><strong>Vendors &amp; Service Providers:</strong> Only the order or booking details necessary to prepare items for courier pickup or perform an accepted service contract. Direct customer email addresses are never exposed to vendors.</li>
+                        <li><strong>Logistics &amp; Courier Partners:</strong> Delivery recipient names, phone numbers, and destination addresses required by dispatch riders (such as AllThings Express, GIG Logistics, or inter-state waybill operators) to complete delivery.</li>
+                        <li><strong>Payment &amp; Verification Gateways:</strong> Paystack (for payment collection, NUBAN resolution, and vendor transfers), Brevo (transactional email delivery), Termii (SMS OTP verification), and Cloudinary (secure media optimization).</li>
+                        <li><strong>Public Authorities &amp; Auditors:</strong> Professional advisers or competent Nigerian regulatory and law-enforcement authorities where disclosure is required by law.</li>
+                    </ul>
+                </section>
+
+                <section class="legal-section">
+                    <h2>6. Data Security, Retention &amp; Your NDPA Rights</h2>
+                    <p>
+                        AllThings implements technical and organisational safeguards including HTTPS encryption, CSRF protection, row-level database locking on financial ledgers, OTP verification, and role-based access controls. Personal data is retained only for as long as necessary to fulfil the purposes outlined in this policy or comply with Nigerian statutory retention periods.
+                    </p>
+                    <p>
+                        Under the Nigeria Data Protection Act (NDPA), you have the right to request access to your personal information, correction of inaccurate records, deletion where legally available, or restriction/withdrawal of consent for optional processing. Submit requests via the <a href="{% url 'orders:support_center' %}">Help &amp; Resolution Center</a> or email <strong>support@allthings.com</strong>. You also have the right to lodge a complaint with the Nigeria Data Protection Commission (NDPC).
+                    </p>
+                </section>
+
+            {% elif active_slug == 'cookie-policy' %}
+                <!-- =========================================================
+                     2. COOKIE & TRACKING POLICY (NDPC GAID Compliant)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. What Are Cookies &amp; Similar Technologies?</h2>
+                    <p>
+                        Cookies are small text files stored by your browser when you visit AllThings. Alongside related browser storage technologies such as <code>localStorage</code>, cookies help the platform recognize your session, keep your shopping cart intact, protect forms against cross-site request forgery (CSRF), and remember your preferences in accordance with the Nigeria Data Protection Act 2023 (NDPA) and the NDPC General Application and Implementation Directive (GAID).
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. How AllThings Categorizes Cookies</h2>
+                    <div class="legal-table-wrapper">
+                        <table class="legal-table">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Technical Name / Storage</th>
+                                    <th>Purpose on AllThings</th>
+                                    <th>Duration &amp; Consent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Strictly Necessary</strong></td>
+                                    <td><code>sessionid</code>, <code>csrftoken</code>, <code>allthings_cookie_consent</code></td>
+                                    <td>Maintains login sessions, shopping cart items, CSRF form security, escrow checkout tokens, and your saved cookie consent choice.</td>
+                                    <td>Session to 1 year (Always Active)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Functional</strong></td>
+                                    <td><code>localStorage.recentSearches</code></td>
+                                    <td>Remembers your last 8 search terms in your browser so you can quickly re-run recent searches from the top search bar.</td>
+                                    <td>Persistent in browser until cleared (Requires Consent)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Analytics &amp; Personalization</strong></td>
+                                    <td>First-party interaction logs (<code>UserInteraction</code>)</td>
+                                    <td>Powers the "Continue Where You Left Off" and "Picked For You" homepage shelves and helps us understand which departments are most active.</td>
+                                    <td>Up to 180 days (Requires Consent)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Marketing</strong></td>
+                                    <td>Campaign attribution parameters</td>
+                                    <td>Measures promotional banner effectiveness and external marketing campaigns when enabled.</td>
+                                    <td>Up to 180 days (Requires Consent)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. How to Manage or Withdraw Your Consent</h2>
+                    <p>
+                        When you visit AllThings for the first time, our Cookie Consent Banner lets you <strong>Accept All</strong>, <strong>Reject Optional</strong>, or <strong>Customize</strong> your preferences. Turning off Functional cookies immediately clears and pauses `recentSearches` in your browser, and turning off Analytics cookies switches your homepage to non-personalized trending shelves.
+                    </p>
+                    <div class="legal-highlight-box flex-between align-center flex-wrap gap-10">
+                        <span>Want to review or change your cookie preferences right now?</span>
+                        <button type="button" class="action-btn btn-primary action-sm js-open-cookie-settings">
+                            <i class="fa-solid fa-sliders icon-spaced"></i> Customize Cookie Preferences
+                        </button>
+                    </div>
+                </section>
+
+            {% elif active_slug == 'terms-and-conditions' %}
+                <!-- =========================================================
+                     3. TERMS AND CONDITIONS (Section 3 of Operational Policy)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. Acceptance of Terms</h2>
+                    <p>
+                        These Terms and Conditions govern access to and use of AllThings Digital Marketplace. By creating an account, browsing listings, placing an order, booking a service, or applying as a vendor or service provider, you agree to comply with these terms and all supplementary AllThings policies. Users who do not agree with these terms should discontinue use of the platform.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. Nature of the Marketplace</h2>
+                    <p>
+                        AllThings operates as a multi-department digital marketplace connecting customers with independent retail vendors and service providers. Unless expressly stated otherwise, vendors and service providers are responsible for their own products, descriptions, prices, stock availability, warranties, professional services, and fulfilment obligations. AllThings facilitates marketplace interactions by providing ordering, Paystack escrow payment locking, in-app communication, courier dispatch coordination, verified reviews, and dispute resolution.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. Account Registration, Security &amp; Anti-Leakage Rules</h2>
+                    <ul class="legal-bullet-list">
+                        <li>Users must provide accurate legal names, email addresses, and Nigerian phone numbers during registration and keep them updated.</li>
+                        <li>Users are responsible for safeguarding their passwords, 6-digit delivery handshake PINs, and OTP verification codes.</li>
+                        <li><strong>Strict On-Platform Communication:</strong> To protect buyers and vendors under AllThings Escrow, exchanging phone numbers, WhatsApp links, email addresses, or personal bank account numbers in product descriptions, inquiries, or order chats to bypass the platform is strictly prohibited. Transactions conducted outside AllThings are not covered by escrow protection.</li>
+                    </ul>
+                </section>
+
+                <section class="legal-section">
+                    <h2>4. Listings, Orders, Bookings &amp; Pricing Transparency</h2>
+                    <p>
+                        Product and service listings must accurately disclose the item or service offered, including pricing, condition (Brand New, Refurbished, or Used), specifications, and service scope. Before confirming payment at checkout, customers are shown the item subtotal, live courier delivery charges, and total amount payable. AllThings may reject or cancel a transaction where there is reasonable evidence of fraud, prohibited items, pricing manipulation, or a security risk.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>5. Account Suspension, Liability &amp; Governing Law</h2>
+                    <p>
+                        AllThings may restrict listings, freeze disputed escrow funds, suspend accounts, or terminate access where there is evidence of fraud, off-platform fee circumvention, counterfeit goods, or repeated policy violations. Affected users may appeal enforcement actions via the Support &amp; Resolution Center. These Terms and Conditions are governed by the laws of the Federal Republic of Nigeria.
+                    </p>
+                </section>
+
+            {% elif active_slug == 'provider-agreement' %}
+                <!-- =========================================================
+                     4. VENDOR & SERVICE PROVIDER AGREEMENT (Section 4)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. Eligibility, 5-Stage KYC Verification &amp; Approval</h2>
+                    <p>
+                        Every individual or business seeking to sell physical products or offer professional services on AllThings must complete our multi-stage onboarding and KYC verification workflow:
+                    </p>
+                    <ul class="legal-bullet-list">
+                        <li><strong>Stage 1 (Contact Verification):</strong> Verified legal name, official email OTP, and Nigerian phone SMS OTP.</li>
+                        <li><strong>Stage 2 (Identity KYC):</strong> Valid government-issued ID (NIN, Driver's License, International Passport, or PVC) and a clear live selfie.</li>
+                        <li><strong>Stage 3 (Business Credentials):</strong> Department specialty, bio, and CAC registration documents where applicable.</li>
+                        <li><strong>Stage 4 (Location &amp; GPS Pinning):</strong> Physical shop, studio, or operating base address in Nigeria, GPS coordinates, and interior/exterior workspace photos.</li>
+                        <li><strong>Stage 5 (Paystack NUBAN Settlement):</strong> A 10-digit Nigerian bank account whose resolved account name matches the verified legal name or registered business name.</li>
+                    </ul>
+                    <p>
+                        Verification badges confirm only the specific identity and location checks completed by AllThings and do not exempt providers from ongoing quality and fulfilment standards.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. Listing Standards &amp; Content Safety</h2>
+                    <p>
+                        Vendors must upload genuine photos, accurate stock counts, accurate package weights/shipping tiers, and honest condition disclosures (New, Refurbished, or Used). Service providers must clearly define their pricing model (Fixed, Starting, Hourly, Tiered Packages, or Custom Quote), service mode, travel radius, and what is included or excluded. Listings containing phone numbers, external URLs, WhatsApp numbers, or bank details are automatically flagged by our anti-leakage filter.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. Order Fulfilment, Service Honouring &amp; Commissions</h2>
+                    <ul class="legal-bullet-list">
+                        <li><strong>Product Vendors:</strong> Must promptly accept paid store orders, package items securely, and mark them <em>Ready for Pickup</em> so a courier rider can be dispatched using the 6-digit pickup PIN.</li>
+                        <li><strong>Service Professionals:</strong> Must honour accepted booking schedules or custom quotes professionally and mark jobs completed only when the agreed scope of work has been delivered.</li>
+                        <li><strong>Platform Commission &amp; Escrow Payouts:</strong> AllThings deducts the disclosed platform commission (default 10% commission; 90% net vendor earnings) upon escrow release. Cleared earnings move from your <em>Locked in Escrow</em> balance to your <em>Available for Withdrawal</em> wallet balance upon customer PIN confirmation, service confirmation, or expiration of the 72-hour post-completion window (unless paused by an active customer dispute).</li>
+                    </ul>
+                </section>
+
+            {% elif active_slug == 'returns-and-refunds' %}
+                <!-- =========================================================
+                     5. RETURNS, REFUNDS & CANCELLATION POLICY (Section 5)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. General Principles &amp; Customer Cancellations</h2>
+                    <p>
+                        Returns, cancellations, and refunds are governed by the stage of order fulfilment, the disclosed condition of the product, the service booking terms, and Nigerian consumer protection law. Customers or vendors may cancel an order item before dispatch, which automatically reverses the pending escrow allocation and restores product stock.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. Eligible Return &amp; Escrow Refund Situations</h2>
+                    <p>A customer may open a formal dispute and request a return or escrow refund where:</p>
+                    <ul class="legal-bullet-list">
+                        <li>The delivered product arrives damaged, defective, or non-functional.</li>
+                        <li>The wrong product, model, or variant was delivered, or an item is missing from the package.</li>
+                        <li>The product materially differs from its listing description or disclosed condition, or is counterfeit.</li>
+                        <li>The vendor fails to dispatch the order within the required fulfilment window.</li>
+                        <li>A service professional fails to attend an accepted booking or materially fails to deliver the agreed scope of work.</li>
+                        <li>A duplicate debit or payment reconciliation error occurred during checkout.</li>
+                    </ul>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. How the 72-Hour Escrow Freeze &amp; Arbitration Process Works</h2>
+                    <ol class="legal-numbered-list">
+                        <li><strong>Do Not Share Your Delivery PIN Prematurely:</strong> For physical goods, never share your 6-digit Delivery Handshake PIN with the dispatch rider until you have inspected the package.</li>
+                        <li><strong>Freeze Escrow via Report Issue:</strong> Clicking <em>Report Issue / Freeze Escrow</em> on your Order Details or Bookings page immediately pauses the 72-hour automated vendor payout timer and opens an official Support Ticket.</li>
+                        <li><strong>Evidence &amp; Investigation:</strong> Both the customer and the provider can upload photographic evidence and notes in the Support &amp; Resolution Center. AllThings administrators review the order ledger, courier tracking, and chat logs to issue a fair resolution (full refund, partial adjustment, or escrow release).</li>
+                    </ol>
+                </section>
+
+            {% elif active_slug == 'shipping-and-delivery' %}
+                <!-- =========================================================
+                     6. SHIPPING & DELIVERY POLICY (Section 6)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. Multi-Courier Logistics &amp; Rate Calculation</h2>
+                    <p>
+                        AllThings integrates a multi-tier logistics engine (including <strong>AllThings Express Bike</strong>, <strong>GIG Logistics</strong>, and <strong>Inter-State Waybill / Cargo Van</strong>) to deliver products across all 36 Nigerian states and Abuja (FCT). Delivery fees are dynamically calculated at checkout based on the vendor's verified dispatch region, the buyer's destination state/city, package weight, and shipping class (Small Parcel, Medium Box, or Heavy/Bulky Cargo).
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. 6-Digit Pickup &amp; Delivery Handshake PINs</h2>
+                    <ul class="legal-bullet-list">
+                        <li><strong>Vendor Pickup Handshake:</strong> When a vendor marks an accepted order item <em>Ready for Pickup</em>, the system generates a 6-digit Pickup PIN and assigns a courier rider.</li>
+                        <li><strong>Customer Delivery Handshake:</strong> Upon payment, the buyer receives a unique 6-digit Delivery PIN for each ordered item. Providing this PIN to the rider (or confirming it on your Order Details page) serves as cryptographic proof of delivery and releases the item's escrow funds to the vendor.</li>
+                    </ul>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. Failed, Delayed, or Damaged Deliveries</h2>
+                    <p>
+                        Vendors must prepare and hand over accepted orders promptly. If a delivery attempt fails due to an unreachable phone number, restricted site access, or an incomplete address, support will coordinate with the buyer and courier to reschedule. If a package arrives visibly damaged or incorrect, do not release your 6-digit Delivery PIN—immediately open a dispute in the Resolution Center with photos of the package.
+                    </p>
+                </section>
+
+            {% elif active_slug == 'payments-and-payouts' %}
+                <!-- =========================================================
+                     7. PAYMENTS, ESCROW & PAYOUTS POLICY (Section 7)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. Authorised Payment Channels &amp; Verification</h2>
+                    <p>
+                        All customer payments on AllThings are processed in Nigerian Naira (NGN) through Paystack (supporting debit cards, bank transfers, and USSD). An order or service booking is marked as <strong>PAID</strong> only when AllThings receives cryptographic webhook confirmation or server-to-server verification from Paystack. Self-reported payment screenshots are never accepted as proof of payment.If your bank account is debited during a network drop, our <em>1-Click Instant Payment Recovery</em> tool in the Support Center reconciles your reference directly with Paystack.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. How AllThings Escrow Protection Works</h2>
+                    <p>
+                        When a buyer pays for a product order or funds a service booking, the net earnings are credited to the provider's <strong>Locked in Escrow (`pending_balance`)</strong> ledger. Funds move to the provider's <strong>Available for Withdrawal (`available_balance`)</strong> wallet only when:
+                    </p>
+                    <ul class="legal-bullet-list">
+                        <li>The customer confirms delivery using their 6-digit Delivery PIN (for physical products), or</li>
+                        <li>The customer clicks <em>Confirm Job</em> on a completed service booking, or</li>
+                        <li>72 hours have elapsed since the order/service was marked completed without the customer opening a dispute ticket.</li>
+                    </ul>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. Vendor Payout Schedule &amp; Security Controls</h2>
+                    <p>
+                        Active verified providers can withdraw cleared funds (minimum NGN 100.00) directly to their verified Nigerian bank account via Paystack Transfers. To protect marketplace liquidity and prevent unauthorized account takeovers, withdrawals are subject to a 7-day payout cooldown window, row-level database locking, and password + KYC name-match verification whenever a payout bank account is updated.
+                    </p>
+                </section>
+
+            {% elif active_slug == 'acceptable-use' %}
+                <!-- =========================================================
+                     8. ACCEPTABLE USE, PROHIBITED ITEMS & REVIEW POLICY (Sections 8, 9 & 10)
+                     ========================================================= -->
+                <section class="legal-section">
+                    <h2>1. Prohibited Conduct</h2>
+                    <p>Users, vendors, and service providers must not:</p>
+                    <ul class="legal-bullet-list">
+                        <li>Engage in fraud, identity theft, impersonation, or payment/escrow manipulation.</li>
+                        <li>Share off-platform phone numbers, WhatsApp links, email addresses, or bank accounts to divert transactions outside AllThings.</li>
+                        <li>Publish false, misleading, counterfeit, or stolen product listings, or misrepresent professional qualifications.</li>
+                        <li>Harass, threaten, or abuse customers, vendors, dispatch riders, or support staff.</li>
+                        <li>Attempt unauthorized access, scraping, or interference with AllThings servers, APIs, or payment webhooks.</li>
+                    </ul>
+                </section>
+
+                <section class="legal-section">
+                    <h2>2. Prohibited &amp; Restricted Products</h2>
+                    <p>
+                        The following items are strictly prohibited on AllThings Digital Marketplace: counterfeit or stolen goods; illegal drugs, narcotics, and unapproved medical substances; firearms, ammunition, explosives, and weapons; hazardous or unlawful chemicals; items infringing third-party intellectual property rights; and any goods or services intended to facilitate fraud or criminal conduct under Nigerian law.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>3. Verified Review &amp; Rating Integrity Policy</h2>
+                    <p>
+                        To ensure trust across AllThings, reviews and star ratings are restricted to customers who have completed a genuine, escrow-verified product purchase or service booking. Users and vendors must never buy, sell, fabricate, or exchange fake reviews, nor threaten customers who leave honest critical feedback. Reviews containing personal contact details, hate speech, or spam are subject to moderation.
+                    </p>
+                </section>
+
+                <section class="legal-section">
+                    <h2>4. Policy Administration &amp; Reporting Violations</h2>
+                    <p>
+                        AllThings executive administrators oversee commercial compliance, technical security, and public communications across the marketplace. To report a suspicious listing, counterfeit item, review manipulation, or policy violation, open a ticket in the <a href="{% url 'orders:support_center' %}">Help &amp; Resolution Center</a> or contact <strong>support@allthings.com</strong>.
+                    </p>
+                </section>
+            {% endif %}
+
+        </article>
+    </div>
+</div>
+{% endblock %}

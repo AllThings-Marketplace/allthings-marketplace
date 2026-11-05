@@ -34,4 +34,12 @@ urlpatterns = [
     path('requests/<int:request_id>/', views.customer_request_detail, name='request_detail'),
     path('requests/<int:request_id>/status/', views.update_customer_request_status, name='update_request_status'),
     path('requests/<int:request_id>/match/', views.submit_provider_match, name='submit_provider_match'),
+
+    # Legal, Privacy & Operational Policies
+    path('legal/<slug:policy_slug>/', views.legal_policy, name='legal_policy'),
+    path('privacy-policy/', views.legal_policy, {'policy_slug': 'privacy-policy'}, name='privacy_policy'),
+    path('cookie-policy/', views.legal_policy, {'policy_slug': 'cookie-policy'}, name='cookie_policy'),
+    path('terms/', views.legal_policy, {'policy_slug': 'terms-and-conditions'}, name='terms_and_conditions'),
+    path('refund-policy/', views.legal_policy, {'policy_slug': 'returns-and-refunds'}, name='refund_policy'),
+    path('seller-agreement/', views.legal_policy, {'policy_slug': 'provider-agreement'}, name='provider_agreement'),
 ]

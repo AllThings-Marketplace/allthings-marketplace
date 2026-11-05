@@ -1,0 +1,108 @@
+<!-- 1. Floating Bottom Cookie Consent Banner -->
+<aside id="cookieConsentBanner" class="cookie-banner hidden-initial" role="region" aria-label="Cookie consent notice">
+    <div class="cookie-banner-inner">
+        <div class="cookie-banner-copy">
+            <div class="cookie-banner-title-row">
+                <span class="cookie-shield-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                <h4 class="cookie-banner-title">Your privacy matters to us</h4>
+            </div>
+            <p class="cookie-banner-text">
+                AllThings uses cookies and similar technologies to keep escrow transactions secure, remember your preferences, and understand how our marketplace is used in accordance with the Nigeria Data Protection Act (NDPA). Read our <a href="{% url 'marketplace:cookie_policy' %}" class="cookie-inline-link">Cookie Policy</a> and <a href="{% url 'marketplace:privacy_policy' %}" class="cookie-inline-link">Privacy Policy</a>.
+            </p>
+        </div>
+
+        <div class="cookie-banner-actions">
+            <button type="button" id="cookieCustomizeBtn" class="action-btn btn-outline action-sm">
+                <i class="fa-solid fa-sliders"></i> Customize
+            </button>
+            <button type="button" id="cookieRejectBtn" class="action-btn btn-secondary action-sm">
+                Reject Optional
+            </button>
+            <button type="button" id="cookieAcceptAllBtn" class="action-btn btn-primary action-sm">
+                <i class="fa-solid fa-check"></i> Accept All
+            </button>
+        </div>
+    </div>
+</aside>
+
+<!-- 2. Granular Cookie Preferences Modal -->
+<div id="cookiePreferencesModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="cookieModalTitle">
+    <div class="modal-content cookie-modal-card">
+        <div class="modal-header flex-between mb-15">
+            <h3 id="cookieModalTitle" class="m-0 font-700-dark">
+                <i class="fa-solid fa-cookie-bite text-primary mr-5"></i> Cookie &amp; Privacy Preferences
+            </h3>
+            <button type="button" id="closeCookieModalBtn" class="btn-close-naked" aria-label="Close preferences">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <p class="text-13-muted mb-20">
+            Choose which optional storage and analytics features you want to allow on AllThings. Strictly necessary security and escrow session cookies cannot be switched off.
+        </p>
+
+        <div class="cookie-category-list">
+            <!-- Category A: Strictly Necessary -->
+            <div class="cookie-cat-item">
+                <div class="cookie-cat-header">
+                    <div>
+                        <strong class="text-14-dark block">Strictly Necessary &amp; Escrow Security</strong>
+                        <span class="text-12-muted">Maintains login sessions, shopping carts, and CSRF security protection.</span>
+                    </div>
+                    <span class="cookie-always-active">Always Active</span>
+                </div>
+            </div>
+
+            <!-- Category B: Functional -->
+            <div class="cookie-cat-item">
+                <div class="cookie-cat-header">
+                    <div>
+                        <strong class="text-14-dark block">Functional &amp; Search Memory</strong>
+                        <span class="text-12-muted">Remembers your recent search terms and display preferences in your browser.</span>
+                    </div>
+                    <label class="cookie-switch" aria-label="Toggle Functional Cookies">
+                        <input type="checkbox" id="consentFunctionalToggle" checked>
+                        <span class="cookie-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Category C: Analytics & Personalization -->
+            <div class="cookie-cat-item">
+                <div class="cookie-cat-header">
+                    <div>
+                        <strong class="text-14-dark block">Analytics &amp; Smart Recommendations</strong>
+                        <span class="text-12-muted">Powers your "Continue Where You Left Off" shelf and helps us improve popular departments.</span>
+                    </div>
+                    <label class="cookie-switch" aria-label="Toggle Analytics Cookies">
+                        <input type="checkbox" id="consentAnalyticsToggle" checked>
+                        <span class="cookie-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Category D: Marketing -->
+            <div class="cookie-cat-item">
+                <div class="cookie-cat-header">
+                    <div>
+                        <strong class="text-14-dark block">Marketing &amp; Promotions</strong>
+                        <span class="text-12-muted">Measures promotional campaigns and relevant marketplace offers.</span>
+                    </div>
+                    <label class="cookie-switch" aria-label="Toggle Marketing Cookies">
+                        <input type="checkbox" id="consentMarketingToggle">
+                        <span class="cookie-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="cookie-modal-footer mt-20">
+            <button type="button" id="cookieModalRejectBtn" class="action-btn btn-outline action-sm">
+                Reject Optional
+            </button>
+            <button type="button" id="cookieSavePrefsBtn" class="action-btn btn-primary action-sm">
+                <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save My Preferences
+            </button>
+        </div>
+    </div>
+</div>
