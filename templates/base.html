@@ -5,15 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AllThings | Products &amp; Professional Services Marketplace{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.2">
+    <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.4">
     <link rel="stylesheet" href="{% static 'css/core/utilities.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/buttons.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/forms.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/notifications.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/modal.css' %}">
-    <link rel="stylesheet" href="{% static 'css/components/cookie-consent.css' %}?v=1.0">
+    <link rel="stylesheet" href="{% static 'css/components/cookie-consent.css' %}?v=1.1">
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -42,7 +42,7 @@
                             </span>
                         </a>
                     </li>
-                    <li><a href="{% url 'orders:order_history' %}"><i class="fa-solid fa-box"></i> My Orders</a></li>
+                    <li><a href="{% url 'orders:order_history' %}"><i class="fa-solid fa-box"></i> My Orders &amp; Bookings</a></li>
                     <li><a href="{% url 'marketplace:my_requests' %}"><i class="fa-solid fa-bullhorn"></i> My Requests</a></li>
                     <li>
                         <a href="{% url 'marketplace:inbox' %}">
@@ -61,7 +61,7 @@
                     {% elif request.user.provider_profile %}
                         <li><a href="{% url 'accounts:provider_status' %}"><i class="fa-solid fa-shield-halved"></i> Continue Verification</a></li>
                     {% else %}
-                        <li><a href="{% url 'accounts:sell_on_allthings' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
+                        <li><a href="{% url 'accounts:sell_on_allthings' %}"><i class="fa-solid fa-tag"></i> Become a Vendor or Provider</a></li>
                     {% endif %}
                     
                     <li><a href="{% url 'accounts:logout' %}"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</a></li>
@@ -69,7 +69,7 @@
                     <li><a href="{% url 'accounts:login' %}"><i class="fa-solid fa-right-to-bracket"></i> Login</a></li>
                     <li><a href="{% url 'accounts:register' %}"><i class="fa-solid fa-user-plus"></i> Create Account</a></li>
                     <li><a href="{% url 'marketplace:create_request' %}"><i class="fa-solid fa-bullhorn"></i> Request What You Need</a></li>
-                    <li><a href="{% url 'accounts:sell_on_allthings' %}"><i class="fa-solid fa-tag"></i> Sell on AllThings</a></li>
+                    <li><a href="{% url 'accounts:sell_on_allthings' %}"><i class="fa-solid fa-tag"></i> Become a Vendor or Provider</a></li>
                 {% endif %}
             </ul>
 
@@ -119,7 +119,7 @@
 
     <nav class="navbar">
         <div class="nav-left">
-            <button type="button" class="mobile-menu-btn" id="mobileMenuBtn">
+            <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
                 <i class="fa-solid fa-bars"></i>
             </button>
             <a href="{% url 'marketplace:home' %}" class="brand-logo">
@@ -303,39 +303,72 @@
         {% endblock %}
     </main>
 
+    <!-- ======================================================================
+         ESTABLISHED E-COMMERCE MARKETPLACE FOOTER
+         ====================================================================== -->
     <footer class="site-footer">
         <div class="footer-container">
-            <div class="footer-col">
+
+            <!-- Column 1: Brand Identity & Connect With Us -->
+            <div class="footer-col footer-brand-col">
                 <a href="{% url 'marketplace:home' %}" class="footer-logo">
                     <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon footer-logo-icon">
                     <span class="brand-primary footer-logo-text">ll</span><span class="brand-accent">Things</span>
                 </a>
-                <p class="footer-text">Products and professional expertise, all in one place. Your trusted, escrow-protected marketplace for verified retail vendors and certified service professionals across Nigeria.</p>
+                <p class="footer-text">
+                    Products and professional expertise, all in one place. Your trusted, escrow-protected marketplace for verified retail vendors and certified service professionals across Nigeria.
+                </p>
+
+                <div class="footer-social-block">
+                    <span class="footer-social-label">Connect With Us</span>
+                    <div class="footer-social-icons">
+                        <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="footer-social-btn" aria-label="AllThings on Facebook">
+                            <i class="fa-brands fa-facebook-f"></i>
+                        </a>
+                        <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" class="footer-social-btn" aria-label="AllThings on Instagram">
+                            <i class="fa-brands fa-instagram"></i>
+                        </a>
+                        <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" class="footer-social-btn" aria-label="AllThings on TikTok">
+                            <i class="fa-brands fa-tiktok"></i>
+                        </a>
+                        <a href="https://x.com" target="_blank" rel="noopener noreferrer" class="footer-social-btn" aria-label="AllThings on X">
+                            <i class="fa-brands fa-x-twitter"></i>
+                        </a>
+                        <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="footer-social-btn" aria-label="AllThings on LinkedIn">
+                            <i class="fa-brands fa-linkedin-in"></i>
+                        </a>
+                    </div>
+                </div>
             </div>
 
+            <!-- Column 2: Quick Links & Partners -->
             <div class="footer-col">
                 <h4 class="footer-heading">Quick Links</h4>
                 <ul class="footer-links">
                     <li><a href="{% url 'marketplace:home' %}">Shop Marketplace</a></li>
+                    <li><a href="{% url 'marketplace:home' %}?item_type=services">Book a Service Professional</a></li>
                     <li><a href="{% url 'marketplace:create_request' %}">Request What You Need</a></li>
-                    <li><a href="{% url 'orders:cart' %}">Your Cart</a></li>
-                    <li><a href="{% url 'orders:support_center' %}">Help &amp; Resolution Center</a></li>
+                    <li><a href="{% url 'orders:order_history' %}" class="requires-auth">Track Your Order</a></li>
+                    <li><a href="{% url 'orders:cart' %}" class="requires-auth">Your Cart</a></li>
                     {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
                         <li><a href="{% url 'dashboard:provider_dashboard' %}">Provider Portal</a></li>
                     {% elif request.user.provider_profile %}
                         <li><a href="{% url 'accounts:provider_status' %}">Verification Status</a></li>
                     {% else %}
-                        <li><a href="{% url 'accounts:sell_on_allthings' %}">Sell on AllThings</a></li>
+                        <li><a href="{% url 'accounts:sell_on_allthings' %}">Become a Vendor or Provider</a></li>
                     {% endif %}
                 </ul>
             </div>
 
+            <!-- Column 3: Legal, Privacy & Policies -->
             <div class="footer-col">
                 <h4 class="footer-heading">Legal &amp; Privacy</h4>
                 <ul class="footer-links">
                     <li><a href="{% url 'marketplace:privacy_policy' %}">Privacy Policy</a></li>
                     <li><a href="{% url 'marketplace:terms_and_conditions' %}">Terms &amp; Conditions</a></li>
                     <li><a href="{% url 'marketplace:refund_policy' %}">Returns &amp; Refunds Policy</a></li>
+                    <li><a href="{% url 'marketplace:legal_policy' 'payments-and-payouts' %}">Payment &amp; Security Policy</a></li>
+                    <li><a href="{% url 'marketplace:legal_policy' 'shipping-and-delivery' %}">Delivery Policy</a></li>
                     <li><a href="{% url 'marketplace:provider_agreement' %}">Vendor &amp; Provider Agreement</a></li>
                     <li><a href="{% url 'marketplace:cookie_policy' %}">Cookie Policy</a></li>
                     <li>
@@ -346,18 +379,51 @@
                 </ul>
             </div>
 
+            <!-- Column 4: Customer Support & Interactive Contact -->
             <div class="footer-col">
-                <h4 class="footer-heading">Contact Us</h4>
-                <ul class="footer-links">
-                    <li><i class="fa-solid fa-location-dot"></i> Port Harcourt, Rivers State</li>
-                    <li><i class="fa-solid fa-envelope"></i> support@allthings.com</li>
-                    <li><i class="fa-solid fa-phone"></i> +234 800 000 0000</li>
+                <h4 class="footer-heading">Customer Support</h4>
+                <ul class="footer-links footer-contact-list">
+                    <li>
+                        <a href="{% url 'orders:support_center' %}">
+                            <i class="fa-solid fa-headset"></i> Help &amp; Resolution Center
+                        </a>
+                    </li>
+                    <li>
+                        <a href="https://maps.google.com/?q=Port+Harcourt,+Rivers+State,+Nigeria" target="_blank" rel="noopener noreferrer">
+                            <i class="fa-solid fa-location-dot"></i> Port Harcourt, Rivers State
+                        </a>
+                    </li>
+                    <li>
+                        <a href="mailto:support@allthings.com">
+                            <i class="fa-solid fa-envelope"></i> support@allthings.com
+                        </a>
+                    </li>
+                    <li>
+                        <a href="tel:+2348000000000">
+                            <i class="fa-solid fa-phone"></i> +234 800 000 0000
+                        </a>
+                    </li>
                 </ul>
             </div>
+
         </div>
         
+        <!-- Bottom Bar: Copyright, Tagline & Payment Trust Badges -->
         <div class="footer-bottom">
-            <p>&copy; 2026 AllThings Digital Marketplace. All rights reserved. Protected under the Nigeria Data Protection Act (NDPA).</p>
+            <div class="footer-bottom-inner">
+                <div class="footer-copyright-block">
+                    <p class="footer-copyright-text">&copy; 2026 AllThings Digital Marketplace. All rights reserved.</p>
+                    <span class="footer-tagline">Your marketplace for everything &bull; Protected under the Nigeria Data Protection Act (NDPA)</span>
+                </div>
+
+                <div class="footer-payment-methods" aria-label="Accepted payment methods">
+                    <span class="payment-trust-label"><i class="fa-solid fa-lock"></i> Secured by</span>
+                    <span class="payment-pill payment-pill-paystack"><i class="fa-solid fa-bolt"></i> Paystack</span>
+                    <span class="payment-pill"><i class="fa-brands fa-cc-visa"></i> Visa</span>
+                    <span class="payment-pill"><i class="fa-brands fa-cc-mastercard"></i> Mastercard</span>
+                    <span class="payment-pill">Verve</span>
+                </div>
+            </div>
         </div>
     </footer>
 
@@ -379,11 +445,11 @@
 
     {% include 'partials/cookie_banner.html' %}
     
-    <script src="{% static 'js/core/main.js' %}?v=2.2"></script>
+    <script src="{% static 'js/core/main.js' %}?v=2.3"></script>
     <script src="{% static 'js/components/toast.js' %}"></script>
     <script src="{% static 'js/components/modal.js' %}"></script>
     <script src="{% static 'js/components/auth_guard.js' %}"></script>
-    <script src="{% static 'js/components/cookie_consent.js' %}?v=1.0"></script>
+    <script src="{% static 'js/components/cookie_consent.js' %}?v=1.1"></script>
     
     {% block extra_js %}{% endblock %}
 </body>
