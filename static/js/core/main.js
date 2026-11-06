@@ -195,3 +195,51 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 });
+
+// === 5. Support Center FAQ Category Tabs & Live Search Filter ===
+    const faqFilterBtns = document.querySelectorAll('#faqFilterBar .faq-filter-btn');
+    const faqSearchInput = document.getElementById('faqSearchInput');
+    const faqItems = document.querySelectorAll('#faqAccordionList .faq-item');
+    const faqEmptyState = document.getElementById('faqEmptyState');
+
+    if (faqItems.length > 0) {
+        let activeFaqCat = 'all';
+
+        function filterFaqs() {
+            const query = faqSearchInput ? faqSearchInput.value.trim().toLowerCase() : '';
+            let visibleCount = 0;
+
+            faqItems.forEach(item => {
+                const itemCat = item.getAttribute('data-faq-category') || '';
+                const textContent = item.textContent.toLowerCase();
+
+                const catMatch = (activeFaqCat === 'all') || (itemCat === activeFaqCat);
+                const searchMatch = !query || textContent.includes(query);
+
+                if (catMatch && searchMatch) {
+                    item.classList.remove('hidden-initial');
+                    if (query) item.setAttribute('open', 'open');
+                    visibleCount++;
+                } else {
+                    item.classList.add('hidden-initial');
+                }
+            });
+
+            if (faqEmptyState) {
+                faqEmptyState.classList.toggle('hidden-initial', visibleCount > 0);
+            }
+        }
+
+        faqFilterBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                faqFilterBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                activeFaqCat = this.getAttribute('data-faq-cat') || 'all';
+                filterFaqs();
+            });
+        });
+
+        if (faqSearchInput) {
+            faqSearchInput.addEventListener('input', filterFaqs);
+        }
+    }

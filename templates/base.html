@@ -55,6 +55,7 @@
                     <li><a href="{% url 'feedback:pending_reviews' %}"><i class="fa-regular fa-star"></i> Pending Reviews</a></li>
                     <li><a href="{% url 'marketplace:saved_items' %}"><i class="fa-regular fa-heart"></i> Saved Items</a></li>
                     <li><a href="{% url 'orders:support_center' %}"><i class="fa-solid fa-headset"></i> Help &amp; Support</a></li>
+                    <li><a href="{% url 'orders:support_center' %}#faq-section"><i class="fa-regular fa-circle-question"></i> FAQs</a></li>
                     
                     {% if request.user.provider_profile.verification_status == 'ACTIVE' %}
                         <li><a href="{% url 'dashboard:provider_dashboard' %}"><i class="fa-solid fa-store"></i> Provider Portal</a></li>
@@ -70,6 +71,7 @@
                     <li><a href="{% url 'accounts:register' %}"><i class="fa-solid fa-user-plus"></i> Create Account</a></li>
                     <li><a href="{% url 'marketplace:create_request' %}"><i class="fa-solid fa-bullhorn"></i> Request What You Need</a></li>
                     <li><a href="{% url 'accounts:sell_on_allthings' %}"><i class="fa-solid fa-tag"></i> Become a Vendor or Provider</a></li>
+                    <li><a href="{% url 'orders:support_center' %}#faq-section"><i class="fa-regular fa-circle-question"></i> FAQs &amp; Help</a></li>
                 {% endif %}
             </ul>
 
@@ -389,6 +391,11 @@
                         </a>
                     </li>
                     <li>
+                        <a href="{% url 'orders:support_center' %}#faq-section">
+                            <i class="fa-regular fa-circle-question"></i> Frequently Asked Questions
+                        </a>
+                    </li>
+                    <li>
                         <a href="https://maps.google.com/?q=Port+Harcourt,+Rivers+State,+Nigeria" target="_blank" rel="noopener noreferrer">
                             <i class="fa-solid fa-location-dot"></i> Port Harcourt, Rivers State
                         </a>
@@ -445,7 +452,7 @@
 
     {% include 'partials/cookie_banner.html' %}
     
-    <script src="{% static 'js/core/main.js' %}?v=2.3"></script>
+    <script src="{% static 'js/core/main.js' %}?v=2.4"></script>
     <script src="{% static 'js/components/toast.js' %}"></script>
     <script src="{% static 'js/components/modal.js' %}"></script>
     <script src="{% static 'js/components/auth_guard.js' %}"></script>

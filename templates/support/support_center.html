@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}?v=2.2">
 {% endblock %}
 
 {% block content %}
@@ -11,11 +11,16 @@
     <div class="support-header">
         <div>
             <h1 class="support-page-title">Help &amp; Resolution Center</h1>
-            <p class="text-14-muted m-0">Self-service payment verification, escrow protection, and direct support tickets.</p>
+            <p class="text-14-muted m-0">Self-service payment verification, escrow protection, direct support tickets, and instant FAQs.</p>
         </div>
-        <a href="{% url 'orders:order_history' %}" class="action-btn btn-outline">
-            <i class="fa-solid fa-box-open"></i> My Orders
-        </a>
+        <div class="flex-align-center gap-10 flex-wrap">
+            <a href="#faq-section" class="action-btn btn-secondary action-sm">
+                <i class="fa-regular fa-circle-question"></i> Browse FAQs
+            </a>
+            <a href="{% url 'orders:order_history' %}" class="action-btn btn-outline action-sm">
+                <i class="fa-solid fa-box-open"></i> My Orders
+            </a>
+        </div>
     </div>
 
     {% if unverified_attempts %}
@@ -144,5 +149,188 @@
         </div>
 
     </div>
+
+    <!-- ======================================================================
+         LAYER 2: DEDICATED MARKETPLACE FAQ HUB (#faq-section)
+         ====================================================================== -->
+    <section id="faq-section" class="faq-section-wrapper mt-40">
+        <div class="faq-header-card">
+            <div class="faq-header-copy">
+                <span class="faq-eyebrow"><i class="fa-regular fa-circle-question"></i> INSTANT ANSWERS &amp; GUIDES</span>
+                <h2 class="faq-main-title">Frequently Asked Questions</h2>
+                <p class="faq-subtitle">
+                    Everything you need to know about AllThings Escrow, 6-digit delivery PINs, service bookings, payment recovery, and vendor payouts.
+                </p>
+            </div>
+
+            <div class="faq-search-box">
+                <i class="fa-solid fa-magnifying-glass faq-search-icon"></i>
+                <input type="text"
+                       id="faqSearchInput"
+                       class="form-control faq-search-input"
+                       placeholder="Search FAQs (e.g., Delivery PIN, Escrow, Refund, Quote)..."
+                       autocomplete="off">
+            </div>
+        </div>
+
+        <!-- Category Filter Pills (Zero Inline onclick) -->
+        <div class="faq-filter-bar" id="faqFilterBar" role="tablist" aria-label="FAQ Categories">
+            <button type="button" class="faq-filter-btn active" data-faq-cat="all">
+                All Topics
+            </button>
+            <button type="button" class="faq-filter-btn" data-faq-cat="escrow">
+                <i class="fa-solid fa-shield-halved"></i> Escrow &amp; Payments
+            </button>
+            <button type="button" class="faq-filter-btn" data-faq-cat="delivery">
+                <i class="fa-solid fa-truck-fast"></i> Orders &amp; Delivery PINs
+            </button>
+            <button type="button" class="faq-filter-btn" data-faq-cat="services">
+                <i class="fa-solid fa-screwdriver-wrench"></i> Service Bookings
+            </button>
+            <button type="button" class="faq-filter-btn" data-faq-cat="disputes">
+                <i class="fa-solid fa-scale-balanced"></i> Disputes &amp; Refunds
+            </button>
+            <button type="button" class="faq-filter-btn" data-faq-cat="vendors">
+                <i class="fa-solid fa-store"></i> Selling &amp; Payouts
+            </button>
+        </div>
+
+        <!-- Accordion List -->
+        <div class="faq-accordion-list" id="faqAccordionList">
+
+            <!-- 1. ESCROW & PAYMENTS -->
+            <details class="faq-item" data-faq-category="escrow" open>
+                <summary class="faq-question">
+                    <span>How does AllThings Escrow protect my payment?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        When you pay for a physical product or fund a service booking via Paystack, your money is not sent directly to the seller. Instead, it is locked safely in <strong>AllThings Escrow</strong>. The vendor or service professional is paid only after you confirm delivery using your 6-digit Delivery PIN or confirm that your service job is completed.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item" data-faq-category="escrow">
+                <summary class="faq-question">
+                    <span>I was debited by my bank during checkout, but my order still shows "Unpaid". What should I do?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        Do not pay twice. Use the <strong>Instant Payment Recovery</strong> banner at the top of this page (or click the recovery link on your Order Details page). Our system will query Paystack live using your transaction reference, verify the debit, and immediately update your order status to <strong>Escrow Paid</strong>.
+                    </p>
+                </div>
+            </details>
+
+            <!-- 2. ORDERS & 6-DIGIT DELIVERY PINS -->
+            <details class="faq-item" data-faq-category="delivery">
+                <summary class="faq-question">
+                    <span>What is the 6-Digit Delivery Handshake PIN and when should I share it?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        Every paid product item generates a unique <strong>6-Digit Delivery PIN</strong> visible on your Order Confirmation and Order Details pages. Share this PIN with the dispatch rider (or enter it on your Order Details page) <strong>only after</strong> you have inspected your package and confirmed it is correct and undamaged. Confirming the PIN releases the escrow funds to the vendor.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item" data-faq-category="delivery">
+                <summary class="faq-question">
+                    <span>How are delivery fees and courier options calculated at checkout?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        At checkout, our logistics engine calculates live rates across multiple dispatch tiers—including <strong>AllThings Express</strong>, <strong>GIG Logistics</strong>, and <strong>Inter-State Waybill</strong>—based on the vendor's verified dispatch state, your delivery destination across all 36 Nigerian states and Abuja (FCT), and the weight/size class of your items.
+                    </p>
+                </div>
+            </details>
+
+            <!-- 3. SERVICE BOOKINGS & CUSTOM QUOTES -->
+            <details class="faq-item" data-faq-category="services">
+                <summary class="faq-question">
+                    <span>Am I charged immediately when I book a Service Professional?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        <strong>No.</strong> Submitting a service booking request carries zero upfront charge. For fixed-rate or package services, you only fund escrow after the professional confirms availability for your preferred date and time. For custom inspection jobs, the professional will send an official itemized <strong>Custom Quote</strong> (Labor + Materials) for you to review and accept before funding escrow.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item" data-faq-category="services">
+                <summary class="faq-question">
+                    <span>Why can't I share my phone number, WhatsApp, or email in pre-booking inquiries?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        To protect both buyers and providers from off-platform fraud, all pre-booking inquiries and order chats are kept strictly inside AllThings. Transactions or payments arranged outside the platform are not covered by AllThings Escrow or dispute resolution.
+                    </p>
+                </div>
+            </details>
+
+            <!-- 4. DISPUTES, RETURNS & REFUNDS -->
+            <details class="faq-item" data-faq-category="disputes">
+                <summary class="faq-question">
+                    <span>What happens when I click "Report Issue / Freeze Escrow"?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        Clicking <strong>Report Issue / Freeze Escrow</strong> on an order item or service booking (or selecting a disputable item in the ticket form above) immediately pauses the automated 72-hour vendor payout timer and locks the funds in escrow while our resolution team arbitrates your claim.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item" data-faq-category="disputes">
+                <summary class="faq-question">
+                    <span>Which situations qualify for a return or escrow refund?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        You are eligible for a full refund or replacement if your item arrives damaged or defective, the wrong product or variant is delivered, items are missing, the item materially differs from its listing description, the vendor fails to dispatch your order, or a service professional fails to honour an accepted booking. Read our <a href="{% url 'marketplace:refund_policy' %}">Returns &amp; Refunds Policy</a> for full details.
+                    </p>
+                </div>
+            </details>
+
+            <!-- 5. SELLING, KYC & VENDOR PAYOUTS -->
+            <details class="faq-item" data-faq-category="vendors">
+                <summary class="faq-question">
+                    <span>How do I become a verified Vendor or Service Provider on AllThings?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        Click <a href="{% url 'accounts:sell_on_allthings' %}">Become a Vendor or Provider</a> and complete our 5-stage onboarding wizard: (1) Email &amp; SMS OTP verification, (2) Government ID &amp; live selfie KYC, (3) Business profile &amp; optional CAC credentials, (4) Store/base address &amp; GPS capture, and (5) Real-time Paystack NUBAN bank account name-match verification.
+                    </p>
+                </div>
+            </details>
+
+            <details class="faq-item" data-faq-category="vendors">
+                <summary class="faq-question">
+                    <span>When can vendors withdraw their earnings to their Nigerian bank account?</span>
+                    <i class="fa-solid fa-chevron-down faq-chevron"></i>
+                </summary>
+                <div class="faq-answer">
+                    <p>
+                        As soon as a buyer confirms delivery via their 6-digit PIN (or confirms service completion, or 72 hours pass after completion with no dispute), your net earnings (90% of item/service value) move from <strong>Locked in Escrow</strong> to your <strong>Available for Withdrawal</strong> wallet balance. You can then trigger an instant Paystack bank transfer to your verified NUBAN account from your Provider Dashboard.
+                    </p>
+                </div>
+            </details>
+
+        </div>
+
+        <!-- Empty Search State -->
+        <div id="faqEmptyState" class="faq-empty-state hidden-initial">
+            <i class="fa-regular fa-face-meh text-muted icon-24 mb-10 block"></i>
+            <strong>No matching FAQ found</strong>
+            <p class="text-13-muted mt-5 mb-0">Try a different keyword or use the form above to submit a support ticket directly.</p>
+        </div>
+    </section>
 </div>
 {% endblock %}
