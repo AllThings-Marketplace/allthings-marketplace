@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.3">
 {% endblock %}
 
 {% block content %}
@@ -10,21 +10,112 @@
     <div class="onboarding-header">
         <span class="sell-eyebrow">PROVIDER ONBOARDING &amp; KYC WIZARD</span>
         <h2 class="section-heading checkout-page-title mt-5">{{ profile.business_name }}</h2>
-        <p class="section-subtitle">Complete the verification steps below to activate your storefront and escrow payout wallet.</p>
+        <p class="section-subtitle">Complete and review your verification steps below to activate your storefront and escrow payout wallet.</p>
     </div>
 
     <div class="wizard-layout">
         
-        <!-- LEFT COLUMN: DYNAMIC STAGE FORM ROUTER -->
+        <!-- LEFT COLUMN: DYNAMIC STAGE & PREVIEW ROUTER -->
         <div class="summary-card onboarding-card">
-            
-            <!-- STAGE 2: IDENTITY VERIFICATION -->
-            {% if profile.verification_status == 'STAGE_1_BASIC' %}
-                <form method="POST" enctype="multipart/form-data">
+
+            <!-- ==========================================================
+                 EDIT STAGE 1: PERSONAL & BUSINESS BASICS (?edit_stage=1)
+                 ========================================================== -->
+            {% if editing_stage == 1 %}
+                <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=1">
                     {% csrf_token %}
+                    <input type="hidden" name="wizard_action" value="save_stage_1">
+
                     <div class="onboarding-step-header">
                         <span class="otp-status-pill pill-verified mb-10">
                             <i class="fa-solid fa-circle-check"></i> Email &amp; Phone OTP Verified
+                        </span>
+                        <h3 class="checkout-section-title onboarding-step-title">
+                            <i class="fa-solid fa-user-pen text-primary icon-spaced"></i> Review &amp; Edit Stage 1: Personal &amp; Store Profile
+                        </h3>
+                        <p class="onboarding-step-subtitle">Ensure your legal first and last name match your Government ID and Nigerian bank account.</p>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Legal First Name *</label>
+                            <input type="text" name="first_name" class="form-control" value="{{ request.user.first_name }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Legal Last Name (Surname) *</label>
+                            <input type="text" name="last_name" class="form-control" value="{{ request.user.last_name }}" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Verified Email Address (OTP Locked)</label>
+                            <input type="email" class="form-control" value="{{ request.user.email }}" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Verified Business Phone (OTP Locked)</label>
+                            <input type="text" class="form-control" value="{{ profile.phone }}" readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Date of Birth *</label>
+                            <input type="date" name="dob" class="form-control" value="{{ profile.dob|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Residential Address *</label>
+                            <input type="text" name="residential_address" class="form-control" value="{{ profile.residential_address|default:'' }}" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Store / Business Name *</label>
+                        <input type="text" name="business_name" class="form-control" value="{{ profile.business_name }}" required>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label>Provider Type *</label>
+                            <select name="provider_type" class="form-control" required>
+                                <option value="VENDOR" {% if profile.provider_type == 'VENDOR' %}selected{% endif %}>Retail Vendor (Selling Physical Products)</option>
+                                <option value="SERVICE" {% if profile.provider_type == 'SERVICE' %}selected{% endif %}>Service Professional (Tech, Beauty, Repairs, Engineering, Events)</option>
+                                <option value="BOTH" {% if profile.provider_type == 'BOTH' %}selected{% endif %}>Both (Selling Physical Products &amp; Offering Services)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Primary Specialty / Department *</label>
+                            <input type="text" name="business_category" class="form-control" value="{{ profile.business_category|default:'' }}" required>
+                        </div>
+                    </div>
+
+                    <div class="wizard-nav-actions mt-20">
+                        {% if completed_up_to >= 4 %}
+                            <a href="{% url 'accounts:provider_status' %}?preview=1" class="action-btn btn-outline">
+                                Cancel &amp; Return to Preview
+                            </a>
+                        {% else %}
+                            <a href="{% url 'accounts:provider_status' %}" class="action-btn btn-outline">
+                                Cancel
+                            </a>
+                        {% endif %}
+                        <button type="submit" class="action-btn btn-primary flex-grow-1">
+                            <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Stage 1 &amp; Continue &rarr;
+                        </button>
+                    </div>
+                </form>
+
+            <!-- ==========================================================
+                 STAGE 2: IDENTITY VERIFICATION (KYC)
+                 ========================================================== -->
+            {% elif editing_stage == 2 %}
+                <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=2" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="wizard_action" value="save_stage_2">
+
+                    <div class="onboarding-step-header">
+                        <span class="otp-status-pill pill-verified mb-10">
+                            <i class="fa-solid fa-circle-check"></i> Stage 1 Complete &bull; Email &amp; Phone Verified
                         </span>
                         <h3 class="checkout-section-title onboarding-step-title">
                             <i class="fa-solid fa-id-card text-primary icon-spaced"></i> Stage 2: Identity Verification (KYC)
@@ -36,35 +127,58 @@
                         <label>Government ID Type *</label>
                         <select name="id_type" class="form-control" required>
                             <option value="">Select ID document type...</option>
-                            <option value="NIN">National Identification Number (NIN Slip / Card)</option>
-                            <option value="DRIVERS">Driver's License</option>
-                            <option value="PASSPORT">International Passport</option>
-                            <option value="VOTERS">Permanent Voter's Card (PVC)</option>
+                            <option value="NIN" {% if profile.id_type == 'NIN' %}selected{% endif %}>National Identification Number (NIN Slip / Card)</option>
+                            <option value="DRIVERS" {% if profile.id_type == 'DRIVERS' %}selected{% endif %}>Driver's License</option>
+                            <option value="PASSPORT" {% if profile.id_type == 'PASSPORT' %}selected{% endif %}>International Passport</option>
+                            <option value="VOTERS" {% if profile.id_type == 'VOTERS' %}selected{% endif %}>Permanent Voter's Card (PVC)</option>
                         </select>
                     </div>
                     
                     <div class="form-grid-2">
                         <div class="form-group">
-                            <label>Upload ID Document *</label>
-                            <input type="file" name="id_document" class="form-control" accept="image/*,.pdf" required>
+                            <label>Upload ID Document {% if not profile.id_document %}*{% endif %}</label>
+                            <input type="file" name="id_document" class="form-control" accept="image/*,.pdf" {% if not profile.id_document %}required{% endif %}>
                             <small class="form-text-muted">Clear, uncropped photo or PDF scan.</small>
+                            {% if profile.id_document %}
+                                <span class="current-file-chip mt-5">
+                                    <i class="fa-solid fa-circle-check text-success"></i> ID Document on record (upload new file only to replace)
+                                </span>
+                            {% endif %}
                         </div>
                         <div class="form-group">
-                            <label>Live Selfie Photo *</label>
-                            <input type="file" name="selfie_image" class="form-control" accept="image/*" capture="user" required>
+                            <label>Live Selfie Photo {% if not profile.selfie_image %}*{% endif %}</label>
+                            <input type="file" name="selfie_image" class="form-control" accept="image/*" capture="user" {% if not profile.selfie_image %}required{% endif %}>
                             <small class="form-text-muted">Well-lit photo of your face without sunglasses.</small>
+                            {% if profile.selfie_image %}
+                                <span class="current-file-chip mt-5">
+                                    <i class="fa-solid fa-circle-check text-success"></i> Live Selfie on record (upload new photo only to replace)
+                                </span>
+                            {% endif %}
                         </div>
                     </div>
 
-                    <button type="submit" class="action-btn btn-primary w-100 mt-15 py-15 text-15 font-700-block">
-                        Submit Identity &amp; Continue to Stage 3 &rarr;
-                    </button>
+                    <div class="wizard-nav-actions mt-20">
+                        <a href="{% url 'accounts:provider_status' %}?edit_stage=1" class="action-btn btn-outline">
+                            &larr; Back to Stage 1
+                        </a>
+                        <button type="submit" class="action-btn btn-primary flex-grow-1">
+                            {% if completed_up_to >= 4 %}
+                                Save Stage 2 &amp; Return to Preview &rarr;
+                            {% else %}
+                                Save Identity &amp; Continue to Stage 3 &rarr;
+                            {% endif %}
+                        </button>
+                    </div>
                 </form>
 
-            <!-- STAGE 3: BUSINESS VERIFICATION -->
-            {% elif profile.verification_status == 'STAGE_2_KYC' %}
-                <form method="POST" enctype="multipart/form-data">
+            <!-- ==========================================================
+                 STAGE 3: BUSINESS CREDENTIALS
+                 ========================================================== -->
+            {% elif editing_stage == 3 %}
+                <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=3" enctype="multipart/form-data">
                     {% csrf_token %}
+                    <input type="hidden" name="wizard_action" value="save_stage_3">
+
                     <div class="onboarding-step-header">
                         <h3 class="checkout-section-title onboarding-step-title">
                             <i class="fa-solid fa-briefcase text-primary icon-spaced"></i> Stage 3: Business Credentials
@@ -74,29 +188,47 @@
 
                     <div class="form-group">
                         <label>Store / Service Expertise Description *</label>
-                        <textarea name="business_description" class="form-control" rows="4" placeholder="Describe the products you sell, the brands you stock, or the professional services you specialize in..." required></textarea>
+                        <textarea name="business_description" class="form-control" rows="4" placeholder="Describe the products you sell, the brands you stock, or the professional services you specialize in..." required>{{ profile.business_description|default:'' }}</textarea>
                     </div>
 
                     <div class="form-grid-2">
                         <div class="form-group">
                             <label>CAC Registration Number (Optional)</label>
-                            <input type="text" name="cac_registration_number" class="form-control" placeholder="E.g., RC-1234567 or BN-1234567">
+                            <input type="text" name="cac_registration_number" class="form-control" value="{{ profile.cac_registration_number|default:'' }}" placeholder="E.g., RC-1234567 or BN-1234567">
                         </div>
                         <div class="form-group">
                             <label>CAC Certificate / Trade License (Optional)</label>
                             <input type="file" name="business_certificate" class="form-control" accept="image/*,.pdf">
+                            {% if profile.business_certificate %}
+                                <span class="current-file-chip mt-5">
+                                    <i class="fa-solid fa-circle-check text-success"></i> Certificate on record (upload new file only to replace)
+                                </span>
+                            {% endif %}
                         </div>
                     </div>
 
-                    <button type="submit" class="action-btn btn-primary w-100 mt-15 py-15 text-15 font-700-block">
-                        Save Business Profile &amp; Continue to Stage 4 &rarr;
-                    </button>
+                    <div class="wizard-nav-actions mt-20">
+                        <a href="{% url 'accounts:provider_status' %}?edit_stage=2" class="action-btn btn-outline">
+                            &larr; Back to Stage 2
+                        </a>
+                        <button type="submit" class="action-btn btn-primary flex-grow-1">
+                            {% if completed_up_to >= 4 %}
+                                Save Stage 3 &amp; Return to Preview &rarr;
+                            {% else %}
+                                Save Business Profile &amp; Continue to Stage 4 &rarr;
+                            {% endif %}
+                        </button>
+                    </div>
                 </form>
 
-            <!-- STAGE 4: LOCATION VERIFICATION -->
-            {% elif profile.verification_status == 'STAGE_3_BUSINESS' %}
-                <form method="POST" enctype="multipart/form-data">
+            <!-- ==========================================================
+                 STAGE 4: LOCATION & GPS PINNING
+                 ========================================================== -->
+            {% elif editing_stage == 4 %}
+                <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=4" enctype="multipart/form-data">
                     {% csrf_token %}
+                    <input type="hidden" name="wizard_action" value="save_stage_4">
+
                     <div class="onboarding-step-header">
                         <h3 class="checkout-section-title onboarding-step-title">
                             <i class="fa-solid fa-location-dot text-primary icon-spaced"></i> Stage 4: Store / Base Location Pinning
@@ -108,48 +240,48 @@
                         <div class="form-group">
                             <label>State / Region *</label>
                             <select name="region" class="form-control" required>
-                                <option value="Abia State">Abia State</option>
-                                <option value="Adamawa State">Adamawa State</option>
-                                <option value="Akwa Ibom State">Akwa Ibom State</option>
-                                <option value="Anambra State">Anambra State</option>
-                                <option value="Bauchi State">Bauchi State</option>
-                                <option value="Bayelsa State">Bayelsa State</option>
-                                <option value="Benue State">Benue State</option>
-                                <option value="Borno State">Borno State</option>
-                                <option value="Cross River State">Cross River State</option>
-                                <option value="Delta State">Delta State</option>
-                                <option value="Ebonyi State">Ebonyi State</option>
-                                <option value="Edo State">Edo State</option>
-                                <option value="Ekiti State">Ekiti State</option>
-                                <option value="Enugu State">Enugu State</option>
-                                <option value="Abuja (FCT)">Abuja (FCT)</option>
-                                <option value="Gombe State">Gombe State</option>
-                                <option value="Imo State">Imo State</option>
-                                <option value="Jigawa State">Jigawa State</option>
-                                <option value="Kaduna State">Kaduna State</option>
-                                <option value="Kano State">Kano State</option>
-                                <option value="Katsina State">Katsina State</option>
-                                <option value="Kebbi State">Kebbi State</option>
-                                <option value="Kogi State">Kogi State</option>
-                                <option value="Kwara State">Kwara State</option>
-                                <option value="Lagos State">Lagos State</option>
-                                <option value="Nasarawa State">Nasarawa State</option>
-                                <option value="Niger State">Niger State</option>
-                                <option value="Ogun State">Ogun State</option>
-                                <option value="Ondo State">Ondo State</option>
-                                <option value="Osun State">Osun State</option>
-                                <option value="Oyo State">Oyo State</option>
-                                <option value="Plateau State">Plateau State</option>
-                                <option value="Rivers State" selected>Rivers State</option>
-                                <option value="Sokoto State">Sokoto State</option>
-                                <option value="Taraba State">Taraba State</option>
-                                <option value="Yobe State">Yobe State</option>
-                                <option value="Zamfara State">Zamfara State</option>
+                                <option value="Abia State" {% if profile.region == 'Abia State' %}selected{% endif %}>Abia State</option>
+                                <option value="Adamawa State" {% if profile.region == 'Adamawa State' %}selected{% endif %}>Adamawa State</option>
+                                <option value="Akwa Ibom State" {% if profile.region == 'Akwa Ibom State' %}selected{% endif %}>Akwa Ibom State</option>
+                                <option value="Anambra State" {% if profile.region == 'Anambra State' %}selected{% endif %}>Anambra State</option>
+                                <option value="Bauchi State" {% if profile.region == 'Bauchi State' %}selected{% endif %}>Bauchi State</option>
+                                <option value="Bayelsa State" {% if profile.region == 'Bayelsa State' %}selected{% endif %}>Bayelsa State</option>
+                                <option value="Benue State" {% if profile.region == 'Benue State' %}selected{% endif %}>Benue State</option>
+                                <option value="Borno State" {% if profile.region == 'Borno State' %}selected{% endif %}>Borno State</option>
+                                <option value="Cross River State" {% if profile.region == 'Cross River State' %}selected{% endif %}>Cross River State</option>
+                                <option value="Delta State" {% if profile.region == 'Delta State' %}selected{% endif %}>Delta State</option>
+                                <option value="Ebonyi State" {% if profile.region == 'Ebonyi State' %}selected{% endif %}>Ebonyi State</option>
+                                <option value="Edo State" {% if profile.region == 'Edo State' %}selected{% endif %}>Edo State</option>
+                                <option value="Ekiti State" {% if profile.region == 'Ekiti State' %}selected{% endif %}>Ekiti State</option>
+                                <option value="Enugu State" {% if profile.region == 'Enugu State' %}selected{% endif %}>Enugu State</option>
+                                <option value="Abuja (FCT)" {% if profile.region == 'Abuja (FCT)' %}selected{% endif %}>Abuja (FCT)</option>
+                                <option value="Gombe State" {% if profile.region == 'Gombe State' %}selected{% endif %}>Gombe State</option>
+                                <option value="Imo State" {% if profile.region == 'Imo State' %}selected{% endif %}>Imo State</option>
+                                <option value="Jigawa State" {% if profile.region == 'Jigawa State' %}selected{% endif %}>Jigawa State</option>
+                                <option value="Kaduna State" {% if profile.region == 'Kaduna State' %}selected{% endif %}>Kaduna State</option>
+                                <option value="Kano State" {% if profile.region == 'Kano State' %}selected{% endif %}>Kano State</option>
+                                <option value="Katsina State" {% if profile.region == 'Katsina State' %}selected{% endif %}>Katsina State</option>
+                                <option value="Kebbi State" {% if profile.region == 'Kebbi State' %}selected{% endif %}>Kebbi State</option>
+                                <option value="Kogi State" {% if profile.region == 'Kogi State' %}selected{% endif %}>Kogi State</option>
+                                <option value="Kwara State" {% if profile.region == 'Kwara State' %}selected{% endif %}>Kwara State</option>
+                                <option value="Lagos State" {% if profile.region == 'Lagos State' %}selected{% endif %}>Lagos State</option>
+                                <option value="Nasarawa State" {% if profile.region == 'Nasarawa State' %}selected{% endif %}>Nasarawa State</option>
+                                <option value="Niger State" {% if profile.region == 'Niger State' %}selected{% endif %}>Niger State</option>
+                                <option value="Ogun State" {% if profile.region == 'Ogun State' %}selected{% endif %}>Ogun State</option>
+                                <option value="Ondo State" {% if profile.region == 'Ondo State' %}selected{% endif %}>Ondo State</option>
+                                <option value="Osun State" {% if profile.region == 'Osun State' %}selected{% endif %}>Osun State</option>
+                                <option value="Oyo State" {% if profile.region == 'Oyo State' %}selected{% endif %}>Oyo State</option>
+                                <option value="Plateau State" {% if profile.region == 'Plateau State' %}selected{% endif %}>Plateau State</option>
+                                <option value="Rivers State" {% if profile.region == 'Rivers State' or not profile.region %}selected{% endif %}>Rivers State</option>
+                                <option value="Sokoto State" {% if profile.region == 'Sokoto State' %}selected{% endif %}>Sokoto State</option>
+                                <option value="Taraba State" {% if profile.region == 'Taraba State' %}selected{% endif %}>Taraba State</option>
+                                <option value="Yobe State" {% if profile.region == 'Yobe State' %}selected{% endif %}>Yobe State</option>
+                                <option value="Zamfara State" {% if profile.region == 'Zamfara State' %}selected{% endif %}>Zamfara State</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>Full Shop / Studio / Workshop Street Address *</label>
-                            <input type="text" name="store_address" class="form-control" placeholder="E.g., 24 Stadium Road, Port Harcourt" required>
+                            <input type="text" name="store_address" class="form-control" value="{{ profile.store_address|default:'' }}" placeholder="E.g., 24 Stadium Road, Port Harcourt" required>
                         </div>
                     </div>
 
@@ -157,8 +289,8 @@
                     <div class="form-group location-capture-box">
                         <label><i class="fa-solid fa-satellite-dish text-primary mr-5"></i> Live GPS Coordinates *</label>
                         <div class="location-input-group">
-                            <input type="text" name="latitude" id="latInput" class="form-control" placeholder="Latitude (Click button below)" readonly required>
-                            <input type="text" name="longitude" id="lonInput" class="form-control" placeholder="Longitude (Click button below)" readonly required>
+                            <input type="text" name="latitude" id="latInput" class="form-control" value="{{ profile.latitude|default:'' }}" placeholder="Latitude (Click button below)" readonly required>
+                            <input type="text" name="longitude" id="lonInput" class="form-control" value="{{ profile.longitude|default:'' }}" placeholder="Longitude (Click button below)" readonly required>
                         </div>
                         <button type="button" id="getLocationBtn" class="action-btn btn-dark w-100">
                             <i class="fa-solid fa-location-crosshairs icon-spaced"></i> Capture My Current GPS Coordinates
@@ -168,26 +300,214 @@
 
                     <div class="form-grid-2">
                         <div class="form-group">
-                            <label>Shop / Base Exterior Photo *</label>
-                            <input type="file" name="exterior_image" class="form-control" accept="image/*" capture="environment" required>
+                            <label>Shop / Base Exterior Photo {% if not profile.exterior_image %}*{% endif %}</label>
+                            <input type="file" name="exterior_image" class="form-control" accept="image/*" capture="environment" {% if not profile.exterior_image %}required{% endif %}>
+                            {% if profile.exterior_image %}
+                                <span class="current-file-chip mt-5">
+                                    <i class="fa-solid fa-circle-check text-success"></i> Exterior photo on record
+                                </span>
+                            {% endif %}
                         </div>
                         <div class="form-group">
-                            <label>Shop / Workspace Interior Photo *</label>
-                            <input type="file" name="interior_image" class="form-control" accept="image/*" capture="environment" required>
+                            <label>Shop / Workspace Interior Photo {% if not profile.interior_image %}*{% endif %}</label>
+                            <input type="file" name="interior_image" class="form-control" accept="image/*" capture="environment" {% if not profile.interior_image %}required{% endif %}>
+                            {% if profile.interior_image %}
+                                <span class="current-file-chip mt-5">
+                                    <i class="fa-solid fa-circle-check text-success"></i> Interior photo on record
+                                </span>
+                            {% endif %}
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label>Signboard or Work Setup Photo (Optional)</label>
                         <input type="file" name="signboard_image" class="form-control" accept="image/*" capture="environment">
+                        {% if profile.signboard_image %}
+                            <span class="current-file-chip mt-5">
+                                <i class="fa-solid fa-circle-check text-success"></i> Signboard photo on record
+                            </span>
+                        {% endif %}
                     </div>
 
-                    <button type="submit" class="action-btn btn-success w-100 mt-15 py-15 text-15 font-700-block">
-                        <i class="fa-solid fa-paper-plane icon-spaced"></i> Submit Verification for Admin Review
-                    </button>
+                    <div class="wizard-nav-actions mt-20">
+                        <a href="{% url 'accounts:provider_status' %}?edit_stage=3" class="action-btn btn-outline">
+                            &larr; Back to Stage 3
+                        </a>
+                        <button type="submit" class="action-btn btn-primary flex-grow-1">
+                            <i class="fa-solid fa-eye icon-spaced"></i> Save &amp; Preview Full Application &rarr;
+                        </button>
+                    </div>
                 </form>
 
-            <!-- PENDING ADMIN REVIEW -->
+            <!-- ==========================================================
+                 FINAL APPLICATION PREVIEW DOSSIER (BEFORE ADMIN LOCK)
+                 ========================================================== -->
+            {% elif show_preview_dossier %}
+                <div class="dossier-preview-shell">
+                    <div class="onboarding-step-header">
+                        <span class="otp-status-pill pill-verified mb-10">
+                            <i class="fa-solid fa-clipboard-check"></i> All 4 Stages Completed &bull; Final Inspection
+                        </span>
+                        <h3 class="checkout-section-title onboarding-step-title">
+                            <i class="fa-solid fa-magnifying-glass-chart text-primary icon-spaced"></i> Review Your Complete Application Dossier
+                        </h3>
+                        <p class="onboarding-step-subtitle">
+                            Please verify that every detail and document below is accurate. Click <strong>Edit</strong> on any section to make changes before submitting for Admin Compliance Review.
+                        </p>
+                    </div>
+
+                    <!-- Preview Card 1: Stage 1 -->
+                    <div class="dossier-preview-card">
+                        <div class="dossier-preview-header">
+                            <h4><i class="fa-solid fa-user-shield text-primary"></i> 1. Personal &amp; Store Identity</h4>
+                            <a href="{% url 'accounts:provider_status' %}?edit_stage=1" class="action-btn btn-outline action-sm">
+                                <i class="fa-solid fa-pen"></i> Edit Stage 1
+                            </a>
+                        </div>
+                        <div class="dossier-preview-grid">
+                            <div>
+                                <span class="dossier-meta-label">Legal Name (Must Match ID &amp; Bank)</span>
+                                <strong class="dossier-meta-value">{{ request.user.first_name }} {{ request.user.last_name }}</strong>
+                            </div>
+                            <div>
+                                <span class="dossier-meta-label">Verified Contact Channels</span>
+                                <strong class="dossier-meta-value">{{ request.user.email }} &bull; {{ profile.phone }}</strong>
+                            </div>
+                            <div>
+                                <span class="dossier-meta-label">Date of Birth &amp; Residence</span>
+                                <strong class="dossier-meta-value">{{ profile.dob|date:"M d, Y" }} &bull; {{ profile.residential_address }}</strong>
+                            </div>
+                            <div>
+                                <span class="dossier-meta-label">Store Name &amp; Operating Model</span>
+                                <strong class="dossier-meta-value">{{ profile.business_name }} ({{ profile.get_provider_type_display }})</strong>
+                            </div>
+                            <div class="full-grid-span">
+                                <span class="dossier-meta-label">Primary Specialty / Department</span>
+                                <strong class="dossier-meta-value">{{ profile.business_category }}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Card 2: Stage 2 -->
+                    <div class="dossier-preview-card">
+                        <div class="dossier-preview-header">
+                            <h4><i class="fa-solid fa-id-card text-primary"></i> 2. Identity Verification (KYC)</h4>
+                            <a href="{% url 'accounts:provider_status' %}?edit_stage=2" class="action-btn btn-outline action-sm">
+                                <i class="fa-solid fa-pen"></i> Edit Stage 2
+                            </a>
+                        </div>
+                        <p class="text-13-muted mt-0 mb-10">
+                            Selected ID Type: <strong class="text-14-dark">{{ profile.get_id_type_display|default:profile.id_type }}</strong>
+                        </p>
+                        <div class="dossier-media-row">
+                            {% if profile.id_document %}
+                                <a href="{{ profile.id_document.url }}" target="_blank" class="dossier-media-chip">
+                                    <i class="fa-solid fa-file-shield text-primary"></i>
+                                    <span>View Uploaded ID Document &nearr;</span>
+                                </a>
+                            {% endif %}
+                            {% if profile.selfie_image %}
+                                <div class="dossier-thumb-box">
+                                    <img src="{{ profile.selfie_image.url }}" alt="Live Selfie" class="dossier-thumb-img">
+                                    <span>Live Selfie</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Preview Card 3: Stage 3 -->
+                    <div class="dossier-preview-card">
+                        <div class="dossier-preview-header">
+                            <h4><i class="fa-solid fa-briefcase text-primary"></i> 3. Business Credentials</h4>
+                            <a href="{% url 'accounts:provider_status' %}?edit_stage=3" class="action-btn btn-outline action-sm">
+                                <i class="fa-solid fa-pen"></i> Edit Stage 3
+                            </a>
+                        </div>
+                        <div class="dossier-preview-grid">
+                            <div class="full-grid-span">
+                                <span class="dossier-meta-label">Store / Service Expertise Description</span>
+                                <p class="dossier-bio-preview">{{ profile.business_description }}</p>
+                            </div>
+                            <div>
+                                <span class="dossier-meta-label">CAC Registration Number</span>
+                                <strong class="dossier-meta-value">{{ profile.cac_registration_number|default:"Not Provided (Optional)" }}</strong>
+                            </div>
+                            <div>
+                                <span class="dossier-meta-label">CAC Certificate / License</span>
+                                {% if profile.business_certificate %}
+                                    <a href="{{ profile.business_certificate.url }}" target="_blank" class="text-13 text-primary font-600">
+                                        <i class="fa-solid fa-paperclip"></i> View Uploaded Certificate &nearr;
+                                    </a>
+                                {% else %}
+                                    <span class="text-13-muted">None uploaded</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Card 4: Stage 4 -->
+                    <div class="dossier-preview-card">
+                        <div class="dossier-preview-header">
+                            <h4><i class="fa-solid fa-location-dot text-primary"></i> 4. Dispatch Location, GPS &amp; Store Photos</h4>
+                            <a href="{% url 'accounts:provider_status' %}?edit_stage=4" class="action-btn btn-outline action-sm">
+                                <i class="fa-solid fa-pen"></i> Edit Stage 4
+                            </a>
+                        </div>
+                        <div class="dossier-preview-grid mb-12">
+                            <div>
+                                <span class="dossier-meta-label">Dispatch State &amp; Address</span>
+                                <strong class="dossier-meta-value">{{ profile.store_address }}, {{ profile.region }}</strong>
+                            </div>
+                            <div>
+                                <span class="dossier-meta-label">Captured GPS Coordinates</span>
+                                <strong class="dossier-meta-value">Lat: {{ profile.latitude|default:"-" }}, Lon: {{ profile.longitude|default:"-" }}</strong>
+                            </div>
+                        </div>
+                        <div class="dossier-media-row">
+                            {% if profile.exterior_image %}
+                                <div class="dossier-thumb-box">
+                                    <img src="{{ profile.exterior_image.url }}" alt="Exterior Photo" class="dossier-thumb-img">
+                                    <span>Exterior</span>
+                                </div>
+                            {% endif %}
+                            {% if profile.interior_image %}
+                                <div class="dossier-thumb-box">
+                                    <img src="{{ profile.interior_image.url }}" alt="Interior Photo" class="dossier-thumb-img">
+                                    <span>Interior</span>
+                                </div>
+                            {% endif %}
+                            {% if profile.signboard_image %}
+                                <div class="dossier-thumb-box">
+                                    <img src="{{ profile.signboard_image.url }}" alt="Signboard Photo" class="dossier-thumb-img">
+                                    <span>Signboard</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Final Confirmation & Lock Form -->
+                    <form method="POST" action="{% url 'accounts:provider_status' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="wizard_action" value="confirm_final_submission">
+
+                        <div class="legal-consent-box mt-15">
+                            <label class="legal-consent-label" for="confirmDossierAccuracy">
+                                <input type="checkbox" id="confirmDossierAccuracy" name="confirm_accuracy" required>
+                                <span>
+                                    I confirm that all personal details, KYC identification documents, business credentials, and store GPS coordinates above are true and accurate. *
+                                </span>
+                            </label>
+                        </div>
+
+                        <button type="submit" class="action-btn btn-success w-100 mt-15 py-15 text-16 font-700-block">
+                            <i class="fa-solid fa-paper-plane icon-spaced"></i> Confirm &amp; Submit Application for Admin Review
+                        </button>
+                    </form>
+                </div>
+
+            <!-- ==========================================================
+                 PENDING ADMIN REVIEW (LOCKED AFTER PREVIEW CONFIRMATION)
+                 ========================================================== -->
             {% elif profile.verification_status == 'STAGE_4_LOCATION' %}
                 <div class="review-status-box">
                     <div class="booking-success-badge mx-auto mb-15">
@@ -198,17 +518,22 @@
                     </span>
                     <h3 class="checkout-section-title m-0">Your Dossier is Under Admin Review</h3>
                     <p class="review-text">
-                        We have received your verified contact details, government ID, business credentials, and GPS location for <strong>{{ profile.business_name }}</strong>.
+                        We have received your confirmed application dossier for <strong>{{ profile.business_name }}</strong>.
                         You will receive an instant notification as soon as your profile is approved so you can link your payout bank account.
                     </p>
-                    <div class="mt-20">
+                    <div class="flex-align-center justify-center gap-10 flex-wrap mt-20">
+                        <a href="{% url 'accounts:provider_status' %}?preview=1" class="action-btn btn-secondary action-sm">
+                            <i class="fa-regular fa-eye icon-spaced"></i> View / Edit Submitted Dossier
+                        </a>
                         <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">
                             &larr; Return to Marketplace
                         </a>
                     </div>
                 </div>
 
-            <!-- SURGICAL SPOT-CORRECTION VIEW (WHEN ADMIN FLAGS SPECIFIC SECTIONS) -->
+            <!-- ==========================================================
+                 SURGICAL SPOT-CORRECTION VIEW (WHEN ADMIN FLAGS SECTIONS)
+                 ========================================================== -->
             {% elif profile.verification_status == 'FLAGGED' %}
                 <form method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
@@ -224,7 +549,6 @@
                         </p>
                     </div>
 
-                    <!-- Admin Compliance Feedback Banner -->
                     <div class="admin-feedback-banner">
                         <div class="admin-feedback-title">
                             <i class="fa-solid fa-comment-dots"></i> Admin Compliance Note:
@@ -234,7 +558,6 @@
                         </p>
                     </div>
 
-                    <!-- Spot 1: Stage 1 (Personal & Business Basics) -->
                     {% if 'STAGE_1' in active_flagged_sections %}
                         <div class="flagged-spot-card">
                             <h4 class="flagged-spot-heading">
@@ -281,7 +604,6 @@
                         </div>
                     {% endif %}
 
-                    <!-- Spot 2: Stage 2 (Identity / KYC) -->
                     {% if 'STAGE_2' in active_flagged_sections %}
                         <div class="flagged-spot-card">
                             <h4 class="flagged-spot-heading">
@@ -318,7 +640,6 @@
                         </div>
                     {% endif %}
 
-                    <!-- Spot 3: Stage 3 (Business Profile & CAC) -->
                     {% if 'STAGE_3' in active_flagged_sections %}
                         <div class="flagged-spot-card">
                             <h4 class="flagged-spot-heading">
@@ -344,7 +665,6 @@
                         </div>
                     {% endif %}
 
-                    <!-- Spot 4: Stage 4 (Location & Store Photos) -->
                     {% if 'STAGE_4' in active_flagged_sections %}
                         <div class="flagged-spot-card">
                             <h4 class="flagged-spot-heading">
@@ -438,7 +758,9 @@
                     </button>
                 </form>
 
-            <!-- STAGE 5: PAYOUT SETUP -->
+            <!-- ==========================================================
+                 STAGE 5: PAYOUT SETUP (ONCE ADMIN APPROVES)
+                 ========================================================== -->
             {% elif profile.verification_status == 'APPROVED' %}
                 <form method="POST">
                     {% csrf_token %}
@@ -481,17 +803,23 @@
             {% endif %}
         </div>
 
-        <!-- RIGHT COLUMN: VISUAL PROGRESS TIMELINE -->
+        <!-- RIGHT COLUMN: INTERACTIVE PROGRESS TIMELINE (CLICK TO EDIT COMPLETED STAGES) -->
         <div class="summary-card status-card">
             <h3 class="tracker-title"><i class="fa-solid fa-list-check text-primary mr-5"></i> Verification Progress</h3>
             <div class="status-timeline">
                 
-                <div class="timeline-step {% if 'STAGE_1' in active_flagged_sections %}flagged{% else %}completed{% endif %}">
+                <!-- Timeline Step 1 -->
+                <div class="timeline-step {% if 'STAGE_1' in active_flagged_sections %}flagged{% elif editing_stage == 1 %}active{% else %}completed{% endif %}">
                     <div class="step-indicator">
                         {% if 'STAGE_1' in active_flagged_sections %}<i class="fa-solid fa-exclamation"></i>{% else %}<i class="fa-solid fa-check"></i>{% endif %}
                     </div>
                     <div class="step-content">
-                        <h4 class="step-title">1. Personal &amp; Contact</h4>
+                        <div class="flex-between align-center gap-8">
+                            <h4 class="step-title">1. Personal &amp; Contact</h4>
+                            {% if profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=1" class="timeline-edit-link">Edit</a>
+                            {% endif %}
+                        </div>
                         <p class="step-text">
                             {% if 'STAGE_1' in active_flagged_sections %}
                                 <span class="text-danger font-600">Correction required</span>
@@ -502,18 +830,24 @@
                     </div>
                 </div>
 
-                <div class="timeline-step {% if 'STAGE_2' in active_flagged_sections %}flagged{% elif profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}completed{% else %}active{% endif %}">
+                <!-- Timeline Step 2 -->
+                <div class="timeline-step {% if 'STAGE_2' in active_flagged_sections %}flagged{% elif editing_stage == 2 %}active{% elif completed_up_to >= 2 %}completed{% endif %}">
                     <div class="step-indicator">
                         {% if 'STAGE_2' in active_flagged_sections %}
                             <i class="fa-solid fa-exclamation"></i>
-                        {% elif profile.verification_status in 'STAGE_2_KYC,STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}
+                        {% elif completed_up_to >= 2 %}
                             <i class="fa-solid fa-check"></i>
                         {% else %}
                             <i class="fa-solid fa-id-card"></i>
                         {% endif %}
                     </div>
                     <div class="step-content">
-                        <h4 class="step-title">2. Identity (KYC)</h4>
+                        <div class="flex-between align-center gap-8">
+                            <h4 class="step-title">2. Identity (KYC)</h4>
+                            {% if completed_up_to >= 2 and profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=2" class="timeline-edit-link">Edit</a>
+                            {% endif %}
+                        </div>
                         <p class="step-text">
                             {% if 'STAGE_2' in active_flagged_sections %}
                                 <span class="text-danger font-600">Correction required</span>
@@ -524,18 +858,24 @@
                     </div>
                 </div>
 
-                <div class="timeline-step {% if 'STAGE_3' in active_flagged_sections %}flagged{% elif profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_2_KYC' %}active{% endif %}">
+                <!-- Timeline Step 3 -->
+                <div class="timeline-step {% if 'STAGE_3' in active_flagged_sections %}flagged{% elif editing_stage == 3 %}active{% elif completed_up_to >= 3 %}completed{% endif %}">
                     <div class="step-indicator">
                         {% if 'STAGE_3' in active_flagged_sections %}
                             <i class="fa-solid fa-exclamation"></i>
-                        {% elif profile.verification_status in 'STAGE_3_BUSINESS,STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}
+                        {% elif completed_up_to >= 3 %}
                             <i class="fa-solid fa-check"></i>
                         {% else %}
                             <i class="fa-solid fa-briefcase"></i>
                         {% endif %}
                     </div>
                     <div class="step-content">
-                        <h4 class="step-title">3. Business Profile</h4>
+                        <div class="flex-between align-center gap-8">
+                            <h4 class="step-title">3. Business Profile</h4>
+                            {% if completed_up_to >= 3 and profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=3" class="timeline-edit-link">Edit</a>
+                            {% endif %}
+                        </div>
                         <p class="step-text">
                             {% if 'STAGE_3' in active_flagged_sections %}
                                 <span class="text-danger font-600">Correction required</span>
@@ -546,18 +886,24 @@
                     </div>
                 </div>
 
-                <div class="timeline-step {% if 'STAGE_4' in active_flagged_sections %}flagged{% elif profile.verification_status in 'STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_3_BUSINESS' %}active{% endif %}">
+                <!-- Timeline Step 4 -->
+                <div class="timeline-step {% if 'STAGE_4' in active_flagged_sections %}flagged{% elif editing_stage == 4 %}active{% elif completed_up_to >= 4 %}completed{% endif %}">
                     <div class="step-indicator">
                         {% if 'STAGE_4' in active_flagged_sections %}
                             <i class="fa-solid fa-exclamation"></i>
-                        {% elif profile.verification_status in 'STAGE_4_LOCATION,FLAGGED,APPROVED,ACTIVE' %}
+                        {% elif completed_up_to >= 4 %}
                             <i class="fa-solid fa-check"></i>
                         {% else %}
                             <i class="fa-solid fa-location-dot"></i>
                         {% endif %}
                     </div>
                     <div class="step-content">
-                        <h4 class="step-title">4. Location &amp; GPS</h4>
+                        <div class="flex-between align-center gap-8">
+                            <h4 class="step-title">4. Location &amp; GPS</h4>
+                            {% if completed_up_to >= 4 and profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=4" class="timeline-edit-link">Edit</a>
+                            {% endif %}
+                        </div>
                         <p class="step-text">
                             {% if 'STAGE_4' in active_flagged_sections %}
                                 <span class="text-danger font-600">Correction required</span>
@@ -568,6 +914,7 @@
                     </div>
                 </div>
 
+                <!-- Timeline Step 5: Preview & Compliance Review -->
                 <div class="timeline-step {% if profile.verification_status == 'FLAGGED' %}flagged{% elif profile.verification_status in 'APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_4_LOCATION' %}active{% endif %}">
                     <div class="step-indicator">
                         {% if profile.verification_status == 'FLAGGED' %}
@@ -579,10 +926,17 @@
                         {% endif %}
                     </div>
                     <div class="step-content">
-                        <h4 class="step-title">5. Compliance Review</h4>
+                        <div class="flex-between align-center gap-8">
+                            <h4 class="step-title">5. Preview &amp; Review</h4>
+                            {% if completed_up_to >= 4 and profile.verification_status == 'STAGE_4_LOCATION' and not show_preview_dossier %}
+                                <a href="{% url 'accounts:provider_status' %}?preview=1" class="timeline-edit-link">Preview</a>
+                            {% endif %}
+                        </div>
                         <p class="step-text">
                             {% if profile.verification_status == 'FLAGGED' %}
                                 <span class="text-danger font-600">Awaiting your corrections</span>
+                            {% elif show_preview_dossier %}
+                                <span class="text-primary font-600">Review &amp; confirm dossier</span>
                             {% else %}
                                 Admin KYC verification
                             {% endif %}
@@ -590,6 +944,7 @@
                     </div>
                 </div>
 
+                <!-- Timeline Step 6: Bank & Activation -->
                 <div class="timeline-step {% if profile.verification_status == 'ACTIVE' %}completed{% elif profile.verification_status == 'APPROVED' %}active{% endif %}">
                     <div class="step-indicator"><i class="fa-solid fa-building-columns"></i></div>
                     <div class="step-content">
@@ -605,5 +960,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}?v=3.3"></script>
 {% endblock %}

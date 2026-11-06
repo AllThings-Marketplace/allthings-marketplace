@@ -8,7 +8,7 @@ from django.core.mail import get_connection, EmailMultiAlternatives
 from django.db import IntegrityError, transaction
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import NoReverseMatch
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
@@ -30,12 +30,18 @@ NG_PHONE_VALIDATOR = re.compile(r'^(?:\+?234|0)[789][01]\d{8}$')
 ALL_ONBOARDING_STAGES = ['STAGE_1', 'STAGE_2', 'STAGE_3', 'STAGE_4']
 
 
-def _safe_redirect(namespaced_url, fallback_url):
-    """Safely resolves either namespaced ('accounts:provider_status') or un-namespaced URLs."""
+def _safe_redirect(namespaced_url, fallback_url, query_string=''):
+    """Safely resolves either namespaced ('accounts:provider_status') or un-namespaced URLs with optional query string."""
     try:
-        return redirect(namespaced_url)
+        base = reverse(namespaced_url)
     except NoReverseMatch:
-        return redirect(fallback_url)
+        try:
+            base = reverse(fallback_url)
+        except NoReverseMatch:
+            base = fallback_url
+    if query_string:
+        return redirect(f"{base}?{query_string.lstrip('?')}")
+    return redirect(base)
 
 
 def _normalize_ng_phone(raw_phone):
@@ -631,6 +637,13 @@ def apply_provider(request):
 
 @login_required
 def provider_status(request):
+    """
+    Multi-Stage Provider Onboarding Wizard with:
+    1. Free Back-Navigation across completed stages (?edit_stage=1|2|3|4).
+    2. Full Application Preview Dossier (?preview=1) before locking for Admin Compliance Review.
+    3. Surgical Spot-Correction when Admin flags specific stages (FLAGGED).
+    4. Stage 5 Paystack NUBAN Bank Verification & Activation (APPROVED -> ACTIVE).
+    """
     if not hasattr(request.user, 'provider_profile'):
         return _safe_redirect('accounts:apply_provider', 'apply_provider')
 
@@ -639,8 +652,48 @@ def provider_status(request):
     if profile.verification_status == 'ACTIVE':
         return redirect('dashboard:provider_dashboard')
 
-    # Defensive fallback: if an admin flagged the profile via list view without ticking specific
-    # checkboxes, unlock all 4 onboarding sections so the applicant is never stuck on an empty screen.
+    # Map current database status to the highest stage reached (1..4)
+    STAGE_PROGRESS_MAP = {
+        'STAGE_1_BASIC': 1,     # Completed Stage 1 -> Working on Stage 2
+        'STAGE_2_KYC': 2,       # Completed Stage 2 -> Working on Stage 3
+        'STAGE_3_BUSINESS': 3,  # Completed Stage 3 -> Working on Stage 4
+        'STAGE_4_LOCATION': 4,  # Completed all 4 stages -> Preview or Locked Admin Review
+    }
+    completed_up_to = STAGE_PROGRESS_MAP.get(profile.verification_status, 4)
+
+    # Track whether the applicant has confirmed their Final Preview Dossier
+    lock_session_key = f'allthings_dossier_locked_{profile.id}'
+    is_dossier_locked = bool(request.session.get(lock_session_key, False))
+
+    # Allow editing earlier stages or reopening from the Review screen via ?edit_stage=1..4
+    requested_edit = request.GET.get('edit_stage', '').strip()
+    is_preview_requested = request.GET.get('preview') == '1'
+
+    editing_stage = None
+    show_preview_dossier = False
+
+    if profile.verification_status in STAGE_PROGRESS_MAP:
+        if requested_edit in ('1', '2', '3', '4'):
+            req_num = int(requested_edit)
+            # Allow editing any completed stage or the current next stage
+            if req_num <= completed_up_to + 1:
+                editing_stage = req_num
+                request.session[lock_session_key] = False
+                is_dossier_locked = False
+
+        if not editing_stage:
+            if profile.verification_status == 'STAGE_1_BASIC':
+                editing_stage = 2
+            elif profile.verification_status == 'STAGE_2_KYC':
+                editing_stage = 3
+            elif profile.verification_status == 'STAGE_3_BUSINESS':
+                editing_stage = 4
+            elif profile.verification_status == 'STAGE_4_LOCATION':
+                # Show Final Preview Dossier if not yet locked or if ?preview=1 was requested
+                if is_preview_requested or not is_dossier_locked:
+                    show_preview_dossier = True
+
+    # Defensive fallback for Admin FLAGGED status
     active_flagged_sections = (
         profile.flagged_sections
         if (profile.verification_status == 'FLAGGED' and profile.flagged_sections)
@@ -648,31 +701,84 @@ def provider_status(request):
     )
 
     if request.method == 'POST':
+        submitted_action = request.POST.get('wizard_action', '').strip()
+
         try:
-            # STAGE 2: Identity Verification (KYC)
-            if profile.verification_status == 'STAGE_1_BASIC':
-                id_type = request.POST.get('id_type', '').strip()
+            # A. FINAL DOSSIER LOCK & SUBMISSION FOR ADMIN REVIEW
+            if submitted_action == 'confirm_final_submission' and profile.verification_status == 'STAGE_4_LOCATION':
+                request.session[lock_session_key] = True
+                messages.success(
+                    request,
+                    f"Application dossier for {profile.business_name} confirmed and submitted for Admin Compliance Review!"
+                )
+                return _safe_redirect('accounts:provider_status', 'provider_status')
+
+            # B. STAGE 1 EDIT (Legal Name, DOB, Residential Address, Store Name, Specialty)
+            elif submitted_action == 'save_stage_1' and profile.verification_status in STAGE_PROGRESS_MAP:
+                first_name = request.POST.get('first_name', '').strip()
+                last_name = request.POST.get('last_name', '').strip()
+                business_name = request.POST.get('business_name', '').strip()
+                provider_type = request.POST.get('provider_type', '').strip()
+                business_category = request.POST.get('business_category', '').strip()
+                dob = request.POST.get('dob') or profile.dob
+                residential_address = request.POST.get('residential_address', '').strip()
+
+                if not (first_name and last_name and business_name and provider_type and residential_address):
+                    raise ValidationError("Please complete all required Stage 1 personal and business fields.")
+
+                with transaction.atomic():
+                    request.user.first_name = first_name
+                    request.user.last_name = last_name
+                    request.user.save(update_fields=['first_name', 'last_name'])
+
+                    profile.business_name = business_name
+                    if provider_type in dict(ProviderProfile.ProviderType.choices):
+                        profile.provider_type = provider_type
+                    profile.business_category = business_category
+                    profile.dob = dob
+                    profile.residential_address = residential_address
+                    profile.save()
+
+                messages.success(request, "Stage 1 (Personal & Store Profile) saved!")
+                if profile.verification_status == 'STAGE_4_LOCATION':
+                    return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
+                return _safe_redirect('accounts:provider_status', 'provider_status')
+
+            # C. STAGE 2 SAVE / EDIT: Identity Verification (KYC)
+            elif (submitted_action == 'save_stage_2' or profile.verification_status == 'STAGE_1_BASIC') and profile.verification_status in STAGE_PROGRESS_MAP:
+                id_type = request.POST.get('id_type', '').strip() or profile.id_type
                 id_doc = request.FILES.get('id_document')
                 selfie_img = request.FILES.get('selfie_image')
 
-                if not id_type or not id_doc or not selfie_img:
-                    raise ValidationError("Please select an ID type and upload both your government ID and a live selfie.")
+                if not id_type:
+                    raise ValidationError("Please select your Government ID document type.")
+                if not id_doc and not profile.id_document:
+                    raise ValidationError("Please upload your Government ID document.")
+                if not selfie_img and not profile.selfie_image:
+                    raise ValidationError("Please upload a clear live selfie photo.")
 
-                validate_kyc_document(id_doc, allow_pdf=True)
-                validate_product_image(selfie_img)
+                if id_doc:
+                    validate_kyc_document(id_doc, allow_pdf=True)
+                    profile.id_document = id_doc
+                if selfie_img:
+                    validate_product_image(selfie_img)
+                    profile.selfie_image = selfie_img
 
                 profile.id_type = id_type
-                profile.id_document = id_doc
-                profile.selfie_image = selfie_img
-                profile.verification_status = 'STAGE_2_KYC'
+                if profile.verification_status == 'STAGE_1_BASIC':
+                    profile.verification_status = 'STAGE_2_KYC'
                 profile.save()
-                messages.success(request, "Identity documents verified and submitted!")
 
-            # STAGE 3: Business Verification
-            elif profile.verification_status == 'STAGE_2_KYC':
+                messages.success(request, "Stage 2 (Identity KYC) saved!")
+                if profile.verification_status == 'STAGE_4_LOCATION':
+                    return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
+                return _safe_redirect('accounts:provider_status', 'provider_status')
+
+            # D. STAGE 3 SAVE / EDIT: Business Credentials
+            elif (submitted_action == 'save_stage_3' or profile.verification_status == 'STAGE_2_KYC') and profile.verification_status in STAGE_PROGRESS_MAP:
                 business_desc = request.POST.get('business_description', '').strip()
                 if not business_desc:
-                    raise ValidationError("Please provide a description of your store or technical expertise.")
+                    raise ValidationError("Please provide a description of your store or service expertise.")
 
                 cert_file = request.FILES.get('business_certificate')
                 if cert_file:
@@ -681,39 +787,60 @@ def provider_status(request):
 
                 profile.business_description = business_desc
                 profile.cac_registration_number = request.POST.get('cac_registration_number', '').strip()
-                profile.verification_status = 'STAGE_3_BUSINESS'
+                if profile.verification_status in ('STAGE_1_BASIC', 'STAGE_2_KYC'):
+                    profile.verification_status = 'STAGE_3_BUSINESS'
                 profile.save()
-                messages.success(request, "Business details recorded.")
 
-            # STAGE 4: Physical Store / Base Location Pinning
-            elif profile.verification_status == 'STAGE_3_BUSINESS':
+                messages.success(request, "Stage 3 (Business Credentials) saved!")
+                if profile.verification_status == 'STAGE_4_LOCATION':
+                    return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
+                return _safe_redirect('accounts:provider_status', 'provider_status')
+
+            # E. STAGE 4 SAVE / EDIT: Physical Store / Base Location Pinning -> Routes to Final Preview Dossier
+            elif (submitted_action == 'save_stage_4' or profile.verification_status == 'STAGE_3_BUSINESS') and profile.verification_status in STAGE_PROGRESS_MAP:
+                region = request.POST.get('region', '').strip() or profile.region
+                store_address = request.POST.get('store_address', '').strip()
+                if not (region and store_address):
+                    raise ValidationError("Please provide your State/Region and full shop/base street address.")
+
                 ext_img = request.FILES.get('exterior_image')
                 int_img = request.FILES.get('interior_image')
                 sign_img = request.FILES.get('signboard_image')
 
-                if not ext_img or not int_img:
-                    raise ValidationError("Please upload both exterior and interior photos of your shop or operating base.")
+                if not ext_img and not profile.exterior_image:
+                    raise ValidationError("Please upload an exterior photo of your shop or operating base.")
+                if not int_img and not profile.interior_image:
+                    raise ValidationError("Please upload an interior photo of your shop or workspace.")
 
-                validate_product_image(ext_img)
-                validate_product_image(int_img)
+                if ext_img:
+                    validate_product_image(ext_img)
+                    profile.exterior_image = ext_img
+                if int_img:
+                    validate_product_image(int_img)
+                    profile.interior_image = int_img
                 if sign_img:
                     validate_product_image(sign_img)
                     profile.signboard_image = sign_img
 
-                profile.region = request.POST.get('region', '').strip()
-                profile.store_address = request.POST.get('store_address', '').strip()
-                profile.latitude = request.POST.get('latitude') or None
-                profile.longitude = request.POST.get('longitude') or None
-                profile.exterior_image = ext_img
-                profile.interior_image = int_img
+                profile.region = region
+                profile.store_address = store_address
+                lat_raw = request.POST.get('latitude', '').strip()
+                lon_raw = request.POST.get('longitude', '').strip()
+                if lat_raw and lon_raw:
+                    profile.latitude = lat_raw
+                    profile.longitude = lon_raw
+
                 profile.verification_status = 'STAGE_4_LOCATION'
                 profile.save()
-                messages.success(request, "Location pinned! Your application is now under admin review.")
 
-            # SURGICAL SPOT-CORRECTION HANDLER (When Admin Flags Specific Sections)
+                # Route to the Final Preview Dossier so the applicant can review everything before locking
+                request.session[lock_session_key] = False
+                messages.info(request, "Stage 4 saved! Please review your complete application dossier below and click Confirm & Submit.")
+                return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
+
+            # F. SURGICAL SPOT-CORRECTION HANDLER (When Admin Flags Specific Sections)
             elif profile.verification_status == 'FLAGGED':
                 with transaction.atomic():
-                    # Spot 1: Stage 1 (Personal & Business Identity)
                     if 'STAGE_1' in active_flagged_sections:
                         first_name = request.POST.get('first_name', '').strip()
                         last_name = request.POST.get('last_name', '').strip()
@@ -737,7 +864,6 @@ def provider_status(request):
                         profile.dob = dob
                         profile.residential_address = residential_address
 
-                    # Spot 2: Stage 2 (Identity / KYC Documents)
                     if 'STAGE_2' in active_flagged_sections:
                         id_type = request.POST.get('id_type', '').strip() or profile.id_type
                         id_doc = request.FILES.get('id_document')
@@ -758,7 +884,6 @@ def provider_status(request):
                             validate_product_image(selfie_img)
                             profile.selfie_image = selfie_img
 
-                    # Spot 3: Stage 3 (Business Credentials / CAC)
                     if 'STAGE_3' in active_flagged_sections:
                         business_desc = request.POST.get('business_description', '').strip()
                         if not business_desc:
@@ -772,7 +897,6 @@ def provider_status(request):
                         profile.business_description = business_desc
                         profile.cac_registration_number = request.POST.get('cac_registration_number', '').strip()
 
-                    # Spot 4: Stage 4 (Physical Store Location, GPS & Photos)
                     if 'STAGE_4' in active_flagged_sections:
                         region = request.POST.get('region', '').strip() or profile.region
                         store_address = request.POST.get('store_address', '').strip()
@@ -804,15 +928,15 @@ def provider_status(request):
                             profile.latitude = lat_raw
                             profile.longitude = lon_raw
 
-                    # Clear flags and return directly to the Admin Review queue
                     profile.flagged_sections = []
                     profile.admin_review_note = ''
                     profile.verification_status = 'STAGE_4_LOCATION'
                     profile.save()
+                    request.session[lock_session_key] = True
 
                 messages.success(request, "Your corrections have been submitted! Your dossier is back under admin review.")
 
-            # STAGE 5: Paystack Bank NUBAN Resolution & Account Activation
+            # G. STAGE 5: Paystack Bank NUBAN Resolution & Account Activation
             elif profile.verification_status == 'APPROVED':
                 bank_code = request.POST.get('bank_code', '').strip()
                 bank_name = request.POST.get('bank_name', '').strip()
@@ -884,12 +1008,18 @@ def provider_status(request):
         except ValidationError as e:
             error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
             messages.error(request, error_msg)
+            if editing_stage:
+                return _safe_redirect('accounts:provider_status', 'provider_status', f'edit_stage={editing_stage}')
             return _safe_redirect('accounts:provider_status', 'provider_status')
 
         return _safe_redirect('accounts:provider_status', 'provider_status')
 
     context = {
         'profile': profile,
+        'editing_stage': editing_stage,
+        'completed_up_to': completed_up_to,
+        'show_preview_dossier': show_preview_dossier,
+        'is_dossier_locked': is_dossier_locked,
         'active_flagged_sections': active_flagged_sections,
     }
     if profile.verification_status == 'APPROVED':
