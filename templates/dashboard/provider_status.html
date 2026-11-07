@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.3">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
 {% endblock %}
 
 {% block content %}
@@ -19,9 +19,9 @@
         <div class="summary-card onboarding-card">
 
             <!-- ==========================================================
-                 EDIT STAGE 1: PERSONAL & BUSINESS BASICS (?edit_stage=1)
+                 EDIT STAGE 1: PERSONAL & BUSINESS BASICS (PRE-SUBMISSION ONLY)
                  ========================================================== -->
-            {% if editing_stage == 1 %}
+            {% if can_edit_stages and editing_stage == 1 %}
                 <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=1">
                     {% csrf_token %}
                     <input type="hidden" name="wizard_action" value="save_stage_1">
@@ -90,15 +90,9 @@
                     </div>
 
                     <div class="wizard-nav-actions mt-20">
-                        {% if completed_up_to >= 4 %}
-                            <a href="{% url 'accounts:provider_status' %}?preview=1" class="action-btn btn-outline">
-                                Cancel &amp; Return to Preview
-                            </a>
-                        {% else %}
-                            <a href="{% url 'accounts:provider_status' %}" class="action-btn btn-outline">
-                                Cancel
-                            </a>
-                        {% endif %}
+                        <a href="{% url 'accounts:provider_status' %}" class="action-btn btn-outline">
+                            Cancel
+                        </a>
                         <button type="submit" class="action-btn btn-primary flex-grow-1">
                             <i class="fa-solid fa-floppy-disk icon-spaced"></i> Save Stage 1 &amp; Continue &rarr;
                         </button>
@@ -106,9 +100,9 @@
                 </form>
 
             <!-- ==========================================================
-                 STAGE 2: IDENTITY VERIFICATION (KYC)
+                 STAGE 2: IDENTITY VERIFICATION (PRE-SUBMISSION ONLY)
                  ========================================================== -->
-            {% elif editing_stage == 2 %}
+            {% elif can_edit_stages and editing_stage == 2 %}
                 <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=2" enctype="multipart/form-data">
                     {% csrf_token %}
                     <input type="hidden" name="wizard_action" value="save_stage_2">
@@ -172,9 +166,9 @@
                 </form>
 
             <!-- ==========================================================
-                 STAGE 3: BUSINESS CREDENTIALS
+                 STAGE 3: BUSINESS CREDENTIALS (PRE-SUBMISSION ONLY)
                  ========================================================== -->
-            {% elif editing_stage == 3 %}
+            {% elif can_edit_stages and editing_stage == 3 %}
                 <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=3" enctype="multipart/form-data">
                     {% csrf_token %}
                     <input type="hidden" name="wizard_action" value="save_stage_3">
@@ -222,9 +216,9 @@
                 </form>
 
             <!-- ==========================================================
-                 STAGE 4: LOCATION & GPS PINNING
+                 STAGE 4: LOCATION & GPS PINNING (PRE-SUBMISSION ONLY)
                  ========================================================== -->
-            {% elif editing_stage == 4 %}
+            {% elif can_edit_stages and editing_stage == 4 %}
                 <form method="POST" action="{% url 'accounts:provider_status' %}?edit_stage=4" enctype="multipart/form-data">
                     {% csrf_token %}
                     <input type="hidden" name="wizard_action" value="save_stage_4">
@@ -340,29 +334,43 @@
                 </form>
 
             <!-- ==========================================================
-                 FINAL APPLICATION PREVIEW DOSSIER (BEFORE ADMIN LOCK)
+                 APPLICATION PREVIEW DOSSIER (EDITABLE PRE-SUBMIT OR READ-ONLY POST-SUBMIT)
                  ========================================================== -->
             {% elif show_preview_dossier %}
                 <div class="dossier-preview-shell">
                     <div class="onboarding-step-header">
-                        <span class="otp-status-pill pill-verified mb-10">
-                            <i class="fa-solid fa-clipboard-check"></i> All 4 Stages Completed &bull; Final Inspection
-                        </span>
-                        <h3 class="checkout-section-title onboarding-step-title">
-                            <i class="fa-solid fa-magnifying-glass-chart text-primary icon-spaced"></i> Review Your Complete Application Dossier
-                        </h3>
-                        <p class="onboarding-step-subtitle">
-                            Please verify that every detail and document below is accurate. Click <strong>Edit</strong> on any section to make changes before submitting for Admin Compliance Review.
-                        </p>
+                        {% if is_read_only_dossier %}
+                            <span class="otp-status-pill pill-unverified mb-10">
+                                <i class="fa-solid fa-lock"></i> Submitted &amp; Locked for Compliance Review (Read-Only)
+                            </span>
+                            <h3 class="checkout-section-title onboarding-step-title">
+                                <i class="fa-solid fa-file-shield text-primary icon-spaced"></i> Submitted Application Dossier
+                            </h3>
+                            <p class="onboarding-step-subtitle">
+                                Your application has been submitted to our compliance team and is now locked. You can view your submitted details below.
+                            </p>
+                        {% else %}
+                            <span class="otp-status-pill pill-verified mb-10">
+                                <i class="fa-solid fa-clipboard-check"></i> All 4 Stages Saved &bull; Final Inspection Before Lock
+                            </span>
+                            <h3 class="checkout-section-title onboarding-step-title">
+                                <i class="fa-solid fa-magnifying-glass-chart text-primary icon-spaced"></i> Review Your Complete Application Dossier
+                            </h3>
+                            <p class="onboarding-step-subtitle">
+                                Please inspect every detail and document below. Once you click <strong>Confirm &amp; Submit Application</strong> at the bottom, your dossier will be locked for Admin Compliance Review.
+                            </p>
+                        {% endif %}
                     </div>
 
                     <!-- Preview Card 1: Stage 1 -->
                     <div class="dossier-preview-card">
                         <div class="dossier-preview-header">
                             <h4><i class="fa-solid fa-user-shield text-primary"></i> 1. Personal &amp; Store Identity</h4>
-                            <a href="{% url 'accounts:provider_status' %}?edit_stage=1" class="action-btn btn-outline action-sm">
-                                <i class="fa-solid fa-pen"></i> Edit Stage 1
-                            </a>
+                            {% if not is_read_only_dossier %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=1" class="action-btn btn-outline action-sm">
+                                    <i class="fa-solid fa-pen"></i> Edit Stage 1
+                                </a>
+                            {% endif %}
                         </div>
                         <div class="dossier-preview-grid">
                             <div>
@@ -392,9 +400,11 @@
                     <div class="dossier-preview-card">
                         <div class="dossier-preview-header">
                             <h4><i class="fa-solid fa-id-card text-primary"></i> 2. Identity Verification (KYC)</h4>
-                            <a href="{% url 'accounts:provider_status' %}?edit_stage=2" class="action-btn btn-outline action-sm">
-                                <i class="fa-solid fa-pen"></i> Edit Stage 2
-                            </a>
+                            {% if not is_read_only_dossier %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=2" class="action-btn btn-outline action-sm">
+                                    <i class="fa-solid fa-pen"></i> Edit Stage 2
+                                </a>
+                            {% endif %}
                         </div>
                         <p class="text-13-muted mt-0 mb-10">
                             Selected ID Type: <strong class="text-14-dark">{{ profile.get_id_type_display|default:profile.id_type }}</strong>
@@ -419,9 +429,11 @@
                     <div class="dossier-preview-card">
                         <div class="dossier-preview-header">
                             <h4><i class="fa-solid fa-briefcase text-primary"></i> 3. Business Credentials</h4>
-                            <a href="{% url 'accounts:provider_status' %}?edit_stage=3" class="action-btn btn-outline action-sm">
-                                <i class="fa-solid fa-pen"></i> Edit Stage 3
-                            </a>
+                            {% if not is_read_only_dossier %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=3" class="action-btn btn-outline action-sm">
+                                    <i class="fa-solid fa-pen"></i> Edit Stage 3
+                                </a>
+                            {% endif %}
                         </div>
                         <div class="dossier-preview-grid">
                             <div class="full-grid-span">
@@ -449,9 +461,11 @@
                     <div class="dossier-preview-card">
                         <div class="dossier-preview-header">
                             <h4><i class="fa-solid fa-location-dot text-primary"></i> 4. Dispatch Location, GPS &amp; Store Photos</h4>
-                            <a href="{% url 'accounts:provider_status' %}?edit_stage=4" class="action-btn btn-outline action-sm">
-                                <i class="fa-solid fa-pen"></i> Edit Stage 4
-                            </a>
+                            {% if not is_read_only_dossier %}
+                                <a href="{% url 'accounts:provider_status' %}?edit_stage=4" class="action-btn btn-outline action-sm">
+                                    <i class="fa-solid fa-pen"></i> Edit Stage 4
+                                </a>
+                            {% endif %}
                         </div>
                         <div class="dossier-preview-grid mb-12">
                             <div>
@@ -485,28 +499,36 @@
                         </div>
                     </div>
 
-                    <!-- Final Confirmation & Lock Form -->
-                    <form method="POST" action="{% url 'accounts:provider_status' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="wizard_action" value="confirm_final_submission">
-
-                        <div class="legal-consent-box mt-15">
-                            <label class="legal-consent-label" for="confirmDossierAccuracy">
-                                <input type="checkbox" id="confirmDossierAccuracy" name="confirm_accuracy" required>
-                                <span>
-                                    I confirm that all personal details, KYC identification documents, business credentials, and store GPS coordinates above are true and accurate. *
-                                </span>
-                            </label>
+                    {% if is_read_only_dossier %}
+                        <div class="wizard-nav-actions mt-10">
+                            <a href="{% url 'accounts:provider_status' %}" class="action-btn btn-primary w-100 text-center">
+                                &larr; Back to Compliance Review Status
+                            </a>
                         </div>
+                    {% else %}
+                        <!-- Final Confirmation & Permanent Lock Form -->
+                        <form method="POST" action="{% url 'accounts:provider_status' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="wizard_action" value="confirm_final_submission">
 
-                        <button type="submit" class="action-btn btn-success w-100 mt-15 py-15 text-16 font-700-block">
-                            <i class="fa-solid fa-paper-plane icon-spaced"></i> Confirm &amp; Submit Application for Admin Review
-                        </button>
-                    </form>
+                            <div class="legal-consent-box mt-15">
+                                <label class="legal-consent-label" for="confirmDossierAccuracy">
+                                    <input type="checkbox" id="confirmDossierAccuracy" name="confirm_accuracy" required>
+                                    <span>
+                                        I confirm that all personal details, KYC identification documents, business credentials, and store GPS coordinates above are accurate. I understand that submitting will lock my application for Admin Compliance Review. *
+                                    </span>
+                                </label>
+                            </div>
+
+                            <button type="submit" class="action-btn btn-success w-100 mt-15 py-15 text-16 font-700-block">
+                                <i class="fa-solid fa-lock icon-spaced"></i> Confirm &amp; Submit Application for Admin Review
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
 
             <!-- ==========================================================
-                 PENDING ADMIN REVIEW (LOCKED AFTER PREVIEW CONFIRMATION)
+                 PENDING ADMIN REVIEW (LOCKED AFTER FINAL CONFIRMATION)
                  ========================================================== -->
             {% elif profile.verification_status == 'STAGE_4_LOCATION' %}
                 <div class="review-status-box">
@@ -514,16 +536,16 @@
                         <i class="fa-solid fa-shield-halved"></i>
                     </div>
                     <span class="otp-status-pill pill-unverified mb-10">
-                        <i class="fa-solid fa-clock"></i> Compliance Review in Progress
+                        <i class="fa-solid fa-lock"></i> Locked &bull; Compliance Review in Progress
                     </span>
                     <h3 class="checkout-section-title m-0">Your Dossier is Under Admin Review</h3>
                     <p class="review-text">
                         We have received your confirmed application dossier for <strong>{{ profile.business_name }}</strong>.
-                        You will receive an instant notification as soon as your profile is approved so you can link your payout bank account.
+                        Your submission is now locked while our compliance team verifies your documents. You will receive an instant notification as soon as your profile is approved so you can link your payout bank account.
                     </p>
                     <div class="flex-align-center justify-center gap-10 flex-wrap mt-20">
-                        <a href="{% url 'accounts:provider_status' %}?preview=1" class="action-btn btn-secondary action-sm">
-                            <i class="fa-regular fa-eye icon-spaced"></i> View / Edit Submitted Dossier
+                        <a href="{% url 'accounts:provider_status' %}?view_dossier=1" class="action-btn btn-secondary action-sm">
+                            <i class="fa-regular fa-eye icon-spaced"></i> View Submitted Dossier (Read-Only)
                         </a>
                         <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">
                             &larr; Return to Marketplace
@@ -579,7 +601,7 @@
                                     <input type="date" name="dob" class="form-control" value="{{ profile.dob|date:'Y-m-d' }}" required>
                                 </div>
                                 <div class="form-group">
-                                    <label>Residential Address *</label>
+                            <label>Residential Address *</label>
                                     <input type="text" name="residential_address" class="form-control" value="{{ profile.residential_address|default:'' }}" required>
                                 </div>
                             </div>
@@ -803,7 +825,7 @@
             {% endif %}
         </div>
 
-        <!-- RIGHT COLUMN: INTERACTIVE PROGRESS TIMELINE (CLICK TO EDIT COMPLETED STAGES) -->
+        <!-- RIGHT COLUMN: PROGRESS TIMELINE (EDIT LINKS ONLY BEFORE FINAL LOCK) -->
         <div class="summary-card status-card">
             <h3 class="tracker-title"><i class="fa-solid fa-list-check text-primary mr-5"></i> Verification Progress</h3>
             <div class="status-timeline">
@@ -816,7 +838,7 @@
                     <div class="step-content">
                         <div class="flex-between align-center gap-8">
                             <h4 class="step-title">1. Personal &amp; Contact</h4>
-                            {% if profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                            {% if can_edit_stages %}
                                 <a href="{% url 'accounts:provider_status' %}?edit_stage=1" class="timeline-edit-link">Edit</a>
                             {% endif %}
                         </div>
@@ -844,7 +866,7 @@
                     <div class="step-content">
                         <div class="flex-between align-center gap-8">
                             <h4 class="step-title">2. Identity (KYC)</h4>
-                            {% if completed_up_to >= 2 and profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                            {% if can_edit_stages and completed_up_to >= 2 %}
                                 <a href="{% url 'accounts:provider_status' %}?edit_stage=2" class="timeline-edit-link">Edit</a>
                             {% endif %}
                         </div>
@@ -872,7 +894,7 @@
                     <div class="step-content">
                         <div class="flex-between align-center gap-8">
                             <h4 class="step-title">3. Business Profile</h4>
-                            {% if completed_up_to >= 3 and profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                            {% if can_edit_stages and completed_up_to >= 3 %}
                                 <a href="{% url 'accounts:provider_status' %}?edit_stage=3" class="timeline-edit-link">Edit</a>
                             {% endif %}
                         </div>
@@ -900,7 +922,7 @@
                     <div class="step-content">
                         <div class="flex-between align-center gap-8">
                             <h4 class="step-title">4. Location &amp; GPS</h4>
-                            {% if completed_up_to >= 4 and profile.verification_status not in 'FLAGGED,APPROVED,ACTIVE' %}
+                            {% if can_edit_stages and completed_up_to >= 4 %}
                                 <a href="{% url 'accounts:provider_status' %}?edit_stage=4" class="timeline-edit-link">Edit</a>
                             {% endif %}
                         </div>
@@ -915,28 +937,27 @@
                 </div>
 
                 <!-- Timeline Step 5: Preview & Compliance Review -->
-                <div class="timeline-step {% if profile.verification_status == 'FLAGGED' %}flagged{% elif profile.verification_status in 'APPROVED,ACTIVE' %}completed{% elif profile.verification_status == 'STAGE_4_LOCATION' %}active{% endif %}">
+                <div class="timeline-step {% if profile.verification_status == 'FLAGGED' %}flagged{% elif profile.verification_status in 'APPROVED,ACTIVE' %}completed{% elif show_preview_dossier or profile.verification_status == 'STAGE_4_LOCATION' %}active{% endif %}">
                     <div class="step-indicator">
                         {% if profile.verification_status == 'FLAGGED' %}
                             <i class="fa-solid fa-triangle-exclamation"></i>
                         {% elif profile.verification_status in 'APPROVED,ACTIVE' %}
                             <i class="fa-solid fa-check"></i>
+                        {% elif profile.verification_status == 'STAGE_4_LOCATION' %}
+                            <i class="fa-solid fa-lock"></i>
                         {% else %}
                             <i class="fa-solid fa-magnifying-glass"></i>
                         {% endif %}
                     </div>
                     <div class="step-content">
-                        <div class="flex-between align-center gap-8">
-                            <h4 class="step-title">5. Preview &amp; Review</h4>
-                            {% if completed_up_to >= 4 and profile.verification_status == 'STAGE_4_LOCATION' and not show_preview_dossier %}
-                                <a href="{% url 'accounts:provider_status' %}?preview=1" class="timeline-edit-link">Preview</a>
-                            {% endif %}
-                        </div>
+                        <h4 class="step-title">5. Compliance Review</h4>
                         <p class="step-text">
                             {% if profile.verification_status == 'FLAGGED' %}
                                 <span class="text-danger font-600">Awaiting your corrections</span>
-                            {% elif show_preview_dossier %}
-                                <span class="text-primary font-600">Review &amp; confirm dossier</span>
+                            {% elif can_edit_stages and show_preview_dossier %}
+                                <span class="text-primary font-600">Confirm &amp; lock dossier</span>
+                            {% elif profile.verification_status == 'STAGE_4_LOCATION' %}
+                                <span class="text-primary font-600">Locked &bull; Under review</span>
                             {% else %}
                                 Admin KYC verification
                             {% endif %}

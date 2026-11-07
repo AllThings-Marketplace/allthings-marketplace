@@ -638,11 +638,17 @@ def apply_provider(request):
 @login_required
 def provider_status(request):
     """
-    Multi-Stage Provider Onboarding Wizard with:
-    1. Free Back-Navigation across completed stages (?edit_stage=1|2|3|4).
-    2. Full Application Preview Dossier (?preview=1) before locking for Admin Compliance Review.
-    3. Surgical Spot-Correction when Admin flags specific stages (FLAGGED).
-    4. Stage 5 Paystack NUBAN Bank Verification & Activation (APPROVED -> ACTIVE).
+    Multi-Stage Provider Onboarding Wizard:
+    - Pre-Submission ('STAGE_1_BASIC', 'STAGE_2_KYC', 'STAGE_3_BUSINESS'):
+      Allows free back-navigation (?edit_stage=1|2|3|4) and displays the editable
+      Final Application Preview Dossier once Stage 4 data is saved.
+    - Post-Submission ('STAGE_4_LOCATION'):
+      Strictly LOCKED for Admin Compliance Review. Zero edits permitted.
+      Applicants can only view the status screen or toggle a Read-Only Dossier (?view_dossier=1).
+    - Admin Flagged ('FLAGGED'):
+      Unlocks only the specific sections flagged by Compliance.
+    - Admin Approved ('APPROVED'):
+      Unlocks Stage 5 Paystack NUBAN Settlement Bank Verification.
     """
     if not hasattr(request.user, 'provider_profile'):
         return _safe_redirect('accounts:apply_provider', 'apply_provider')
@@ -652,34 +658,44 @@ def provider_status(request):
     if profile.verification_status == 'ACTIVE':
         return redirect('dashboard:provider_dashboard')
 
-    # Map current database status to the highest stage reached (1..4)
-    STAGE_PROGRESS_MAP = {
-        'STAGE_1_BASIC': 1,     # Completed Stage 1 -> Working on Stage 2
-        'STAGE_2_KYC': 2,       # Completed Stage 2 -> Working on Stage 3
-        'STAGE_3_BUSINESS': 3,  # Completed Stage 3 -> Working on Stage 4
-        'STAGE_4_LOCATION': 4,  # Completed all 4 stages -> Preview or Locked Admin Review
-    }
-    completed_up_to = STAGE_PROGRESS_MAP.get(profile.verification_status, 4)
+    # Determine whether Stage 4 fields have been saved on the profile
+    has_stage_4_data = bool(
+        profile.store_address and profile.exterior_image and profile.interior_image
+    )
 
-    # Track whether the applicant has confirmed their Final Preview Dossier
-    lock_session_key = f'allthings_dossier_locked_{profile.id}'
-    is_dossier_locked = bool(request.session.get(lock_session_key, False))
+    # Editing is strictly restricted to pre-submission statuses
+    PRE_SUBMISSION_STATUSES = ('STAGE_1_BASIC', 'STAGE_2_KYC', 'STAGE_3_BUSINESS')
+    can_edit_stages = profile.verification_status in PRE_SUBMISSION_STATUSES
 
-    # Allow editing earlier stages or reopening from the Review screen via ?edit_stage=1..4
+    if profile.verification_status == 'STAGE_1_BASIC':
+        completed_up_to = 1
+    elif profile.verification_status == 'STAGE_2_KYC':
+        completed_up_to = 2
+    elif profile.verification_status == 'STAGE_3_BUSINESS':
+        completed_up_to = 4 if has_stage_4_data else 3
+    else:
+        completed_up_to = 4
+
     requested_edit = request.GET.get('edit_stage', '').strip()
-    is_preview_requested = request.GET.get('preview') == '1'
+    view_readonly_requested = request.GET.get('view_dossier') == '1'
+
+    # Block any attempt to pass ?edit_stage= once locked in STAGE_4_LOCATION
+    if not can_edit_stages and requested_edit:
+        messages.warning(
+            request,
+            "Your application is locked for Admin Compliance Review and cannot be edited unless an administrator requests a correction."
+        )
+        return _safe_redirect('accounts:provider_status', 'provider_status')
 
     editing_stage = None
     show_preview_dossier = False
+    is_read_only_dossier = False
 
-    if profile.verification_status in STAGE_PROGRESS_MAP:
+    if can_edit_stages:
         if requested_edit in ('1', '2', '3', '4'):
             req_num = int(requested_edit)
-            # Allow editing any completed stage or the current next stage
             if req_num <= completed_up_to + 1:
                 editing_stage = req_num
-                request.session[lock_session_key] = False
-                is_dossier_locked = False
 
         if not editing_stage:
             if profile.verification_status == 'STAGE_1_BASIC':
@@ -687,11 +703,14 @@ def provider_status(request):
             elif profile.verification_status == 'STAGE_2_KYC':
                 editing_stage = 3
             elif profile.verification_status == 'STAGE_3_BUSINESS':
-                editing_stage = 4
-            elif profile.verification_status == 'STAGE_4_LOCATION':
-                # Show Final Preview Dossier if not yet locked or if ?preview=1 was requested
-                if is_preview_requested or not is_dossier_locked:
+                if has_stage_4_data:
                     show_preview_dossier = True
+                else:
+                    editing_stage = 4
+
+    elif profile.verification_status == 'STAGE_4_LOCATION' and view_readonly_requested:
+        show_preview_dossier = True
+        is_read_only_dossier = True
 
     # Defensive fallback for Admin FLAGGED status
     active_flagged_sections = (
@@ -704,17 +723,31 @@ def provider_status(request):
         submitted_action = request.POST.get('wizard_action', '').strip()
 
         try:
-            # A. FINAL DOSSIER LOCK & SUBMISSION FOR ADMIN REVIEW
-            if submitted_action == 'confirm_final_submission' and profile.verification_status == 'STAGE_4_LOCATION':
-                request.session[lock_session_key] = True
+            # Guard: Block any stage edit POST if already locked in STAGE_4_LOCATION
+            if profile.verification_status == 'STAGE_4_LOCATION':
+                raise ValidationError(
+                    "Your application is already submitted and locked for Admin Compliance Review."
+                )
+
+            # A. FINAL DOSSIER CONFIRMATION & PERMANENT LOCK FOR ADMIN REVIEW
+            if submitted_action == 'confirm_final_submission' and can_edit_stages:
+                if not (profile.id_type and profile.id_document and profile.selfie_image):
+                    raise ValidationError("Please complete Stage 2 (Identity KYC) before final submission.")
+                if not profile.business_description:
+                    raise ValidationError("Please complete Stage 3 (Business Credentials) before final submission.")
+                if not has_stage_4_data:
+                    raise ValidationError("Please complete Stage 4 (Store Location & Photos) before final submission.")
+
+                profile.verification_status = 'STAGE_4_LOCATION'
+                profile.save(update_fields=['verification_status'])
                 messages.success(
                     request,
-                    f"Application dossier for {profile.business_name} confirmed and submitted for Admin Compliance Review!"
+                    f"Application dossier for {profile.business_name} is now locked and submitted for Admin Compliance Review!"
                 )
                 return _safe_redirect('accounts:provider_status', 'provider_status')
 
-            # B. STAGE 1 EDIT (Legal Name, DOB, Residential Address, Store Name, Specialty)
-            elif submitted_action == 'save_stage_1' and profile.verification_status in STAGE_PROGRESS_MAP:
+            # B. STAGE 1 EDIT (Only allowed while can_edit_stages is True)
+            elif submitted_action == 'save_stage_1' and can_edit_stages:
                 first_name = request.POST.get('first_name', '').strip()
                 last_name = request.POST.get('last_name', '').strip()
                 business_name = request.POST.get('business_name', '').strip()
@@ -740,12 +773,10 @@ def provider_status(request):
                     profile.save()
 
                 messages.success(request, "Stage 1 (Personal & Store Profile) saved!")
-                if profile.verification_status == 'STAGE_4_LOCATION':
-                    return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
                 return _safe_redirect('accounts:provider_status', 'provider_status')
 
             # C. STAGE 2 SAVE / EDIT: Identity Verification (KYC)
-            elif (submitted_action == 'save_stage_2' or profile.verification_status == 'STAGE_1_BASIC') and profile.verification_status in STAGE_PROGRESS_MAP:
+            elif (submitted_action == 'save_stage_2' or profile.verification_status == 'STAGE_1_BASIC') and can_edit_stages:
                 id_type = request.POST.get('id_type', '').strip() or profile.id_type
                 id_doc = request.FILES.get('id_document')
                 selfie_img = request.FILES.get('selfie_image')
@@ -770,12 +801,10 @@ def provider_status(request):
                 profile.save()
 
                 messages.success(request, "Stage 2 (Identity KYC) saved!")
-                if profile.verification_status == 'STAGE_4_LOCATION':
-                    return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
                 return _safe_redirect('accounts:provider_status', 'provider_status')
 
             # D. STAGE 3 SAVE / EDIT: Business Credentials
-            elif (submitted_action == 'save_stage_3' or profile.verification_status == 'STAGE_2_KYC') and profile.verification_status in STAGE_PROGRESS_MAP:
+            elif (submitted_action == 'save_stage_3' or profile.verification_status == 'STAGE_2_KYC') and can_edit_stages:
                 business_desc = request.POST.get('business_description', '').strip()
                 if not business_desc:
                     raise ValidationError("Please provide a description of your store or service expertise.")
@@ -792,12 +821,10 @@ def provider_status(request):
                 profile.save()
 
                 messages.success(request, "Stage 3 (Business Credentials) saved!")
-                if profile.verification_status == 'STAGE_4_LOCATION':
-                    return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
                 return _safe_redirect('accounts:provider_status', 'provider_status')
 
-            # E. STAGE 4 SAVE / EDIT: Physical Store / Base Location Pinning -> Routes to Final Preview Dossier
-            elif (submitted_action == 'save_stage_4' or profile.verification_status == 'STAGE_3_BUSINESS') and profile.verification_status in STAGE_PROGRESS_MAP:
+            # E. STAGE 4 SAVE / EDIT: Saves Location & Photos, Keeps Status in STAGE_3_BUSINESS for Final Preview
+            elif (submitted_action == 'save_stage_4' or profile.verification_status == 'STAGE_3_BUSINESS') and can_edit_stages:
                 region = request.POST.get('region', '').strip() or profile.region
                 store_address = request.POST.get('store_address', '').strip()
                 if not (region and store_address):
@@ -830,13 +857,15 @@ def provider_status(request):
                     profile.latitude = lat_raw
                     profile.longitude = lon_raw
 
-                profile.verification_status = 'STAGE_4_LOCATION'
+                # Keep status in STAGE_3_BUSINESS until the user confirms the Final Preview Dossier
+                profile.verification_status = 'STAGE_3_BUSINESS'
                 profile.save()
 
-                # Route to the Final Preview Dossier so the applicant can review everything before locking
-                request.session[lock_session_key] = False
-                messages.info(request, "Stage 4 saved! Please review your complete application dossier below and click Confirm & Submit.")
-                return _safe_redirect('accounts:provider_status', 'provider_status', 'preview=1')
+                messages.info(
+                    request,
+                    "All 4 stages saved! Please review your complete application dossier below. Once you click Confirm & Submit, your application will be locked for Admin Review."
+                )
+                return _safe_redirect('accounts:provider_status', 'provider_status')
 
             # F. SURGICAL SPOT-CORRECTION HANDLER (When Admin Flags Specific Sections)
             elif profile.verification_status == 'FLAGGED':
@@ -932,9 +961,8 @@ def provider_status(request):
                     profile.admin_review_note = ''
                     profile.verification_status = 'STAGE_4_LOCATION'
                     profile.save()
-                    request.session[lock_session_key] = True
 
-                messages.success(request, "Your corrections have been submitted! Your dossier is back under admin review.")
+                messages.success(request, "Your corrections have been submitted and locked for Admin Compliance Review.")
 
             # G. STAGE 5: Paystack Bank NUBAN Resolution & Account Activation
             elif profile.verification_status == 'APPROVED':
@@ -1008,7 +1036,7 @@ def provider_status(request):
         except ValidationError as e:
             error_msg = e.messages[0] if hasattr(e, 'messages') else str(e)
             messages.error(request, error_msg)
-            if editing_stage:
+            if editing_stage and can_edit_stages:
                 return _safe_redirect('accounts:provider_status', 'provider_status', f'edit_stage={editing_stage}')
             return _safe_redirect('accounts:provider_status', 'provider_status')
 
@@ -1016,10 +1044,11 @@ def provider_status(request):
 
     context = {
         'profile': profile,
+        'can_edit_stages': can_edit_stages,
         'editing_stage': editing_stage,
         'completed_up_to': completed_up_to,
         'show_preview_dossier': show_preview_dossier,
-        'is_dossier_locked': is_dossier_locked,
+        'is_read_only_dossier': is_read_only_dossier,
         'active_flagged_sections': active_flagged_sections,
     }
     if profile.verification_status == 'APPROVED':
