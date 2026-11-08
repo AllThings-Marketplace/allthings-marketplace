@@ -1,10 +1,17 @@
 /* ==========================================================================
-   ALLTHINGS GUIDED SPOTLIGHT TOUR & SETUP CHECKLIST (tour.css v1.2)
+   ALLTHINGS GUIDED SPOTLIGHT TOUR & SETUP CHECKLIST (tour.css v1.3)
    ========================================================================== */
 
 /* Reserve extra scroll space at the bottom of the page while a tour is active */
 body.tour-running {
-    padding-bottom: 260px !important;
+    padding-bottom: 280px !important;
+}
+
+/* Compact button modifier used across tour, header, and onboarding controls */
+.action-btn.action-sm {
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 8px;
 }
 
 /* 1. Welcome Prompt Banner (Non-Intrusive Top Card) */
@@ -99,29 +106,29 @@ body.tour-running {
     box-sizing: border-box;
 }
 
-/* 3. Floating Tour Tooltip Card */
+/* 3. Floating Tour Tooltip Card (Immune to global.css transform overrides) */
 .tour-tooltip-card {
     position: fixed;
-    left: 50%;
+    left: 16px;
+    right: 16px;
     bottom: 18px;
-    transform: translateX(-50%);
-    width: calc(100% - 24px);
+    margin: 0 auto;
+    width: auto;
     max-width: 420px;
     background: #ffffff;
     color: #0f172a;
-    border: 1px solid #93c5fd;
+    border: 1.5px solid #60a5fa;
     border-radius: 16px;
     padding: 18px 20px;
     z-index: 1720;
-    box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.55);
+    box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.6);
     box-sizing: border-box;
-    transition: top 0.25s ease, bottom 0.25s ease;
 }
 
-/* If the target is at the very bottom of the screen, dock tooltip near the top */
+/* When target is in the lower half of the viewport, dock tooltip below navbar */
 .tour-tooltip-card.dock-top {
     bottom: auto;
-    top: 16px;
+    top: 84px;
 }
 
 .tour-tooltip-top {
@@ -152,7 +159,7 @@ body.tour-running {
     border: none;
     color: #64748b;
     font-size: 12.5px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 6px;
@@ -194,7 +201,133 @@ body.tour-running {
     margin-left: auto;
 }
 
-@media (max-width: 640px) {
+/* 4. Provider Setup Checklist Card */
+.setup-checklist-card {
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+    border-left: 5px solid #2563eb;
+    border-radius: 16px;
+    padding: 22px 24px;
+    margin-top: 20px;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.05);
+    box-sizing: border-box;
+}
+
+.setup-checklist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.setup-checklist-title {
+    margin: 0;
+    font-size: 16.5px;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setup-checklist-subtitle {
+    margin: 4px 0 0 0;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.setup-progress-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.setup-progress-pill {
+    font-size: 12px;
+    font-weight: 800;
+    color: #1d4ed8;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 5px 12px;
+    border-radius: 999px;
+}
+
+.setup-progress-track {
+    width: 100%;
+    height: 8px;
+    background-color: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.setup-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb 0%, #10b981 100%);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+}
+
+.progress-w-0 { width: 0%; }
+.progress-w-20 { width: 20%; }
+.progress-w-40 { width: 40%; }
+.progress-w-60 { width: 60%; }
+.progress-w-80 { width: 80%; }
+.progress-w-100 { width: 100%; }
+
+.setup-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+}
+
+.setup-step-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    text-decoration: none;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 600;
+    transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.setup-step-item:hover {
+    border-color: #93c5fd;
+    background-color: #eff6ff;
+}
+
+.setup-step-item.is-completed {
+    background-color: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #15803d;
+}
+
+.setup-step-left {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.setup-step-check {
+    font-size: 15px;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.setup-step-item.is-completed .setup-step-check {
+    color: #16a34a;
+}
+
+/* 5. Mobile Viewport Adjustments */
+@media (max-width: 768px) {
     .tour-welcome-card {
         padding: 16px;
         gap: 14px;
@@ -224,10 +357,16 @@ body.tour-running {
     }
 
     .tour-tooltip-card {
-        bottom: 12px;
-        width: calc(100% - 20px);
-        padding: 16px;
+        left: 12px;
+        right: 12px;
+        bottom: 14px;
+        padding: 15px 16px;
         border-radius: 14px;
+    }
+
+    .tour-tooltip-card.dock-top {
+        top: 122px;
+        bottom: auto;
     }
 
     .tour-tooltip-title {
@@ -242,5 +381,13 @@ body.tour-running {
     .tour-tooltip-footer .action-btn {
         padding: 8px 14px;
         font-size: 13px;
+    }
+
+    .setup-checklist-card {
+        padding: 16px;
+    }
+
+    .setup-steps-grid {
+        grid-template-columns: 1fr;
     }
 }

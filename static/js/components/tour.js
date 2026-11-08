@@ -170,21 +170,33 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!activeTargetEl || !spotlightRingEl) return;
 
         const rect = activeTargetEl.getBoundingClientRect();
-        const pad = window.innerWidth <= 640 ? 6 : 8;
-        const maxWinW = window.innerWidth;
+        const isMobile = window.innerWidth <= 768;
+        const pad = isMobile ? 5 : 8;
+        const maxWinW = document.documentElement.clientWidth || window.innerWidth;
         const maxWinH = window.innerHeight;
 
-        const left = Math.max(4, rect.left - pad);
-        const top = Math.max(4, rect.top - pad);
-        const width = Math.min(maxWinW - left - 4, rect.width + pad * 2);
-        // Clamp spotlight height on mobile if an element is taller than 45% of the screen
-        const maxAllowedHeight = window.innerWidth <= 768 ? Math.round(maxWinH * 0.45) : maxWinH - 20;
-        const height = Math.min(maxAllowedHeight, rect.height + pad * 2);
+        const left = Math.max(6, Math.round(rect.left - pad));
+        const top = Math.max(6, Math.round(rect.top - pad));
+        const width = Math.max(40, Math.min(maxWinW - left - 6, Math.round(rect.width + pad * 2)));
+        // Clamp spotlight height on mobile if an element is taller than 40% of the screen
+        const maxAllowedHeight = isMobile ? Math.round(maxWinH * 0.40) : maxWinH - 20;
+        const height = Math.max(28, Math.min(maxAllowedHeight, Math.round(rect.height + pad * 2)));
 
         spotlightRingEl.style.left = `${left}px`;
         spotlightRingEl.style.top = `${top}px`;
         spotlightRingEl.style.width = `${width}px`;
         spotlightRingEl.style.height = `${height}px`;
+
+        if (tooltipEl) {
+            const tooltipHeight = tooltipEl.offsetHeight || 195;
+            const bottomSafeBoundary = maxWinH - tooltipHeight - 24;
+            // Dock tooltip near the top only if the highlighted target overlaps the bottom tooltip zone
+            if ((top + height) > bottomSafeBoundary && top > (tooltipHeight + 36)) {
+                tooltipEl.classList.add('dock-top');
+            } else {
+                tooltipEl.classList.remove('dock-top');
+            }
+        }
     }
 
     function scrollTargetIntoMobileSafeZone(targetEl) {
@@ -202,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const rect = targetEl.getBoundingClientRect();
         const absoluteElementTop = window.pageYOffset + rect.top;
         // Position the target comfortably below the sticky navbar and well above the bottom tooltip card
-        const topClearance = navHeight + 22;
+        const topClearance = navHeight + 18;
         const targetScrollY = Math.max(0, absoluteElementTop - topClearance);
 
         window.scrollTo({
@@ -249,7 +261,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.appendChild(spotlightRingEl);
 
         tooltipEl = document.createElement('aside');
-        tooltipEl.className = 'tour-tooltip-card animate-fade-in';
+        // Do NOT add animate-fade-in here because global.css sets transform: none !important on mobile
+        tooltipEl.className = 'tour-tooltip-card';
         tooltipEl.setAttribute('role', 'dialog');
         tooltipEl.setAttribute('aria-live', 'polite');
         document.body.appendChild(tooltipEl);
@@ -265,12 +278,6 @@ document.addEventListener('DOMContentLoaded', function () {
         function renderStep(idx) {
             const step = steps[idx];
             activeTargetEl = step.element;
-
-            scrollTargetIntoMobileSafeZone(activeTargetEl);
-            updateSpotlightPosition();
-            // Update again after smooth scroll settles
-            setTimeout(updateSpotlightPosition, 220);
-            setTimeout(updateSpotlightPosition, 450);
 
             const isFirst = idx === 0;
             const isLast = idx === steps.length - 1;
@@ -295,6 +302,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
             `;
+
+            scrollTargetIntoMobileSafeZone(activeTargetEl);
+            updateSpotlightPosition();
+            // Recalculate after smooth scroll settles on mobile devices
+            setTimeout(updateSpotlightPosition, 160);
+            setTimeout(updateSpotlightPosition, 340);
+            setTimeout(updateSpotlightPosition, 520);
 
             const skipBtn = document.getElementById('tourSkipBtn');
             const prevBtn = document.getElementById('tourPrevBtn');
