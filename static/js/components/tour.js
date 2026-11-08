@@ -3,11 +3,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const PROVIDER_TOUR_KEY = 'allthings_provider_tour_done_v1';
     const CHECKLIST_DISMISSED_KEY = 'allthings_setup_checklist_hidden_v1';
 
-    const welcomeBanner = document.getElementById('tourWelcomeBanner');
-    const startWelcomeTourBtn = document.getElementById('startWelcomeTourBtn');
-    const dismissWelcomeTourBtn = document.getElementById('dismissWelcomeTourBtn');
-    const manualTourTriggers = document.querySelectorAll('.js-start-guided-tour');
-
     // === 1. Role-Aware Tour Step Definitions (With Mobile Fallbacks) ===
     const TOUR_SETS = {
         customer: [
@@ -19,22 +14,24 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             {
                 selector: '.trust-strip',
+                mobileSelector: '.main-container',
                 badge: 'Escrow Protection',
                 title: '100% Escrow-Protected Shopping',
-                body: 'Your money is held safely in AllThings Escrow and released to the vendor only after you inspect your delivery and share your 6-digit PIN.'
+                body: 'Your payment is held safely in AllThings Escrow and released to the vendor only after you inspect your delivery and share your 6-digit PIN.'
             },
             {
                 selector: '#marketplaceSidebar',
-                mobileSelector: '#mobileFilterToggleBtn',
+                mobileSelector: '#mobileFilterToggleBtn, #mobileMenuBtn',
                 badge: 'Departments & Filters',
                 title: 'Browse Products & Service Categories',
                 body: 'Filter by Physical Products or Professional Services, set your NGN budget, or drill down into specific departments.'
             },
             {
                 selector: '.sourcing-home-callout',
+                mobileSelector: '.nav-links',
                 badge: 'Custom Sourcing',
                 title: "Can't Find an Item? Request It",
-                body: 'Post what you need and verified AllThings vendors and service professionals will pitch matching offers to you.'
+                body: 'Use "Request What You Need" to post custom requests and let verified AllThings vendors and professionals pitch offers to you.'
             },
             {
                 selector: '.nav-cart-wrapper',
@@ -45,8 +42,15 @@ document.addEventListener('DOMContentLoaded', function () {
         ],
         vendor: [
             {
-                selector: '.kpi-grid',
+                selector: '#providerSetupChecklist',
+                mobileSelector: '.dashboard-header',
                 badge: 'Vendor Tour',
+                title: 'Complete Your Store Setup Checklist',
+                body: 'Track your 5 core store milestones here so your products rank higher in AllThings search results.'
+            },
+            {
+                selector: '.kpi-grid',
+                badge: 'Escrow Wallet',
                 title: 'Track Escrow & Cleared Earnings',
                 body: 'Paid customer orders appear in "Locked in Escrow" first and move to "Available for Withdrawal" as soon as the buyer confirms their 6-digit Delivery PIN.'
             },
@@ -73,8 +77,15 @@ document.addEventListener('DOMContentLoaded', function () {
         ],
         service: [
             {
-                selector: '.kpi-grid',
+                selector: '#providerSetupChecklist',
+                mobileSelector: '.dashboard-header',
                 badge: 'Service Pro Tour',
+                title: 'Complete Your Practice Setup',
+                body: 'Finish your 5 setup milestones so clients in your state can discover and book your services.'
+            },
+            {
+                selector: '.kpi-grid',
+                badge: 'Escrow Wallet',
                 title: 'Escrow-Backed Service Earnings',
                 body: 'Clients fund escrow before you begin work. Once the job is confirmed completed, your earnings unlock for instant bank withdrawal.'
             },
@@ -86,16 +97,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: 'Publish your service packages, travel radius, included scope of work, and portfolio photos.'
             },
             {
-                selector: '[data-section="services"]',
-                badge: 'Bookings & Quotes',
-                title: 'Manage Bookings & Send Custom Quotes',
-                body: 'Accept scheduled bookings, chat securely with clients in-app, or send itemized Labor + Materials custom quotes.'
-            },
-            {
-                selector: '[data-section="leads"]',
-                badge: 'Buyer Leads',
-                title: 'Win New Clients from Buyer Requests',
-                body: 'Browse open customer requests in your region and pitch your approved service listing directly.'
+                selector: '#dashboardTabsBar',
+                badge: 'Bookings & Leads',
+                title: 'Manage Bookings, Quotes & Buyer Leads',
+                body: 'Switch tabs to accept scheduled bookings, send itemized Labor + Materials custom quotes, or pitch your services to open Buyer Leads.'
             }
         ]
     };
@@ -150,7 +155,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function startGuidedTour(forceRole) {
         cleanupTourDOM();
-        if (welcomeBanner) welcomeBanner.classList.add('hidden-initial');
+        const banner = document.getElementById('tourWelcomeBanner');
+        if (banner) banner.classList.add('hidden-initial');
 
         const role = forceRole || detectCurrentTourRole();
         const storageKey = role === 'customer' ? CUSTOMER_TOUR_KEY : PROVIDER_TOUR_KEY;
@@ -236,32 +242,71 @@ document.addEventListener('DOMContentLoaded', function () {
         renderStep(0);
     }
 
-    // === 3. Show Non-Intrusive Welcome Banner on First Visit ===
-    if (welcomeBanner) {
-        const role = detectCurrentTourRole();
-        const storageKey = role === 'customer' ? CUSTOMER_TOUR_KEY : PROVIDER_TOUR_KEY;
-        let alreadySeen = false;
-        try {
-            alreadySeen = localStorage.getItem(storageKey) === 'true';
-        } catch (e) {}
+    // === 3. Auto-Inject or Show Non-Intrusive Welcome Banner on First Visit ===
+    const role = detectCurrentTourRole();
+    const storageKey = role === 'customer' ? CUSTOMER_TOUR_KEY : PROVIDER_TOUR_KEY;
+    const isHomePage = window.location.pathname === '/' && !window.location.search;
+    const isProviderDashboard = Boolean(document.getElementById('providerDashboardRoot'));
 
-        if (!alreadySeen) {
-            welcomeBanner.classList.remove('hidden-initial');
-        }
+    let alreadySeen = false;
+    try {
+        alreadySeen = localStorage.getItem(storageKey) === 'true';
+    } catch (e) {}
 
-        if (startWelcomeTourBtn) {
-            startWelcomeTourBtn.addEventListener('click', () => startGuidedTour(role));
-        }
+    let welcomeBanner = document.getElementById('tourWelcomeBanner');
 
-        if (dismissWelcomeTourBtn) {
-            dismissWelcomeTourBtn.addEventListener('click', () => {
-                try { localStorage.setItem(storageKey, 'true'); } catch (e) {}
-                welcomeBanner.classList.add('hidden-initial');
-            });
+    if (!alreadySeen && !welcomeBanner && (isHomePage || isProviderDashboard)) {
+        const mainContainer = document.querySelector('.main-container');
+        if (mainContainer) {
+            welcomeBanner = document.createElement('div');
+            welcomeBanner.id = 'tourWelcomeBanner';
+            welcomeBanner.className = 'tour-welcome-card';
+            const titleText = isProviderDashboard
+                ? 'Welcome to Your Provider Command Center! 🚀'
+                : 'Welcome to AllThings! 👋 Everything you need, all in one place.';
+            const subText = isProviderDashboard
+                ? 'Take a quick 30-second tour to see how escrow payouts, order PINs, custom service quotes, and buyer leads work.'
+                : 'Discover quality products, book KYC-verified service professionals, or request hard-to-find items—100% protected by AllThings Escrow.';
+
+            welcomeBanner.innerHTML = `
+                <div class="tour-welcome-left">
+                    <span class="tour-welcome-icon"><i class="fa-solid fa-compass"></i></span>
+                    <div>
+                        <h3 class="tour-welcome-title">${titleText}</h3>
+                        <p class="tour-welcome-text">${subText}</p>
+                    </div>
+                </div>
+                <div class="tour-welcome-actions">
+                    <button type="button" id="startWelcomeTourBtn" class="action-btn btn-primary action-sm">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Take a Quick Tour
+                    </button>
+                    <button type="button" id="dismissWelcomeTourBtn" class="action-btn btn-outline action-sm">
+                        ${isProviderDashboard ? 'Dismiss' : 'Explore AllThings'}
+                    </button>
+                </div>
+            `;
+            mainContainer.insertBefore(welcomeBanner, mainContainer.firstChild);
         }
+    } else if (welcomeBanner && !alreadySeen) {
+        welcomeBanner.classList.remove('hidden-initial');
     }
 
-    // Manual "Take a Quick Tour" Triggers in Navbar, Mobile Drawer & Footer
+    const startWelcomeTourBtn = document.getElementById('startWelcomeTourBtn');
+    const dismissWelcomeTourBtn = document.getElementById('dismissWelcomeTourBtn');
+
+    if (startWelcomeTourBtn) {
+        startWelcomeTourBtn.addEventListener('click', () => startGuidedTour(role));
+    }
+
+    if (dismissWelcomeTourBtn) {
+        dismissWelcomeTourBtn.addEventListener('click', () => {
+            try { localStorage.setItem(storageKey, 'true'); } catch (e) {}
+            if (welcomeBanner) welcomeBanner.classList.add('hidden-initial');
+        });
+    }
+
+    // Manual "Take a Guided Tour" / "Portal Tour" Triggers
+    const manualTourTriggers = document.querySelectorAll('.js-start-guided-tour');
     manualTourTriggers.forEach(btn => {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
