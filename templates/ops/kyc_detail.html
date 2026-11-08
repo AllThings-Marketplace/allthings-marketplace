@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Inspect Dossier: {{ profile.business_name }} | AllThings Ops{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in" style="max-width: 900px; margin: 40px auto; padding: 0 15px;">
+    <div class="dashboard-header flex-between mb-20">
+        <div>
+            <h1 class="section-heading checkout-page-title m-0">{{ profile.business_name }}</h1>
+            <p class="section-subtitle">Submitted by {{ profile.user.get_full_name }} ({{ profile.user.email }} &bull; {{ profile.phone }})</p>
+        </div>
+        <a href="{% url 'ops:kyc_list' %}" class="action-btn btn-outline action-sm">
+            &larr; Back to Queue
+        </a>
+    </div>
+
+    <!-- Dossier Summary Grid -->
+    <div class="summary-card mb-20">
+        <h3 class="checkout-section-title mt-0">1. Personal &amp; Business Profile</h3>
+        <div class="dossier-preview-grid">
+            <div>
+                <span class="dossier-meta-label">Legal Name</span>
+                <strong class="dossier-meta-value">{{ profile.user.get_full_name }}</strong>
+            </div>
+            <div>
+                <span class="dossier-meta-label">Date of Birth &amp; Residence</span>
+                <strong class="dossier-meta-value">{{ profile.dob|date:"M d, Y" }} &bull; {{ profile.residential_address }}</strong>
+            </div>
+            <div>
+                <span class="dossier-meta-label">Operating Model &amp; Category</span>
+                <strong class="dossier-meta-value">{{ profile.get_provider_type_display }} &bull; {{ profile.business_category }}</strong>
+            </div>
+            <div>
+                <span class="dossier-meta-label">CAC Registration Number</span>
+                <strong class="dossier-meta-value">{{ profile.cac_registration_number|default:"Not Provided" }}</strong>
+            </div>
+            <div class="full-grid-span">
+                <span class="dossier-meta-label">Business Description</span>
+                <p class="dossier-bio-preview">{{ profile.business_description }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary-card mb-20">
+        <h3 class="checkout-section-title mt-0">2. Identity Verification (KYC) &amp; Store Location</h3>
+        <div class="dossier-preview-grid mb-15">
+            <div>
+                <span class="dossier-meta-label">Government ID Type</span>
+                <strong class="dossier-meta-value">{{ profile.get_id_type_display|default:profile.id_type }}</strong>
+            </div>
+            <div>
+                <span class="dossier-meta-label">Store Street Address &amp; State</span>
+                <strong class="dossier-meta-value">{{ profile.store_address }}, {{ profile.region }}</strong>
+            </div>
+        </div>
+
+        <div class="dossier-media-row">
+            {% if profile.id_document %}
+                <a href="{{ profile.id_document.url }}" target="_blank" class="dossier-media-chip">
+                    <i class="fa-solid fa-file-shield text-primary"></i> View ID Document &nearr;
+                </a>
+            {% endif %}
+            {% if profile.business_certificate %}
+                <a href="{{ profile.business_certificate.url }}" target="_blank" class="dossier-media-chip">
+                    <i class="fa-solid fa-file-contract text-blue"></i> View CAC Certificate &nearr;
+                </a>
+            {% endif %}
+            {% if profile.selfie_image %}
+                <div class="dossier-thumb-box">
+                    <img src="{{ profile.selfie_image.url }}" alt="Selfie" class="dossier-thumb-img">
+                    <span>Live Selfie</span>
+                </div>
+            {% endif %}
+            {% if profile.exterior_image %}
+                <div class="dossier-thumb-box">
+                    <img src="{{ profile.exterior_image.url }}" alt="Exterior" class="dossier-thumb-img">
+                    <span>Exterior</span>
+                </div>
+            {% endif %}
+            {% if profile.interior_image %}
+                <div class="dossier-thumb-box">
+                    <img src="{{ profile.interior_image.url }}" alt="Interior" class="dossier-thumb-img">
+                    <span>Interior</span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Compliance Decision Form -->
+    <div class="summary-card">
+        <h3 class="checkout-section-title mt-0">Compliance Decision</h3>
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label>Admin Review Note (Required if flagging for correction)</label>
+                <textarea name="admin_note" class="form-control" rows="3" placeholder="Explain what needs correction (e.g., ID photo is blurry, name mismatch)..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Select Sections to Flag (If requesting corrections)</label>
+                <div class="flex-wrap gap-15 mt-5">
+                    <label><input type="checkbox" name="flagged_sections" value="STAGE_1"> Stage 1: Personal &amp; Profile</label>
+                    <label><input type="checkbox" name="flagged_sections" value="STAGE_2"> Stage 2: Government ID &amp; Selfie</label>
+                    <label><input type="checkbox" name="flagged_sections" value="STAGE_3"> Stage 3: Business Credentials</label>
+                    <label><input type="checkbox" name="flagged_sections" value="STAGE_4"> Stage 4: Location &amp; Store Photos</label>
+                </div>
+            </div>
+
+            <div class="flex-align-center gap-10 mt-20">
+                <button type="submit" name="action" value="approve" class="action-btn btn-success flex-grow-1">
+                    <i class="fa-solid fa-circle-check"></i> Approve Dossier (Unlock Stage 5 Bank Setup)
+                </button>
+                <button type="submit" name="action" value="flag" class="action-btn btn-danger flex-grow-1">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Flag Sections for Correction
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

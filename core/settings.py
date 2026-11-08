@@ -96,6 +96,7 @@ INSTALLED_APPS = [
     'feedback',
     'notifications',
     'dashboard',
+    'ops',
 ]
 
 SITE_ID = int(os.environ.get('SITE_ID', 1))

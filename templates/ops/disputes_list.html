@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Escrow Disputes &amp; Support Tickets | AllThings Ops{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in" style="max-width: 1000px; margin: 40px auto; padding: 0 15px;">
+    <div class="dashboard-header flex-between mb-20">
+        <div>
+            <h1 class="section-heading checkout-page-title m-0">Active Escrow Disputes &amp; Tickets</h1>
+            <p class="section-subtitle">Arbitrate open support tickets and frozen escrow transactions.</p>
+        </div>
+        <a href="{% url 'ops:overview' %}" class="action-btn btn-outline action-sm">
+            &larr; Back to Ops Hub
+        </a>
+    </div>
+
+    <div class="summary-card p-0">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Ticket &amp; Category</th>
+                        <th>User / Customer</th>
+                        <th>Priority &amp; Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                        <tr>
+                            <td>
+                                <strong class="display-block">{{ ticket.ticket_reference }} &bull; {{ ticket.subject }}</strong>
+                                <span class="text-12-muted">{{ ticket.get_category_display }} &bull; Created {{ ticket.created_at|timesince }} ago</span>
+                            </td>
+                            <td>
+                                {{ ticket.user.get_full_name|default:ticket.user.username }}
+                                <span class="text-12-muted block">{{ ticket.user.email }}</span>
+                            </td>
+                            <td>
+                                <span class="status-badge {% if ticket.priority == 'URGENT' %}badge-danger{% else %}badge-pending{% endif %} badge-sm">
+                                    {{ ticket.get_priority_display }}
+                                </span>
+                                <span class="status-badge badge-accepted badge-sm ml-5">{{ ticket.get_status_display }}</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'orders:ticket_detail' ticket.ticket_reference %}" class="action-btn btn-primary action-sm">
+                                    <i class="fa-solid fa-scale-balanced"></i> Arbitrate Ticket
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="table-empty-cell">No active escrow disputes or open support tickets. Great job!</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

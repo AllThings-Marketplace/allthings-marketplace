@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}AllThings Operations Command Center{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in" style="max-width: 1000px; margin: 40px auto; padding: 0 15px;">
+    <div class="dashboard-header flex-between mb-30">
+        <div>
+            <span class="sell-eyebrow">PLATFORM ADMINISTRATION</span>
+            <h1 class="section-heading checkout-page-title mt-5">Operations &amp; Compliance Center</h1>
+            <p class="section-subtitle">Review vendor KYC dossiers, moderate new product/service listings, and arbitrate escrow disputes.</p>
+        </div>
+        <a href="{% url 'admin:index' %}" class="action-btn btn-dark action-sm" target="_blank">
+            <i class="fa-solid fa-database icon-spaced"></i> Django Admin Vault &nearr;
+        </a>
+    </div>
+
+    <div class="kpi-grid">
+        <a href="{% url 'ops:kyc_list' %}" class="summary-card kpi-card no-underline">
+            <div class="kpi-icon-wrapper pending-bg"><i class="fa-solid fa-id-card"></i></div>
+            <div>
+                <p class="kpi-label">Pending KYC Dossiers</p>
+                <h3 class="kpi-value text-blue">{{ pending_kyc_count }}</h3>
+            </div>
+        </a>
+
+        <a href="{% url 'ops:listing_list' %}" class="summary-card kpi-card no-underline">
+            <div class="kpi-icon-wrapper neutral-bg"><i class="fa-solid fa-box-open"></i></div>
+            <div>
+                <p class="kpi-label">Pending Listings</p>
+                <h3 class="kpi-value text-blue">{{ pending_listings_count }}</h3>
+            </div>
+        </a>
+
+        <a href="{% url 'ops:disputes_list' %}" class="summary-card kpi-card no-underline">
+            <div class="kpi-icon-wrapper {% if active_disputes_count > 0 %}pending-bg{% else %}success-bg{% endif %}">
+                <i class="fa-solid fa-scale-balanced"></i>
+            </div>
+            <div>
+                <p class="kpi-label">Active Escrow Disputes</p>
+                <h3 class="kpi-value {% if active_disputes_count > 0 %}text-orange{% endif %}">{{ active_disputes_count }}</h3>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

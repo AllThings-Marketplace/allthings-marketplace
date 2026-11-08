@@ -12,6 +12,8 @@ urlpatterns = [
     
     # Dedicated vendor command center
     path('dashboard/', include('dashboard.urls')),
+
+    path('ops/', include('ops.urls', namespace='ops')),
     
     # Core Apps
     path('orders/', include('orders.urls')),

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}KYC Compliance Queue | AllThings Ops{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in" style="max-width: 1000px; margin: 40px auto; padding: 0 15px;">
+    <div class="dashboard-header flex-between mb-20">
+        <div>
+            <h1 class="section-heading checkout-page-title m-0">KYC Compliance Queue</h1>
+            <p class="section-subtitle">Vendors and service providers awaiting store activation.</p>
+        </div>
+        <a href="{% url 'ops:overview' %}" class="action-btn btn-outline action-sm">
+            &larr; Back to Ops Hub
+        </a>
+    </div>
+
+    <div class="summary-card p-0">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Store &amp; Applicant</th>
+                        <th>Type &amp; Specialty</th>
+                        <th>Submitted Location</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dossier in dossiers %}
+                        <tr>
+                            <td>
+                                <strong class="display-block">{{ dossier.business_name }}</strong>
+                                <span class="text-12-muted">{{ dossier.user.get_full_name|default:dossier.user.username }} &bull; {{ dossier.user.email }}</span>
+                            </td>
+                            <td>
+                                <span class="shipping-tier-pill">{{ dossier.get_provider_type_display }}</span>
+                                <span class="text-12-muted block mt-5">{{ dossier.business_category }}</span>
+                            </td>
+                            <td>
+                                <i class="fa-solid fa-location-dot text-primary"></i> {{ dossier.store_address }}, {{ dossier.region }}
+                            </td>
+                            <td>
+                                <a href="{% url 'ops:kyc_detail' dossier.id %}" class="action-btn btn-primary action-sm">
+                                    <i class="fa-solid fa-magnifying-glass"></i> Inspect Dossier
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="table-empty-cell">No pending KYC dossiers to review. All caught up!</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
