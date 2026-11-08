@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=2.1">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
 {% endblock %}
 
 {% block content %}
@@ -95,18 +95,23 @@
                                 <small class="text-12-muted block">Item Subtotal</small>
                             </td>
                             <td>
-                                <strong class="display-block">{{ item.order.first_name }} {{ item.order.last_name }}</strong>
+                                <strong class="display-block">{{ item.order.first_name }} {{ item.order.last_name|slice:":1" }}.</strong>
                                 <span class="text-12-muted display-block mt-5">
-                                    <i class="fa-solid fa-phone"></i> {{ item.order.phone }}
-                                    {% if item.order.whatsapp %} &bull; <i class="fa-brands fa-whatsapp text-success"></i> {{ item.order.whatsapp }}{% endif %}
+                                    <i class="fa-solid fa-shield-halved text-primary"></i>
+                                    {% if item.order.phone %}
+                                        {{ item.order.phone|slice:":4" }}&bull;&bull;&bull;&bull;{{ item.order.phone|slice:"-3:" }}
+                                    {% else %}
+                                        Protected
+                                    {% endif %}
+                                    <small>(Shared with Courier)</small>
                                 </span>
                                 <span class="text-12-muted display-block mt-5">
                                     <i class="fa-solid fa-location-dot text-danger"></i>
-                                    {{ item.order.street_address }}{% if item.order.city %}, {{ item.order.city }}{% endif %}, {{ item.order.region }}
+                                    {% if item.order.city %}{{ item.order.city }}, {% endif %}{{ item.order.region }}
                                 </span>
                                 {% if item.order.landmark %}
                                     <span class="text-12-muted display-block mt-5">
-                                        <i class="fa-solid fa-map-pin"></i> Landmark: <em>{{ item.order.landmark }}</em>
+                                        <i class="fa-solid fa-map-pin"></i> Area: <em>{{ item.order.landmark }}</em>
                                     </span>
                                 {% endif %}
                             </td>
@@ -181,5 +186,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}?v=3.3"></script>
 {% endblock %}

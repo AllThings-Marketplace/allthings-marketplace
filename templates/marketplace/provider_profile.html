@@ -2,6 +2,18 @@
 {% load static %}
 {% load humanize %}
 
+{% block title %}{{ provider.business_name }} — Verified {{ provider.get_provider_type_display }} | AllThings Marketplace{% endblock %}
+{% block meta_description %}{{ provider.business_description|striptags|truncatechars:150|default:provider.business_name }} &bull; Verified {{ provider.get_provider_type_display }} in {{ provider.region|default:"Nigeria" }} with {{ provider.trust_score }}% Trust Score on AllThings.{% endblock %}
+{% block og_type %}profile{% endblock %}
+{% block og_title %}{{ provider.business_name }} ({{ provider.trust_score }}% Trust Score) | AllThings{% endblock %}
+{% block og_description %}{{ provider.business_description|striptags|truncatechars:140|default:provider.business_name }} &bull; Shop &amp; book with 100% AllThings Escrow protection in {{ provider.region|default:"Nigeria" }}.{% endblock %}
+{% block twitter_title %}{{ provider.business_name }} — Verified on AllThings{% endblock %}
+{% block twitter_description %}{{ provider.business_description|striptags|truncatechars:140|default:provider.business_name }} &bull; 100% Escrow Protected.{% endblock %}
+
+{% block og_image %}{% if provider.exterior_image %}{% if '://' in provider.exterior_image.url %}{{ provider.exterior_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ provider.exterior_image.url }}{% endif %}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endif %}{% endblock %}
+
+{% block twitter_image %}{% if provider.exterior_image %}{% if '://' in provider.exterior_image.url %}{{ provider.exterior_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ provider.exterior_image.url }}{% endif %}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endif %}{% endblock %}
+
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/provider.css' %}?v=2.6">
 {% endblock %}

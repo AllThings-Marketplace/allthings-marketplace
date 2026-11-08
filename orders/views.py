@@ -23,6 +23,7 @@ from .models import (
     SupportTicket, TicketMessage
 )
 from marketplace.models import Product, Service, ProductVariant, ServicePackage, UserInteraction
+from marketplace.validators import inspect_listing_safety
 from .paystack import PaystackAPI
 from .tasks import trigger_escrow_auto_clear_if_due
 from .utils import (
@@ -359,8 +360,21 @@ def process_service_booking(request, service_id):
     if request.method == 'POST':
         preferred_date = request.POST.get('preferred_date')
         preferred_time = request.POST.get('preferred_time')
-        service_location = request.POST.get('service_location')
-        customer_notes = request.POST.get('customer_notes', '')
+        service_location = request.POST.get('service_location', '').strip()
+        customer_notes = request.POST.get('customer_notes', '').strip()
+
+        # Anti-leakage guardrail: block phone numbers, emails, WhatsApp links, and bank details in pre-escrow booking notes
+        if customer_notes:
+            is_flagged, _ = inspect_listing_safety(
+                title="Service Booking Notes",
+                description=customer_notes,
+            )
+            if is_flagged:
+                messages.error(
+                    request,
+                    "For your escrow protection, please do not include phone numbers, WhatsApp links, email addresses, or bank details in your booking notes."
+                )
+                return redirect('marketplace:service_detail', slug=service.slug)
 
         agreed_price = service.base_price or 0.00
         selected_package = None
@@ -1053,6 +1067,23 @@ def send_order_message(request, order_id):
         body = request.POST.get('body', '').strip()
         attachment = request.FILES.get('attachment')
 
+        # Anti-leakage guardrail: block phone numbers, WhatsApp links, emails, and bank account details in Order Chat
+        if body:
+            is_flagged, _ = inspect_listing_safety(
+                title="Order Chat Message",
+                description=body,
+                provider=order.provider if is_provider else None,
+            )
+            if is_flagged:
+                err_msg = (
+                    "For your escrow protection, sharing phone numbers, WhatsApp links, email addresses, "
+                    "or personal bank details is not permitted in order chat."
+                )
+                if _is_ajax(request):
+                    return JsonResponse({'status': 'error', 'error': err_msg, 'message': err_msg}, status=400)
+                messages.error(request, err_msg)
+                return redirect('orders:order_chat', order_id=order.id)
+
         if body or attachment:
             message = OrderMessage.objects.create(
                 order=order,
@@ -1071,7 +1102,7 @@ def send_order_message(request, order_id):
                 notif_type='MESSAGE'
             )
 
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            if _is_ajax(request):
                 return JsonResponse({
                     'status': 'success',
                     'body': message.body,
