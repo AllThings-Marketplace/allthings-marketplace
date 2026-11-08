@@ -3,11 +3,11 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
 {% endblock %}
 
 {% block content %}
-<div class="animate-fade-in">
+<div class="animate-fade-in" id="providerDashboardRoot" data-provider-type="{{ profile.provider_type }}">
     <!-- Top Executive Header -->
     <div class="dashboard-header flex-between">
         <div>
@@ -27,19 +27,19 @@
         
         <div class="dashboard-actions">
             {% if profile.provider_type in 'VENDOR,BOTH' %}
-                <a href="{% url 'dashboard:vendor_orders' %}" class="action-btn btn-outline action-sm">
+                <a href="{% url 'dashboard:vendor_orders' %}" class="action-btn btn-outline action-sm" id="tourStoreOrdersBtn">
                     <i class="fa-solid fa-box-archive icon-spaced"></i> Store Orders
                     {% if pending_store_orders_count > 0 %}
                         <span class="nav-count-pill pill-danger">{{ pending_store_orders_count }}</span>
                     {% endif %}
                 </a>
-                <a href="{% url 'dashboard:add_product' %}" class="action-btn btn-primary action-sm">
+                <a href="{% url 'dashboard:add_product' %}" class="action-btn btn-primary action-sm" id="tourAddProductBtn">
                     <i class="fa-solid fa-plus icon-spaced"></i> Add Product
                 </a>
             {% endif %}
             
             {% if profile.provider_type in 'SERVICE,BOTH' %}
-                <a href="{% url 'dashboard:add_service' %}" class="action-btn btn-primary action-sm">
+                <a href="{% url 'dashboard:add_service' %}" class="action-btn btn-primary action-sm" id="tourAddServiceBtn">
                     <i class="fa-solid fa-briefcase icon-spaced"></i> Add Service
                 </a>
             {% endif %}
@@ -51,12 +51,99 @@
             <a href="{% url 'dashboard:provider_settings' %}" class="action-btn btn-outline action-sm">
                 <i class="fa-solid fa-sliders icon-spaced"></i> Store Settings
             </a>
+
+            <button type="button" class="action-btn btn-secondary action-sm js-start-guided-tour">
+                <i class="fa-solid fa-compass icon-spaced"></i> Portal Tour
+            </button>
             
             <a href="{% url 'orders:support_center' %}" class="action-btn btn-outline action-sm">
                 <i class="fa-solid fa-headset icon-spaced"></i> Support
             </a>
         </div>
     </div>
+
+    <!-- ==========================================
+         PERSISTENT PROVIDER SETUP CHECKLIST
+         ========================================== -->
+    <section id="providerSetupChecklist" class="setup-checklist-card">
+        <div class="setup-checklist-header">
+            <div>
+                <h3 class="setup-checklist-title">
+                    <i class="fa-solid fa-list-check text-primary"></i> Complete Your Store &amp; Practice Setup
+                </h3>
+                <p class="setup-checklist-subtitle">
+                    Finish these 5 milestones to maximize your visibility in AllThings search results.
+                </p>
+            </div>
+            <div class="setup-progress-meta">
+                <span id="setupProgressText" class="setup-progress-pill">Checking progress...</span>
+                <button type="button" id="dismissSetupChecklistBtn" class="tour-skip-btn" title="Hide checklist">
+                    Dismiss
+                </button>
+            </div>
+        </div>
+
+        <div class="setup-progress-track">
+            <div id="setupProgressFill" class="setup-progress-fill progress-w-0"></div>
+        </div>
+
+        <div class="setup-steps-grid">
+            <!-- Step 1: Storefront Banner Photo -->
+            <a href="{% url 'dashboard:provider_settings' %}" class="setup-step-item {% if profile.exterior_image %}is-completed{% endif %}">
+                <div class="setup-step-left">
+                    <i class="fa-solid {% if profile.exterior_image %}fa-circle-check{% else %}fa-circle{% endif %} setup-step-check"></i>
+                    <span>Storefront Cover Photo</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-12-muted"></i>
+            </a>
+
+            <!-- Step 2: Business Bio & Specialty -->
+            <a href="{% url 'dashboard:provider_settings' %}" class="setup-step-item {% if profile.business_description and profile.business_category %}is-completed{% endif %}">
+                <div class="setup-step-left">
+                    <i class="fa-solid {% if profile.business_description and profile.business_category %}fa-circle-check{% else %}fa-circle{% endif %} setup-step-check"></i>
+                    <span>Store Bio &amp; Specialty</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-12-muted"></i>
+            </a>
+
+            <!-- Step 3: Dispatch Hub & GPS Location -->
+            <a href="{% url 'dashboard:provider_settings' %}" class="setup-step-item {% if profile.store_address and profile.region %}is-completed{% endif %}">
+                <div class="setup-step-left">
+                    <i class="fa-solid {% if profile.store_address and profile.region %}fa-circle-check{% else %}fa-circle{% endif %} setup-step-check"></i>
+                    <span>Dispatch Base &amp; GPS Pin</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-12-muted"></i>
+            </a>
+
+            <!-- Step 4: Verified Payout Bank -->
+            <a href="{% url 'dashboard:provider_settings' %}" class="setup-step-item {% if profile.account_number and profile.bank_code %}is-completed{% endif %}">
+                <div class="setup-step-left">
+                    <i class="fa-solid {% if profile.account_number and profile.bank_code %}fa-circle-check{% else %}fa-circle{% endif %} setup-step-check"></i>
+                    <span>Verified Payout Bank</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-12-muted"></i>
+            </a>
+
+            <!-- Step 5: First Published Product or Service Listing -->
+            {% if profile.provider_type == 'SERVICE' %}
+                <a href="{% url 'dashboard:add_service' %}" class="setup-step-item {% if my_services %}is-completed{% endif %}">
+                    <div class="setup-step-left">
+                        <i class="fa-solid {% if my_services %}fa-circle-check{% else %}fa-circle{% endif %} setup-step-check"></i>
+                        <span>Publish First Service</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-12-muted"></i>
+                </a>
+            {% else %}
+                <a href="{% url 'dashboard:add_product' %}" class="setup-step-item {% if products or my_services %}is-completed{% endif %}">
+                    <div class="setup-step-left">
+                        <i class="fa-solid {% if products or my_services %}fa-circle-check{% else %}fa-circle{% endif %} setup-step-check"></i>
+                        <span>Add First Product</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-12-muted"></i>
+                </a>
+            {% endif %}
+        </div>
+    </section>
 
     <!-- Priority Action Banners (Disputes, Paid Store Orders) -->
     {% if active_disputes %}
@@ -262,7 +349,6 @@
                         </div>
                     </div>
                     
-                    <!-- Action Controls -->
                     <div class="flex-between align-start w-100 border-top-light pt-15 mt-5 flex-wrap gap-15">
                         <div class="flex-align-center gap-10">
                             <form method="POST" action="{% url 'dashboard:decline_service_request' req.id %}">
@@ -412,7 +498,7 @@
             {% endfor %}
         </div>
 
-        <!-- 4. My Published Services (With Moderation Status & Notes) -->
+        <!-- 4. My Published Services -->
         <div class="flex-between align-center mt-40 mb-15">
             <h3 class="checkout-section-title m-0">My Listed Services ({{ my_services|length }})</h3>
             <a href="{% url 'dashboard:add_service' %}" class="action-btn btn-outline action-sm">
@@ -696,5 +782,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}?v=3.2"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}?v=3.3"></script>
 {% endblock %}
