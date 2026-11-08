@@ -3,18 +3,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const PROVIDER_TOUR_KEY = 'allthings_provider_tour_done_v1';
     const CHECKLIST_DISMISSED_KEY = 'allthings_setup_checklist_hidden_v1';
 
-    // === 1. Role-Aware Tour Step Definitions (With Mobile Fallbacks) ===
+    // === 1. Role-Aware Tour Step Definitions (Desktop & Compact Mobile Targets) ===
     const TOUR_SETS = {
         customer: [
             {
                 selector: '#globalSearchForm',
+                mobileSelector: '#globalSearchForm',
                 badge: 'Customer Tour',
                 title: 'Find Products & Professionals Fast',
                 body: 'Search by product name, brand, budget (e.g. "solar inverter under 250k"), or service specialty across Nigeria.'
             },
             {
                 selector: '.trust-strip',
-                mobileSelector: '.main-container',
+                mobileSelector: '.trust-strip, .feed-greeting-box',
                 badge: 'Escrow Protection',
                 title: '100% Escrow-Protected Shopping',
                 body: 'Your payment is held safely in AllThings Escrow and released to the vendor only after you inspect your delivery and share your 6-digit PIN.'
@@ -24,17 +25,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 mobileSelector: '#mobileFilterToggleBtn, #mobileMenuBtn',
                 badge: 'Departments & Filters',
                 title: 'Browse Products & Service Categories',
-                body: 'Filter by Physical Products or Professional Services, set your NGN budget, or drill down into specific departments.'
+                body: 'Tap the menu or filter button to browse Product and Service departments, set your NGN budget, or filter by rating.'
             },
             {
                 selector: '.sourcing-home-callout',
-                mobileSelector: '.nav-links',
+                mobileSelector: '.sourcing-home-callout, #mobileMenuBtn',
                 badge: 'Custom Sourcing',
                 title: "Can't Find an Item? Request It",
-                body: 'Use "Request What You Need" to post custom requests and let verified AllThings vendors and professionals pitch offers to you.'
+                body: 'Post what you need and verified AllThings vendors and service professionals will pitch matching offers to you.'
             },
             {
                 selector: '.nav-cart-wrapper',
+                mobileSelector: '.nav-cart-wrapper',
                 badge: 'Checkout & PINs',
                 title: 'Compare Live Courier Rates at Checkout',
                 body: 'Add items to your cart to compare live delivery rates from AllThings Express, GIG Logistics, and Inter-State Waybill.'
@@ -43,33 +45,35 @@ document.addEventListener('DOMContentLoaded', function () {
         vendor: [
             {
                 selector: '#providerSetupChecklist',
-                mobileSelector: '.dashboard-header',
+                mobileSelector: '.setup-checklist-header',
                 badge: 'Vendor Tour',
                 title: 'Complete Your Store Setup Checklist',
                 body: 'Track your 5 core store milestones here so your products rank higher in AllThings search results.'
             },
             {
                 selector: '.kpi-grid',
+                mobileSelector: '.kpi-card:first-child',
                 badge: 'Escrow Wallet',
                 title: 'Track Escrow & Cleared Earnings',
-                body: 'Paid customer orders appear in "Locked in Escrow" first and move to "Available for Withdrawal" as soon as the buyer confirms their 6-digit Delivery PIN.'
+                body: 'Paid customer orders appear in "Locked in Escrow" first and move to "Available for Withdrawal" once the buyer confirms their 6-digit Delivery PIN.'
             },
             {
                 selector: '#tourStoreOrdersBtn',
-                mobileSelector: '.dashboard-actions',
+                mobileSelector: '#tourStoreOrdersBtn, .dashboard-actions',
                 badge: 'Order Fulfillment',
                 title: 'Accept Orders & Dispatch with Pickup PINs',
                 body: 'Open Store Orders to accept paid items, mark packages Ready for Pickup, and hand them to the courier using your 6-digit Pickup PIN.'
             },
             {
                 selector: '#tourAddProductBtn',
-                mobileSelector: '.dashboard-actions',
+                mobileSelector: '#tourAddProductBtn, .dashboard-actions',
                 badge: 'Add Inventory',
                 title: 'Publish Products with Studio Photo AI',
                 body: 'Upload up to 6 photos per product. Our smart category guesser and background processor prepare your listing automatically.'
             },
             {
                 selector: '#dashboardTabsBar',
+                mobileSelector: '#dashboardTabsBar',
                 badge: 'Workspace Tabs',
                 title: 'Switch Between Catalog, Buyer Leads & Payouts',
                 body: 'Use these workspace tabs to filter your product catalog, pitch products to open Buyer Leads, or withdraw cleared funds to your Nigerian bank.'
@@ -78,26 +82,28 @@ document.addEventListener('DOMContentLoaded', function () {
         service: [
             {
                 selector: '#providerSetupChecklist',
-                mobileSelector: '.dashboard-header',
+                mobileSelector: '.setup-checklist-header',
                 badge: 'Service Pro Tour',
                 title: 'Complete Your Practice Setup',
                 body: 'Finish your 5 setup milestones so clients in your state can discover and book your services.'
             },
             {
                 selector: '.kpi-grid',
+                mobileSelector: '.kpi-card:first-child',
                 badge: 'Escrow Wallet',
                 title: 'Escrow-Backed Service Earnings',
                 body: 'Clients fund escrow before you begin work. Once the job is confirmed completed, your earnings unlock for instant bank withdrawal.'
             },
             {
                 selector: '#tourAddServiceBtn',
-                mobileSelector: '.dashboard-actions',
+                mobileSelector: '#tourAddServiceBtn, .dashboard-actions',
                 badge: 'Service Listings',
                 title: 'List Fixed, Package, or Custom Quote Services',
                 body: 'Publish your service packages, travel radius, included scope of work, and portfolio photos.'
             },
             {
                 selector: '#dashboardTabsBar',
+                mobileSelector: '#dashboardTabsBar',
                 badge: 'Bookings & Leads',
                 title: 'Manage Bookings, Quotes & Buyer Leads',
                 body: 'Switch tabs to accept scheduled bookings, send itemized Labor + Materials custom quotes, or pitch your services to open Buyer Leads.'
@@ -112,16 +118,32 @@ document.addEventListener('DOMContentLoaded', function () {
         return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
     }
 
+    function pickVisibleElement(selectorList) {
+        if (!selectorList) return null;
+        const parts = selectorList.split(',').map(s => s.trim()).filter(Boolean);
+        for (let i = 0; i < parts.length; i++) {
+            const candidate = document.querySelector(parts[i]);
+            if (isElementVisible(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
     function resolveActiveSteps(roleKey) {
         const rawSteps = TOUR_SETS[roleKey] || TOUR_SETS.customer;
+        const isMobile = window.innerWidth <= 768;
         const resolved = [];
 
         rawSteps.forEach(step => {
-            let targetEl = document.querySelector(step.selector);
-            if (!isElementVisible(targetEl) && step.mobileSelector) {
-                targetEl = document.querySelector(step.mobileSelector);
+            let targetEl = null;
+            if (isMobile && step.mobileSelector) {
+                targetEl = pickVisibleElement(step.mobileSelector);
             }
-            if (isElementVisible(targetEl)) {
+            if (!targetEl) {
+                targetEl = pickVisibleElement(step.selector);
+            }
+            if (targetEl) {
                 resolved.push({ ...step, element: targetEl });
             }
         });
@@ -138,19 +160,74 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'customer';
     }
 
-    // === 2. Interactive Spotlight Runner ===
+    // === 2. Fixed Viewport Spotlight Runner (Mobile & Desktop Safe) ===
     let activeTargetEl = null;
+    let spotlightRingEl = null;
     let tooltipEl = null;
+    let BoundRepositionHandler = null;
+
+    function updateSpotlightPosition() {
+        if (!activeTargetEl || !spotlightRingEl) return;
+
+        const rect = activeTargetEl.getBoundingClientRect();
+        const pad = window.innerWidth <= 640 ? 6 : 8;
+        const maxWinW = window.innerWidth;
+        const maxWinH = window.innerHeight;
+
+        const left = Math.max(4, rect.left - pad);
+        const top = Math.max(4, rect.top - pad);
+        const width = Math.min(maxWinW - left - 4, rect.width + pad * 2);
+        // Clamp spotlight height on mobile if an element is taller than 45% of the screen
+        const maxAllowedHeight = window.innerWidth <= 768 ? Math.round(maxWinH * 0.45) : maxWinH - 20;
+        const height = Math.min(maxAllowedHeight, rect.height + pad * 2);
+
+        spotlightRingEl.style.left = `${left}px`;
+        spotlightRingEl.style.top = `${top}px`;
+        spotlightRingEl.style.width = `${width}px`;
+        spotlightRingEl.style.height = `${height}px`;
+    }
+
+    function scrollTargetIntoMobileSafeZone(targetEl) {
+        if (!targetEl) return;
+
+        const navbar = document.querySelector('.navbar');
+        const isInsideNavbar = navbar && navbar.contains(targetEl);
+
+        if (isInsideNavbar) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
+        const navHeight = navbar ? navbar.offsetHeight : 72;
+        const rect = targetEl.getBoundingClientRect();
+        const absoluteElementTop = window.pageYOffset + rect.top;
+        // Position the target comfortably below the sticky navbar and well above the bottom tooltip card
+        const topClearance = navHeight + 22;
+        const targetScrollY = Math.max(0, absoluteElementTop - topClearance);
+
+        window.scrollTo({
+            top: targetScrollY,
+            behavior: 'smooth'
+        });
+    }
 
     function cleanupTourDOM() {
-        if (activeTargetEl) {
-            activeTargetEl.classList.remove('tour-active-target');
-            activeTargetEl = null;
+        document.body.classList.remove('tour-running');
+
+        if (BoundRepositionHandler) {
+            window.removeEventListener('scroll', BoundRepositionHandler, { passive: true });
+            window.removeEventListener('resize', BoundRepositionHandler);
+            BoundRepositionHandler = null;
+        }
+        if (spotlightRingEl) {
+            spotlightRingEl.remove();
+            spotlightRingEl = null;
         }
         if (tooltipEl) {
             tooltipEl.remove();
             tooltipEl = null;
         }
+        activeTargetEl = null;
     }
 
     function startGuidedTour(forceRole) {
@@ -164,7 +241,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (steps.length === 0) return;
 
-        let currentIndex = 0;
+        document.body.classList.add('tour-running');
+
+        spotlightRingEl = document.createElement('div');
+        spotlightRingEl.id = 'tourSpotlightRing';
+        spotlightRingEl.className = 'tour-spotlight-ring';
+        document.body.appendChild(spotlightRingEl);
 
         tooltipEl = document.createElement('aside');
         tooltipEl.className = 'tour-tooltip-card animate-fade-in';
@@ -172,15 +254,23 @@ document.addEventListener('DOMContentLoaded', function () {
         tooltipEl.setAttribute('aria-live', 'polite');
         document.body.appendChild(tooltipEl);
 
-        function renderStep(idx) {
-            if (activeTargetEl) {
-                activeTargetEl.classList.remove('tour-active-target');
-            }
+        BoundRepositionHandler = function () {
+            window.requestAnimationFrame(updateSpotlightPosition);
+        };
+        window.addEventListener('scroll', BoundRepositionHandler, { passive: true });
+        window.addEventListener('resize', BoundRepositionHandler);
 
+        let currentIndex = 0;
+
+        function renderStep(idx) {
             const step = steps[idx];
             activeTargetEl = step.element;
-            activeTargetEl.classList.add('tour-active-target');
-            activeTargetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            scrollTargetIntoMobileSafeZone(activeTargetEl);
+            updateSpotlightPosition();
+            // Update again after smooth scroll settles
+            setTimeout(updateSpotlightPosition, 220);
+            setTimeout(updateSpotlightPosition, 450);
 
             const isFirst = idx === 0;
             const isLast = idx === steps.length - 1;
@@ -196,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <p class="tour-tooltip-body">${step.body}</p>
                 <div class="tour-tooltip-footer">
                     <button type="button" class="action-btn btn-outline action-sm ${isFirst ? 'hidden-initial' : ''}" id="tourPrevBtn">
-                        &larr; Previous
+                        &larr; Back
                     </button>
                     <div class="tour-nav-btns">
                         <button type="button" class="action-btn btn-primary action-sm" id="tourNextBtn">
