@@ -2,6 +2,18 @@
 {% load static %}
 {% load humanize %}
 
+{% block title %}{{ service.name }} — {{ service.provider.business_name }} | AllThings Marketplace{% endblock %}
+{% block meta_description %}{{ service.description|striptags|truncatechars:155|default:service.name }} — Book {{ service.provider.business_name }} on AllThings with 100% Escrow protection.{% endblock %}
+{% block og_type %}website{% endblock %}
+{% block og_title %}{{ service.name }} | {{ service.provider.business_name }}{% endblock %}
+{% block og_description %}{{ service.description|striptags|truncatechars:140|default:service.name }} &bull; KYC Verified Professional in {{ service.provider.region|default:"Nigeria" }}.{% endblock %}
+{% block twitter_title %}{{ service.name }} | {{ service.provider.business_name }}{% endblock %}
+{% block twitter_description %}{{ service.description|striptags|truncatechars:140|default:service.name }} &bull; Book with AllThings Escrow protection.{% endblock %}
+
+{% block og_image %}{% if service.cover_image %}{% if '://' in service.cover_image.url %}{{ service.cover_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ service.cover_image.url }}{% endif %}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endif %}{% endblock %}
+
+{% block twitter_image %}{% if service.cover_image %}{% if '://' in service.cover_image.url %}{{ service.cover_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ service.cover_image.url }}{% endif %}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endif %}{% endblock %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/pages/service-detail.css' %}?v=2.6">
 {% endblock %}
@@ -310,7 +322,7 @@
 
                 <div class="booking-escrow-note mt-15">
                     <i class="fa-solid fa-shield-halved text-primary"></i>
-                    <span><strong>Zero Upfront Risk:</strong> You are not charged until the engineer accepts your schedule. Funds stay locked in Escrow until you confirm job completion.</span>
+                    <span><strong>Zero Upfront Risk:</strong> You are not charged until the professional accepts your schedule. Funds stay locked in Escrow until you confirm job completion.</span>
                 </div>
             </div>
         </div>

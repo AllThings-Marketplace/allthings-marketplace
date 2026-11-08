@@ -5,16 +5,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AllThings | Products &amp; Professional Services Marketplace{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Shop quality products, book KYC-verified service professionals, and request custom items across Nigeria—100% protected by AllThings Escrow.{% endblock %}">
+
+    <!-- Favicon & App Icons -->
+    <link rel="icon" type="image/svg+xml" href="{% static 'images/all-things-emblem.svg' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/all-things-emblem.svg' %}">
+    <meta name="theme-color" content="#0f172a">
+
+    <!-- WhatsApp, Facebook & LinkedIn OpenGraph Meta Tags -->
+    <meta property="og:site_name" content="AllThings Marketplace">
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}AllThings | Products &amp; Professional Services Marketplace{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Discover verified retail vendors and certified service professionals across Nigeria—backed by 100% Escrow protection and 6-digit PIN delivery handshakes.{% endblock %}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endblock %}">
+
+    <!-- X (Twitter) Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}AllThings | Products &amp; Professional Services Marketplace{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Products and professional expertise, all in one place. 100% Escrow-protected shopping across Nigeria.{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endblock %}">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.4">
+    <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.5">
     <link rel="stylesheet" href="{% static 'css/core/utilities.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/buttons.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/forms.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/notifications.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/modal.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/cookie-consent.css' %}?v=1.1">
-    <link rel="stylesheet" href="{% static 'css/components/tour.css' %}?v=1.1">
+    <link rel="stylesheet" href="{% static 'css/components/tour.css' %}?v=1.2">
     
     {% block extra_css %}{% endblock %}
 </head>
@@ -466,7 +487,7 @@
     <script src="{% static 'js/components/modal.js' %}"></script>
     <script src="{% static 'js/components/auth_guard.js' %}"></script>
     <script src="{% static 'js/components/cookie_consent.js' %}?v=1.1"></script>
-    <script src="{% static 'js/components/tour.js' %}?v=1.1"></script>
+    <script src="{% static 'js/components/tour.js' %}?v=1.2"></script>
     
     {% block extra_js %}{% endblock %}
 </body>

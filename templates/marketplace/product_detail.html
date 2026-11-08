@@ -2,6 +2,18 @@
 {% load static %}
 {% load humanize %}
 
+{% block title %}{{ product.name }} — NGN {{ product.price|floatformat:0|intcomma }} | AllThings Marketplace{% endblock %}
+{% block meta_description %}{{ product.description|striptags|truncatechars:155|default:product.name }} — Sold by {{ product.provider.business_name }} with 100% AllThings Escrow protection.{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_title %}{{ product.name }} — NGN {{ product.price|floatformat:0|intcomma }}{% endblock %}
+{% block og_description %}{{ product.description|striptags|truncatechars:140|default:product.name }} &bull; Verified Vendor: {{ product.provider.business_name }} ({{ product.provider.region|default:"Nigeria" }}).{% endblock %}
+{% block twitter_title %}{{ product.name }} — NGN {{ product.price|floatformat:0|intcomma }}{% endblock %}
+{% block twitter_description %}{{ product.description|striptags|truncatechars:140|default:product.name }} &bull; 100% Escrow Protected on AllThings.{% endblock %}
+
+{% block og_image %}{% with first_img=gallery_images.first %}{% if first_img and first_img.processed_image %}{% if '://' in first_img.processed_image.url %}{{ first_img.processed_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ first_img.processed_image.url }}{% endif %}{% elif first_img and first_img.original_image %}{% if '://' in first_img.original_image.url %}{{ first_img.original_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ first_img.original_image.url }}{% endif %}{% elif product.image %}{% if '://' in product.image.url %}{{ product.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ product.image.url }}{% endif %}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endif %}{% endwith %}{% endblock %}
+
+{% block twitter_image %}{% with first_img=gallery_images.first %}{% if first_img and first_img.processed_image %}{% if '://' in first_img.processed_image.url %}{{ first_img.processed_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ first_img.processed_image.url }}{% endif %}{% elif first_img and first_img.original_image %}{% if '://' in first_img.original_image.url %}{{ first_img.original_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ first_img.original_image.url }}{% endif %}{% elif product.image %}{% if '://' in product.image.url %}{{ product.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ product.image.url }}{% endif %}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endif %}{% endwith %}{% endblock %}
+
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/product-detail.css' %}?v=4.7">
 {% endblock %}
