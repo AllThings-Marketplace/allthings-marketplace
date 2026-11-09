@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from django.db.models import Sum, Q
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -67,7 +67,7 @@ def ops_overview(request):
 
     recent_kyc_queue = ProviderProfile.objects.filter(
         verification_status='STAGE_4_LOCATION'
-    ).select_related('user').order_by('-created_at')[:5]
+    ).select_related('user').order_by('-applied_at', '-id')[:5]
 
     recent_disputes = SupportTicket.objects.filter(
         status__in=['OPEN', 'IN_PROGRESS']
@@ -98,7 +98,7 @@ def kyc_moderation_list(request):
     if status_filter not in valid_statuses:
         status_filter = 'STAGE_4_LOCATION'
 
-    qs = ProviderProfile.objects.select_related('user').order_by('-created_at')
+    qs = ProviderProfile.objects.select_related('user').order_by('-applied_at', '-id')
     if status_filter != 'ALL':
         qs = qs.filter(verification_status=status_filter)
 
@@ -122,15 +122,23 @@ def kyc_dossier_detail(request, profile_id):
     if request.method == 'POST':
         action = request.POST.get('action')
         admin_note = request.POST.get('admin_note', '').strip()
+        now = timezone.now()
 
         with transaction.atomic():
             if action == 'approve':
                 profile.verification_status = 'APPROVED'
                 profile.flagged_sections = []
                 profile.admin_review_note = ''
+                profile.reviewed_at = now
                 if not profile.approved_at:
-                    profile.approved_at = timezone.now()
-                profile.save(update_fields=['verification_status', 'flagged_sections', 'admin_review_note', 'approved_at'])
+                    profile.approved_at = now
+                profile.save(update_fields=[
+                    'verification_status',
+                    'flagged_sections',
+                    'admin_review_note',
+                    'reviewed_at',
+                    'approved_at',
+                ])
 
                 _notify_user(
                     recipient=profile.user,
@@ -154,7 +162,13 @@ def kyc_dossier_detail(request, profile_id):
                 profile.verification_status = 'FLAGGED'
                 profile.flagged_sections = flagged_sections
                 profile.admin_review_note = admin_note
-                profile.save(update_fields=['verification_status', 'flagged_sections', 'admin_review_note'])
+                profile.reviewed_at = now
+                profile.save(update_fields=[
+                    'verification_status',
+                    'flagged_sections',
+                    'admin_review_note',
+                    'reviewed_at',
+                ])
 
                 _notify_user(
                     recipient=profile.user,
@@ -179,11 +193,11 @@ def listing_moderation_list(request):
     """Lists pending products and services awaiting moderation."""
     pending_products = Product.objects.filter(
         status='PENDING'
-    ).select_related('provider__user', 'category').prefetch_related('images').order_by('-created_at')
+    ).select_related('provider__user', 'category').prefetch_related('images').order_by('-id')
 
     pending_services = Service.objects.filter(
         status='PENDING'
-    ).select_related('provider__user', 'category').order_by('-created_at')
+    ).select_related('provider__user', 'category').order_by('-id')
 
     context = {
         **_get_ops_nav_counts(),
