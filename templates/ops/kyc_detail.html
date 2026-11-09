@@ -3,62 +3,117 @@
 
 {% block title %}Inspect Dossier: {{ profile.business_name }} | AllThings Ops{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
+    <link rel="stylesheet" href="{% static 'css/pages/ops.css' %}?v=1.0">
+{% endblock %}
+
 {% block content %}
-<div class="animate-fade-in" style="max-width: 900px; margin: 40px auto; padding: 0 15px;">
-    <div class="dashboard-header flex-between mb-20">
+<div class="animate-fade-in ops-shell-narrow">
+
+    <div class="ops-hero-bar">
         <div>
-            <h1 class="section-heading checkout-page-title m-0">{{ profile.business_name }}</h1>
-            <p class="section-subtitle">Submitted by {{ profile.user.get_full_name }} ({{ profile.user.email }} &bull; {{ profile.phone }})</p>
+            <span class="ops-eyebrow"><i class="fa-solid fa-file-shield"></i> KYC DOSSIER INSPECTION</span>
+            <h1 class="ops-hero-title">{{ profile.business_name }}</h1>
+            <p class="ops-hero-subtitle">
+                Applicant: <strong>{{ profile.user.get_full_name|default:profile.user.username }}</strong> &bull;
+                {{ profile.user.email }} &bull; {{ profile.phone }}
+            </p>
         </div>
-        <a href="{% url 'ops:kyc_list' %}" class="action-btn btn-outline action-sm">
-            &larr; Back to Queue
-        </a>
+        <div class="ops-hero-actions">
+            <span class="status-badge
+                {% if profile.verification_status in 'APPROVED,ACTIVE' %}badge-completed
+                {% elif profile.verification_status == 'FLAGGED' %}badge-danger
+                {% else %}badge-pending{% endif %}">
+                {{ profile.get_verification_status_display }}
+            </span>
+            <a href="{% url 'ops:kyc_list' %}" class="action-btn btn-outline action-sm">
+                &larr; Back to Queue
+            </a>
+        </div>
     </div>
 
-    <!-- Dossier Summary Grid -->
+    <!-- Section 1: Stage 1 & Stage 3 Profile Details -->
     <div class="summary-card mb-20">
-        <h3 class="checkout-section-title mt-0">1. Personal &amp; Business Profile</h3>
+        <div class="dossier-preview-header">
+            <h4><i class="fa-solid fa-user-check text-primary"></i> 1. Legal Identity &amp; Store Credentials</h4>
+            <div class="flex-align-center gap-10">
+                {% if profile.email_verified %}
+                    <span class="otp-status-pill pill-verified"><i class="fa-solid fa-circle-check"></i> Email OTP Verified</span>
+                {% endif %}
+                {% if profile.phone_verified %}
+                    <span class="otp-status-pill pill-verified"><i class="fa-solid fa-circle-check"></i> Phone OTP Verified</span>
+                {% endif %}
+            </div>
+        </div>
+
         <div class="dossier-preview-grid">
             <div>
-                <span class="dossier-meta-label">Legal Name</span>
-                <strong class="dossier-meta-value">{{ profile.user.get_full_name }}</strong>
+                <span class="dossier-meta-label">Legal Full Name (Must Match ID &amp; Bank)</span>
+                <strong class="dossier-meta-value">{{ profile.user.first_name }} {{ profile.user.last_name }}</strong>
             </div>
             <div>
-                <span class="dossier-meta-label">Date of Birth &amp; Residence</span>
-                <strong class="dossier-meta-value">{{ profile.dob|date:"M d, Y" }} &bull; {{ profile.residential_address }}</strong>
+                <span class="dossier-meta-label">Date of Birth &amp; Residential Address</span>
+                <strong class="dossier-meta-value">{{ profile.dob|date:"M d, Y"|default:"-" }} &bull; {{ profile.residential_address|default:"-" }}</strong>
             </div>
             <div>
-                <span class="dossier-meta-label">Operating Model &amp; Category</span>
-                <strong class="dossier-meta-value">{{ profile.get_provider_type_display }} &bull; {{ profile.business_category }}</strong>
+                <span class="dossier-meta-label">Operating Model &amp; Primary Specialty</span>
+                <strong class="dossier-meta-value">{{ profile.get_provider_type_display }} &bull; {{ profile.business_category|default:"-" }}</strong>
             </div>
             <div>
                 <span class="dossier-meta-label">CAC Registration Number</span>
-                <strong class="dossier-meta-value">{{ profile.cac_registration_number|default:"Not Provided" }}</strong>
+                <strong class="dossier-meta-value">{{ profile.cac_registration_number|default:"Not Provided (Optional)" }}</strong>
             </div>
             <div class="full-grid-span">
-                <span class="dossier-meta-label">Business Description</span>
-                <p class="dossier-bio-preview">{{ profile.business_description }}</p>
+                <span class="dossier-meta-label">Store / Service Expertise Description</span>
+                <p class="dossier-bio-preview">{{ profile.business_description|default:"No description submitted." }}</p>
             </div>
         </div>
     </div>
 
+    <!-- Section 2: Stage 2 KYC & Stage 4 Location / Photos -->
     <div class="summary-card mb-20">
-        <h3 class="checkout-section-title mt-0">2. Identity Verification (KYC) &amp; Store Location</h3>
-        <div class="dossier-preview-grid mb-15">
+        <div class="dossier-preview-header">
+            <h4><i class="fa-solid fa-id-card text-primary"></i> 2. Government KYC Documents, GPS &amp; Store Photos</h4>
+            {% if profile.latitude and profile.longitude %}
+                <a href="https://www.google.com/maps?q={{ profile.latitude }},{{ profile.longitude }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="action-btn btn-outline action-sm">
+                    <i class="fa-solid fa-map-location-dot text-primary"></i> Verify GPS Pin on Maps &nearr;
+                </a>
+            {% endif %}
+        </div>
+
+        <div class="dossier-preview-grid mb-20">
             <div>
                 <span class="dossier-meta-label">Government ID Type</span>
-                <strong class="dossier-meta-value">{{ profile.get_id_type_display|default:profile.id_type }}</strong>
+                <strong class="dossier-meta-value">{{ profile.get_id_type_display|default:profile.id_type|default:"Not Selected" }}</strong>
             </div>
             <div>
-                <span class="dossier-meta-label">Store Street Address &amp; State</span>
-                <strong class="dossier-meta-value">{{ profile.store_address }}, {{ profile.region }}</strong>
+                <span class="dossier-meta-label">Physical Shop / Base Address</span>
+                <strong class="dossier-meta-value">{{ profile.store_address|default:"-" }}, {{ profile.region|default:"-" }}</strong>
+            </div>
+            <div>
+                <span class="dossier-meta-label">Captured GPS Coordinates</span>
+                <strong class="dossier-meta-value">Lat: {{ profile.latitude|default:"-" }}, Lon: {{ profile.longitude|default:"-" }}</strong>
+            </div>
+            <div>
+                <span class="dossier-meta-label">Settlement Bank (Stage 5)</span>
+                <strong class="dossier-meta-value">
+                    {% if profile.account_number %}
+                        {{ profile.bank_name }} &bull; {{ profile.account_number }} ({{ profile.account_name }})
+                    {% else %}
+                        Locked until KYC Approved
+                    {% endif %}
+                </strong>
             </div>
         </div>
 
         <div class="dossier-media-row">
             {% if profile.id_document %}
                 <a href="{{ profile.id_document.url }}" target="_blank" class="dossier-media-chip">
-                    <i class="fa-solid fa-file-shield text-primary"></i> View ID Document &nearr;
+                    <i class="fa-solid fa-file-shield text-primary"></i> View Government ID &nearr;
                 </a>
             {% endif %}
             {% if profile.business_certificate %}
@@ -67,53 +122,92 @@
                 </a>
             {% endif %}
             {% if profile.selfie_image %}
-                <div class="dossier-thumb-box">
-                    <img src="{{ profile.selfie_image.url }}" alt="Selfie" class="dossier-thumb-img">
-                    <span>Live Selfie</span>
-                </div>
+                <a href="{{ profile.selfie_image.url }}" target="_blank" class="dossier-thumb-box no-underline">
+                    <img src="{{ profile.selfie_image.url }}" alt="Live Selfie" class="dossier-thumb-img">
+                    <span>Live Selfie &nearr;</span>
+                </a>
             {% endif %}
             {% if profile.exterior_image %}
-                <div class="dossier-thumb-box">
+                <a href="{{ profile.exterior_image.url }}" target="_blank" class="dossier-thumb-box no-underline">
                     <img src="{{ profile.exterior_image.url }}" alt="Exterior" class="dossier-thumb-img">
-                    <span>Exterior</span>
-                </div>
+                    <span>Exterior &nearr;</span>
+                </a>
             {% endif %}
             {% if profile.interior_image %}
-                <div class="dossier-thumb-box">
+                <a href="{{ profile.interior_image.url }}" target="_blank" class="dossier-thumb-box no-underline">
                     <img src="{{ profile.interior_image.url }}" alt="Interior" class="dossier-thumb-img">
-                    <span>Interior</span>
-                </div>
+                    <span>Interior &nearr;</span>
+                </a>
+            {% endif %}
+            {% if profile.signboard_image %}
+                <a href="{{ profile.signboard_image.url }}" target="_blank" class="dossier-thumb-box no-underline">
+                    <img src="{{ profile.signboard_image.url }}" alt="Signboard" class="dossier-thumb-img">
+                    <span>Signboard &nearr;</span>
+                </a>
             {% endif %}
         </div>
     </div>
 
-    <!-- Compliance Decision Form -->
+    <!-- Section 3: Compliance Decision Form -->
     <div class="summary-card">
-        <h3 class="checkout-section-title mt-0">Compliance Decision</h3>
+        <h3 class="checkout-section-title mt-0">
+            <i class="fa-solid fa-gavel text-primary mr-5"></i> Record Compliance Decision
+        </h3>
+
         <form method="POST">
             {% csrf_token %}
-            
-            <div class="form-group">
-                <label>Admin Review Note (Required if flagging for correction)</label>
-                <textarea name="admin_note" class="form-control" rows="3" placeholder="Explain what needs correction (e.g., ID photo is blurry, name mismatch)..."></textarea>
-            </div>
 
             <div class="form-group">
-                <label>Select Sections to Flag (If requesting corrections)</label>
-                <div class="flex-wrap gap-15 mt-5">
-                    <label><input type="checkbox" name="flagged_sections" value="STAGE_1"> Stage 1: Personal &amp; Profile</label>
-                    <label><input type="checkbox" name="flagged_sections" value="STAGE_2"> Stage 2: Government ID &amp; Selfie</label>
-                    <label><input type="checkbox" name="flagged_sections" value="STAGE_3"> Stage 3: Business Credentials</label>
-                    <label><input type="checkbox" name="flagged_sections" value="STAGE_4"> Stage 4: Location &amp; Store Photos</label>
+                <label>Select Specific Section(s) to Unlock if Requesting Corrections</label>
+                <div class="ops-flag-grid">
+                    <label class="ops-flag-option">
+                        <input type="checkbox" name="flagged_sections" value="STAGE_1" {% if 'STAGE_1' in profile.flagged_sections %}checked{% endif %}>
+                        <div>
+                            <span class="ops-flag-title">Stage 1: Personal &amp; Store Identity</span>
+                            <span class="ops-flag-desc">Legal name mismatch, DOB, or store name</span>
+                        </div>
+                    </label>
+
+                    <label class="ops-flag-option">
+                        <input type="checkbox" name="flagged_sections" value="STAGE_2" {% if 'STAGE_2' in profile.flagged_sections %}checked{% endif %}>
+                        <div>
+                            <span class="ops-flag-title">Stage 2: Government ID &amp; Selfie</span>
+                            <span class="ops-flag-desc">Blurry ID scan, expired card, or unclear selfie</span>
+                        </div>
+                    </label>
+
+                    <label class="ops-flag-option">
+                        <input type="checkbox" name="flagged_sections" value="STAGE_3" {% if 'STAGE_3' in profile.flagged_sections %}checked{% endif %}>
+                        <div>
+                            <span class="ops-flag-title">Stage 3: Business Credentials</span>
+                            <span class="ops-flag-desc">Incomplete bio or invalid CAC document</span>
+                        </div>
+                    </label>
+
+                    <label class="ops-flag-option">
+                        <input type="checkbox" name="flagged_sections" value="STAGE_4" {% if 'STAGE_4' in profile.flagged_sections %}checked{% endif %}>
+                        <div>
+                            <span class="ops-flag-title">Stage 4: Location, GPS &amp; Store Photos</span>
+                            <span class="ops-flag-desc">Missing shop interior/exterior photos or address</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 
-            <div class="flex-align-center gap-10 mt-20">
+            <div class="form-group mb-0">
+                <label>Compliance Feedback Note for Applicant (Required when flagging)</label>
+                <textarea name="admin_note"
+                          class="form-control"
+                          rows="3"
+                          placeholder="Clearly state what the applicant needs to fix (e.g., 'Please upload a clearer photo of your NIN slip where your surname is legible')...">{{ profile.admin_review_note|default:'' }}</textarea>
+            </div>
+
+            <div class="ops-decision-bar">
                 <button type="submit" name="action" value="approve" class="action-btn btn-success flex-grow-1">
                     <i class="fa-solid fa-circle-check"></i> Approve Dossier (Unlock Stage 5 Bank Setup)
                 </button>
                 <button type="submit" name="action" value="flag" class="action-btn btn-danger flex-grow-1">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Flag Sections for Correction
+                    <i class="fa-solid fa-triangle-exclamation"></i> Flag Selected Sections for Correction
                 </button>
             </div>
         </form>

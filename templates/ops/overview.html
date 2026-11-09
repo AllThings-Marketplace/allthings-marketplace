@@ -1,27 +1,65 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
-{% block title %}AllThings Operations Command Center{% endblock %}
+{% block title %}Operations &amp; Compliance Command Center | AllThings{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
+    <link rel="stylesheet" href="{% static 'css/pages/ops.css' %}?v=1.0">
+{% endblock %}
 
 {% block content %}
-<div class="animate-fade-in" style="max-width: 1000px; margin: 40px auto; padding: 0 15px;">
-    <div class="dashboard-header flex-between mb-30">
+<div class="animate-fade-in ops-shell">
+
+    <!-- Top Executive Command Banner -->
+    <div class="ops-hero-bar">
         <div>
-            <span class="sell-eyebrow">PLATFORM ADMINISTRATION</span>
-            <h1 class="section-heading checkout-page-title mt-5">Operations &amp; Compliance Center</h1>
-            <p class="section-subtitle">Review vendor KYC dossiers, moderate new product/service listings, and arbitrate escrow disputes.</p>
+            <span class="ops-eyebrow"><i class="fa-solid fa-shield-halved"></i> PLATFORM ADMINISTRATION</span>
+            <h1 class="ops-hero-title">Operations &amp; Compliance Center</h1>
+            <p class="ops-hero-subtitle">
+                Verify provider KYC dossiers, moderate marketplace listings, and arbitrate escrow disputes.
+            </p>
         </div>
-        <a href="{% url 'admin:index' %}" class="action-btn btn-dark action-sm" target="_blank">
-            <i class="fa-solid fa-database icon-spaced"></i> Django Admin Vault &nearr;
-        </a>
+        <div class="ops-hero-actions">
+            <a href="{% url 'marketplace:home' %}" class="action-btn btn-outline action-sm">
+                <i class="fa-solid fa-store"></i> Live Marketplace
+            </a>
+            {% if request.user.is_superuser %}
+                <a href="{% url 'admin:index' %}" class="action-btn btn-secondary action-sm" target="_blank">
+                    <i class="fa-solid fa-database"></i> Django Admin Vault &nearr;
+                </a>
+            {% endif %}
+        </div>
     </div>
 
+    <!-- Unified Operations Sub-Navigation -->
+    <nav class="ops-nav-bar" aria-label="Operations Navigation">
+        <a href="{% url 'ops:overview' %}" class="ops-nav-link active">
+            <i class="fa-solid fa-gauge-high"></i> Command Overview
+        </a>
+        <a href="{% url 'ops:kyc_list' %}" class="ops-nav-link">
+            <i class="fa-solid fa-id-card"></i> KYC Compliance Queue
+            <span class="ops-nav-count {% if nav_pending_kyc > 0 %}count-alert{% endif %}">{{ nav_pending_kyc }}</span>
+        </a>
+        <a href="{% url 'ops:listing_list' %}" class="ops-nav-link">
+            <i class="fa-solid fa-boxes-stacked"></i> Listing Moderation
+            <span class="ops-nav-count {% if nav_pending_listings > 0 %}count-alert{% endif %}">{{ nav_pending_listings }}</span>
+        </a>
+        <a href="{% url 'ops:disputes_list' %}" class="ops-nav-link">
+            <i class="fa-solid fa-scale-balanced"></i> Escrow Disputes &amp; Tickets
+            <span class="ops-nav-count {% if nav_active_disputes > 0 %}count-alert{% endif %}">{{ nav_active_disputes }}</span>
+        </a>
+    </nav>
+
+    <!-- Row 1: Action Queue KPIs -->
     <div class="kpi-grid">
         <a href="{% url 'ops:kyc_list' %}" class="summary-card kpi-card no-underline">
-            <div class="kpi-icon-wrapper pending-bg"><i class="fa-solid fa-id-card"></i></div>
+            <div class="kpi-icon-wrapper pending-bg"><i class="fa-solid fa-user-check"></i></div>
             <div>
                 <p class="kpi-label">Pending KYC Dossiers</p>
                 <h3 class="kpi-value text-blue">{{ pending_kyc_count }}</h3>
+                <span class="text-12-muted">{{ flagged_kyc_count }} awaiting vendor correction</span>
             </div>
         </a>
 
@@ -30,6 +68,7 @@
             <div>
                 <p class="kpi-label">Pending Listings</p>
                 <h3 class="kpi-value text-blue">{{ pending_listings_count }}</h3>
+                <span class="text-12-muted">{{ active_providers_count }} active verified stores</span>
             </div>
         </a>
 
@@ -40,8 +79,98 @@
             <div>
                 <p class="kpi-label">Active Escrow Disputes</p>
                 <h3 class="kpi-value {% if active_disputes_count > 0 %}text-orange{% endif %}">{{ active_disputes_count }}</h3>
+                <span class="text-12-muted">{{ unverified_payments_count }} unverified payment attempt(s)</span>
             </div>
         </a>
     </div>
+
+    <!-- Row 2: Platform Escrow Ledger Health -->
+    <div class="kpi-grid">
+        <div class="summary-card kpi-card">
+            <div class="kpi-icon-wrapper pending-bg"><i class="fa-solid fa-lock"></i></div>
+            <div>
+                <p class="kpi-label">Funds Locked in Escrow</p>
+                <h3 class="kpi-value">NGN {{ total_escrow_locked|floatformat:2|intcomma }}</h3>
+            </div>
+        </div>
+
+        <div class="summary-card kpi-card">
+            <div class="kpi-icon-wrapper success-bg"><i class="fa-solid fa-wallet"></i></div>
+            <div>
+                <p class="kpi-label">Cleared Provider Wallets</p>
+                <h3 class="kpi-value">NGN {{ total_available|floatformat:2|intcomma }}</h3>
+            </div>
+        </div>
+
+        <div class="summary-card kpi-card">
+            <div class="kpi-icon-wrapper neutral-bg"><i class="fa-solid fa-building-columns"></i></div>
+            <div>
+                <p class="kpi-label">Total Disbursed Payouts</p>
+                <h3 class="kpi-value">NGN {{ total_paid_out|floatformat:2|intcomma }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Queue Previews -->
+    <div class="dashboard-grid">
+        <!-- Recent KYC Submissions -->
+        <div class="summary-card p-0">
+            <div class="flex-between align-center py-15-px-20 border-top-light">
+                <h3 class="m-0 text-16 font-700-block"><i class="fa-solid fa-id-card text-primary mr-5"></i> Latest KYC Submissions</h3>
+                <a href="{% url 'ops:kyc_list' %}" class="text-12 text-blue font-600 no-underline">View All &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table m-0">
+                    <tbody>
+                        {% for d in recent_kyc_queue %}
+                            <tr>
+                                <td>
+                                    <strong class="display-block">{{ d.business_name }}</strong>
+                                    <span class="text-12-muted">{{ d.user.get_full_name|default:d.user.username }} &bull; {{ d.region }}</span>
+                                </td>
+                                <td class="text-right">
+                                    <a href="{% url 'ops:kyc_detail' d.id %}" class="action-btn btn-primary action-sm">Inspect</a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="2" class="table-empty-cell">No pending KYC dossiers in queue.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Support / Dispute Tickets -->
+        <div class="summary-card p-0">
+            <div class="flex-between align-center py-15-px-20 border-top-light">
+                <h3 class="m-0 text-16 font-700-block"><i class="fa-solid fa-scale-balanced text-orange mr-5"></i> Open Disputes &amp; Tickets</h3>
+                <a href="{% url 'ops:disputes_list' %}" class="text-12 text-blue font-600 no-underline">View All &rarr;</a>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table m-0">
+                    <tbody>
+                        {% for t in recent_disputes %}
+                            <tr>
+                                <td>
+                                    <strong class="display-block">{{ t.ticket_reference }} &bull; {{ t.subject|truncatechars:32 }}</strong>
+                                    <span class="text-12-muted">{{ t.get_category_display }} &bull; {{ t.created_at|timesince }} ago</span>
+                                </td>
+                                <td class="text-right">
+                                    <a href="{% url 'orders:ticket_detail' t.ticket_reference %}" class="action-btn btn-outline action-sm">Arbitrate</a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="2" class="table-empty-cell">No open disputes or support tickets.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}

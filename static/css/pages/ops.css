@@ -1,0 +1,271 @@
+/* ==========================================================================
+   ALLTHINGS OPERATIONS & COMPLIANCE COMMAND CENTER (ops.css v1.0)
+   ========================================================================== */
+
+.ops-shell {
+    max-width: 1140px;
+    margin: 28px auto 64px auto;
+    padding: 0 15px;
+    box-sizing: border-box;
+}
+
+.ops-shell-narrow {
+    max-width: 960px;
+    margin: 28px auto 64px auto;
+    padding: 0 15px;
+    box-sizing: border-box;
+}
+
+/* 1. Executive Command Header */
+.ops-hero-bar {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    border: 1px solid #334155;
+    border-radius: 18px;
+    padding: 26px 30px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    box-shadow: 0 14px 30px -10px rgba(15, 23, 42, 0.3);
+}
+
+.ops-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    text-transform: uppercase;
+    color: #60a5fa;
+    background: rgba(37, 99, 235, 0.22);
+    border: 1px solid rgba(96, 165, 250, 0.35);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+}
+
+.ops-hero-title {
+    margin: 0 0 6px 0;
+    font-size: 24px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.4px;
+}
+
+.ops-hero-subtitle {
+    margin: 0;
+    font-size: 13.5px;
+    color: #cbd5e1;
+    line-height: 1.5;
+}
+
+.ops-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* 2. Unified Operations Sub-Navigation Bar */
+.ops-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 6px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 26px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.ops-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #475569;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+}
+
+.ops-nav-link:hover {
+    background-color: #f8fafc;
+    color: #0f172a;
+}
+
+.ops-nav-link.active {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+.ops-nav-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    background-color: #e2e8f0;
+    color: #0f172a;
+}
+
+.ops-nav-link.active .ops-nav-count {
+    background-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+.ops-nav-count.count-alert {
+    background-color: #ef4444;
+    color: #ffffff;
+}
+
+/* 3. Secondary Filter Pills */
+.ops-filter-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.ops-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ops-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.ops-filter-pill:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.ops-filter-pill.active {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: #ffffff;
+}
+
+/* 4. KYC Flagging Checkbox Grid */
+.ops-flag-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.ops-flag-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background-color: #f8fafc;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ops-flag-option:hover {
+    border-color: #fca5a5;
+    background-color: #fff1f2;
+}
+
+.ops-flag-option input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    margin-top: 2px;
+    accent-color: #dc2626;
+    flex-shrink: 0;
+}
+
+.ops-flag-title {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.ops-flag-desc {
+    display: block;
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* 5. Listing Moderation Action Controls */
+.ops-moderation-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 250px;
+}
+
+.ops-reject-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ops-reject-input {
+    padding: 7px 10px;
+    font-size: 12.5px;
+    height: 34px;
+    flex: 1;
+}
+
+.ops-decision-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+    .ops-hero-bar {
+        padding: 20px 18px;
+    }
+
+    .ops-hero-title {
+        font-size: 20px;
+    }
+
+    .ops-flag-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ops-decision-bar .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -4,25 +4,64 @@
 
 {% block title %}Escrow Disputes &amp; Support Tickets | AllThings Ops{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
+    <link rel="stylesheet" href="{% static 'css/pages/ops.css' %}?v=1.0">
+{% endblock %}
+
 {% block content %}
-<div class="animate-fade-in" style="max-width: 1000px; margin: 40px auto; padding: 0 15px;">
-    <div class="dashboard-header flex-between mb-20">
+<div class="animate-fade-in ops-shell">
+
+    <div class="ops-hero-bar">
         <div>
-            <h1 class="section-heading checkout-page-title m-0">Active Escrow Disputes &amp; Tickets</h1>
-            <p class="section-subtitle">Arbitrate open support tickets and frozen escrow transactions.</p>
+            <span class="ops-eyebrow"><i class="fa-solid fa-scale-balanced"></i> ESCROW ARBITRATION &amp; SUPPORT</span>
+            <h1 class="ops-hero-title">Disputes &amp; Support Tickets</h1>
+            <p class="ops-hero-subtitle">Review buyer and provider evidence on frozen escrow orders and execute 1-click refund or payout decisions.</p>
         </div>
         <a href="{% url 'ops:overview' %}" class="action-btn btn-outline action-sm">
-            &larr; Back to Ops Hub
+            &larr; Ops Overview
         </a>
+    </div>
+
+    <nav class="ops-nav-bar" aria-label="Operations Navigation">
+        <a href="{% url 'ops:overview' %}" class="ops-nav-link">
+            <i class="fa-solid fa-gauge-high"></i> Command Overview
+        </a>
+        <a href="{% url 'ops:kyc_list' %}" class="ops-nav-link">
+            <i class="fa-solid fa-id-card"></i> KYC Compliance Queue
+            <span class="ops-nav-count {% if nav_pending_kyc > 0 %}count-alert{% endif %}">{{ nav_pending_kyc }}</span>
+        </a>
+        <a href="{% url 'ops:listing_list' %}" class="ops-nav-link">
+            <i class="fa-solid fa-boxes-stacked"></i> Listing Moderation
+            <span class="ops-nav-count {% if nav_pending_listings > 0 %}count-alert{% endif %}">{{ nav_pending_listings }}</span>
+        </a>
+        <a href="{% url 'ops:disputes_list' %}" class="ops-nav-link active">
+            <i class="fa-solid fa-scale-balanced"></i> Escrow Disputes &amp; Tickets
+            <span class="ops-nav-count {% if nav_active_disputes > 0 %}count-alert{% endif %}">{{ nav_active_disputes }}</span>
+        </a>
+    </nav>
+
+    <div class="ops-filter-strip">
+        <div class="ops-filter-pills">
+            <a href="{% url 'ops:disputes_list' %}?status=ACTIVE" class="ops-filter-pill {% if status_filter == 'ACTIVE' %}active{% endif %}">
+                Active / Needs Arbitration ({{ nav_active_disputes }})
+            </a>
+            <a href="{% url 'ops:disputes_list' %}?status=RESOLVED" class="ops-filter-pill {% if status_filter == 'RESOLVED' %}active{% endif %}">
+                Resolved &amp; Closed
+            </a>
+            <a href="{% url 'ops:disputes_list' %}?status=ALL" class="ops-filter-pill {% if status_filter == 'ALL' %}active{% endif %}">
+                All Tickets
+            </a>
+        </div>
     </div>
 
     <div class="summary-card p-0">
         <div class="table-responsive">
-            <table class="data-table">
+            <table class="data-table m-0">
                 <thead>
                     <tr>
-                        <th>Ticket &amp; Category</th>
-                        <th>User / Customer</th>
+                        <th>Ticket &amp; Related Order</th>
+                        <th>Customer / Reporter</th>
                         <th>Priority &amp; Status</th>
                         <th>Action</th>
                     </tr>
@@ -32,10 +71,14 @@
                         <tr>
                             <td>
                                 <strong class="display-block">{{ ticket.ticket_reference }} &bull; {{ ticket.subject }}</strong>
-                                <span class="text-12-muted">{{ ticket.get_category_display }} &bull; Created {{ ticket.created_at|timesince }} ago</span>
+                                <span class="text-12-muted block mt-5">
+                                    {{ ticket.get_category_display }} &bull; Opened {{ ticket.created_at|timesince }} ago
+                                    {% if ticket.order %} &bull; Order: <strong>{{ ticket.order.reference }}</strong>{% endif %}
+                                    {% if ticket.service_order %} &bull; Booking: <strong>{{ ticket.service_order.reference_code }}</strong>{% endif %}
+                                </span>
                             </td>
                             <td>
-                                {{ ticket.user.get_full_name|default:ticket.user.username }}
+                                <strong>{{ ticket.user.get_full_name|default:ticket.user.username }}</strong>
                                 <span class="text-12-muted block">{{ ticket.user.email }}</span>
                             </td>
                             <td>
@@ -46,13 +89,13 @@
                             </td>
                             <td>
                                 <a href="{% url 'orders:ticket_detail' ticket.ticket_reference %}" class="action-btn btn-primary action-sm">
-                                    <i class="fa-solid fa-scale-balanced"></i> Arbitrate Ticket
+                                    <i class="fa-solid fa-scale-balanced"></i> Open &amp; Arbitrate
                                 </a>
                             </td>
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="4" class="table-empty-cell">No active escrow disputes or open support tickets. Great job!</td>
+                            <td colspan="4" class="table-empty-cell">No tickets match this filter.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
