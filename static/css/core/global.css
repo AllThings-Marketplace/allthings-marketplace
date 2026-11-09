@@ -159,8 +159,8 @@ body {
 @media (max-width: 768px) {
     .navbar {
         flex-wrap: wrap;
-        padding: 15px;
-        gap: 15px;
+        padding: 14px 15px;
+        gap: 12px;
     }
 
     .brand-logo {
@@ -190,7 +190,7 @@ body {
 .nav-left {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
 }
 
 .mobile-menu-btn {
@@ -316,6 +316,7 @@ body {
 
     .nav-left {
         flex-grow: 1;
+        gap: 10px;
     }
 }
 
@@ -326,7 +327,7 @@ html {
 }
 
 /* ==========================================================================
-   ESTABLISHED MARKETPLACE FOOTER COMPONENT (global.css v2.6)
+   ESTABLISHED MARKETPLACE FOOTER COMPONENT (global.css v2.7)
    ========================================================================== */
 .site-footer {
     background-color: #0f172a;
@@ -977,26 +978,32 @@ html {
 }
 
 /* ==========================================================================
-   BRAND WORDMARK LOGO & INITIAL VISIBILITY HELPERS (global.css v2.6)
+   BRAND WORDMARK LOGO & INITIAL VISIBILITY HELPERS (global.css v2.7)
    ========================================================================== */
 .hidden-initial {
     display: none;
 }
 
 .brand-logo-icon {
-    height: 38px;
+    height: 54px;
     width: auto;
+    max-width: 215px;
     object-fit: contain;
     display: block;
+    margin: -6px 0;
 }
 
 .mobile-drawer .drawer-header .brand-logo-icon {
-    height: 32px;
+    height: 44px;
+    width: auto;
+    max-width: 180px;
+    margin: -4px 0;
 }
 
 .footer-logo-icon {
-    height: 44px;
+    height: 60px;
     width: auto;
+    max-width: 240px;
     object-fit: contain;
     display: block;
     filter: brightness(0) invert(1);
@@ -1015,12 +1022,14 @@ html {
     }
 
     .brand-logo-icon {
-        height: 32px;
+        height: 46px;
+        max-width: 180px;
+        margin: -4px 0;
     }
 }
 
 /* ==========================================================================
-   CUSTOM 404 & 500 ERROR RECOVERY PAGES (global.css v2.6)
+   CUSTOM 404 & 500 ERROR RECOVERY PAGES (global.css v2.7)
    ========================================================================== */
 .error-page-shell {
     max-width: 640px;
