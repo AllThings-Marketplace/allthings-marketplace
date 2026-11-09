@@ -71,8 +71,9 @@ body {
     font-size: 26px;
     text-decoration: none;
     letter-spacing: -0.75px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    vertical-align: middle;
 }
 
 .brand-primary {
@@ -325,7 +326,7 @@ html {
 }
 
 /* ==========================================================================
-   ESTABLISHED MARKETPLACE FOOTER COMPONENT (global.css v2.4)
+   ESTABLISHED MARKETPLACE FOOTER COMPONENT (global.css v2.6)
    ========================================================================== */
 .site-footer {
     background-color: #0f172a;
@@ -348,13 +349,10 @@ html {
 }
 
 .footer-logo {
-    font-size: 24px;
-    text-decoration: none;
-    letter-spacing: -0.75px;
     display: inline-flex;
     align-items: center;
-    gap: 2px;
-    margin-bottom: 12px;
+    text-decoration: none;
+    margin-bottom: 14px;
 }
 
 .footer-text {
@@ -979,46 +977,29 @@ html {
 }
 
 /* ==========================================================================
-   BRAND EMBLEM LOGO & INITIAL VISIBILITY HELPERS
+   BRAND WORDMARK LOGO & INITIAL VISIBILITY HELPERS (global.css v2.6)
    ========================================================================== */
 .hidden-initial {
     display: none;
 }
 
-.brand-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 1px;
-    text-decoration: none;
-    font-weight: 800;
-    vertical-align: middle;
-}
-
 .brand-logo-icon {
-    height: 32px;
+    height: 38px;
     width: auto;
     object-fit: contain;
-    margin-right: -1px;
-    display: inline-block;
+    display: block;
 }
 
 .mobile-drawer .drawer-header .brand-logo-icon {
-    height: 28px;
-}
-
-.footer-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    text-decoration: none;
-    margin-bottom: 12px;
+    height: 32px;
 }
 
 .footer-logo-icon {
-    height: 42px;
+    height: 44px;
     width: auto;
     object-fit: contain;
-    margin-right: -1px;
+    display: block;
+    filter: brightness(0) invert(1);
 }
 
 @media (max-width: 768px) {
@@ -1032,10 +1013,14 @@ html {
         width: 100%;
         overflow-x: hidden;
     }
+
+    .brand-logo-icon {
+        height: 32px;
+    }
 }
 
 /* ==========================================================================
-   CUSTOM 404 & 500 ERROR RECOVERY PAGES (global.css v2.5)
+   CUSTOM 404 & 500 ERROR RECOVERY PAGES (global.css v2.6)
    ========================================================================== */
 .error-page-shell {
     max-width: 640px;

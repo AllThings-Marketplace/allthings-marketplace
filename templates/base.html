@@ -18,17 +18,17 @@
     <meta property="og:title" content="{% block og_title %}AllThings | Products &amp; Professional Services Marketplace{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Discover verified retail vendors and certified service professionals across Nigeria—backed by 100% Escrow protection and 6-digit PIN delivery handshakes.{% endblock %}">
     <meta property="og:url" content="{{ request.build_absolute_uri }}">
-    <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-wordmark-refined.svg' %}{% endblock %}">
 
     <!-- X (Twitter) Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}AllThings | Products &amp; Professional Services Marketplace{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Products and professional expertise, all in one place. 100% Escrow-protected shopping across Nigeria.{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-emblem.svg' %}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/all-things-wordmark-refined.svg' %}{% endblock %}">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.5">
+    <link rel="stylesheet" href="{% static 'css/core/global.css' %}?v=2.6">
     <link rel="stylesheet" href="{% static 'css/core/utilities.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/buttons.css' %}">
     <link rel="stylesheet" href="{% static 'css/components/forms.css' %}">
@@ -45,10 +45,9 @@
     <div class="mobile-overlay" id="mobileOverlay"></div>
     <div class="mobile-drawer" id="mobileDrawer">
         <div class="drawer-header flex-between">
-            <h2 class="brand-logo">
-                <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon">
-                <span class="brand-primary">ll</span><span class="brand-accent">Things</span>
-            </h2>
+            <a href="{% url 'marketplace:home' %}" class="brand-logo" aria-label="AllThings Home">
+                <img src="{% static 'images/all-things-wordmark-refined.svg' %}" alt="AllThings" class="brand-logo-icon">
+            </a>
             <button type="button" class="close-drawer-btn" id="closeDrawerBtn"><i class="fa-solid fa-xmark"></i></button>
         </div>
         
@@ -151,9 +150,8 @@
             <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
                 <i class="fa-solid fa-bars"></i>
             </button>
-            <a href="{% url 'marketplace:home' %}" class="brand-logo">
-                <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon">
-                <span class="brand-primary">ll</span><span class="brand-accent">Things</span>
+            <a href="{% url 'marketplace:home' %}" class="brand-logo" aria-label="AllThings Home">
+                <img src="{% static 'images/all-things-wordmark-refined.svg' %}" alt="AllThings" class="brand-logo-icon">
             </a>
         </div>
 
@@ -345,9 +343,8 @@
 
             <!-- Column 1: Brand Identity & Connect With Us -->
             <div class="footer-col footer-brand-col">
-                <a href="{% url 'marketplace:home' %}" class="footer-logo">
-                    <img src="{% static 'images/all-things-emblem.svg' %}" alt="A" class="brand-logo-icon footer-logo-icon">
-                    <span class="brand-primary footer-logo-text">ll</span><span class="brand-accent">Things</span>
+                <a href="{% url 'marketplace:home' %}" class="footer-logo" aria-label="AllThings Home">
+                    <img src="{% static 'images/all-things-wordmark-refined.svg' %}" alt="AllThings" class="brand-logo-icon footer-logo-icon">
                 </a>
                 <p class="footer-text">
                     Products and professional expertise, all in one place. Your trusted, escrow-protected marketplace for verified retail vendors and certified service professionals across Nigeria.
