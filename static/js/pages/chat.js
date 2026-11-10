@@ -7,6 +7,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const previewBox = document.getElementById("chatAttachmentPreview");
     const previewName = document.getElementById("chatAttachmentName");
     const clearBtn = document.getElementById("clearChatAttachment");
+    const errorBanner = document.getElementById("chatErrorBanner");
+    const errorText = document.getElementById("chatErrorText");
+    const closeErrorBtn = document.getElementById("closeChatErrorBtn");
 
     function scrollToBottom() {
         if (chatHistory) {
@@ -16,12 +19,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function hideAttachmentPreview() {
         if (previewBox) {
-            previewBox.style.display = "none";
             previewBox.classList.add("hidden-initial");
         }
         if (previewName) {
             previewName.textContent = "";
         }
+    }
+
+    function showChatError(message) {
+        if (!errorBanner || !errorText) return;
+        errorText.textContent = message || "Unable to send message. Please keep all contact and payment details inside AllThings Escrow.";
+        errorBanner.classList.remove("hidden-initial");
+    }
+
+    function hideChatError() {
+        if (!errorBanner) return;
+        errorBanner.classList.add("hidden-initial");
+        if (errorText) errorText.textContent = "";
     }
 
     function escapeHtml(str) {
@@ -33,13 +47,24 @@ document.addEventListener("DOMContentLoaded", function () {
     // 1. Scroll to bottom on initial load
     scrollToBottom();
 
-    // 2. Attachment file selection & clear controls
+    if (closeErrorBtn) {
+        closeErrorBtn.addEventListener("click", hideChatError);
+    }
+
+    if (chatInput) {
+        chatInput.addEventListener("input", function () {
+            if (errorBanner && !errorBanner.classList.contains("hidden-initial")) {
+                hideChatError();
+            }
+        });
+    }
+
+    // 2. Attachment file selection & clear controls (Zero inline styles)
     if (fileInput && previewBox) {
         fileInput.addEventListener("change", function () {
             if (this.files && this.files[0]) {
                 previewName.textContent = "Attached: " + this.files[0].name;
                 previewBox.classList.remove("hidden-initial");
-                previewBox.style.display = "flex";
             } else {
                 hideAttachmentPreview();
             }
@@ -53,7 +78,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // 3. AJAX Message Submission
+    // 3. AJAX Message Submission with Anti-Leakage Error Handling
     if (chatForm) {
         chatForm.addEventListener("submit", function (e) {
             e.preventDefault();
@@ -63,6 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (!hasText && !hasFile) return;
 
+            hideChatError();
             const formData = new FormData(chatForm);
             const submitBtn = chatForm.querySelector('button[type="submit"]');
             if (submitBtn) submitBtn.disabled = true;
@@ -77,7 +103,6 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
-                    // Remove empty-state placeholder if this is the very first message
                     const emptyBox = chatHistory.querySelector(".chat-empty-box");
                     if (emptyBox) emptyBox.remove();
 
@@ -98,23 +123,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     chatHistory.insertAdjacentHTML("beforeend", newMessage);
 
-                    // If an image was attached, scroll again once the image finishes rendering
                     const lastImg = chatHistory.querySelector(".message-bubble:last-child .chat-attachment");
                     if (lastImg) {
                         lastImg.addEventListener("load", scrollToBottom);
                     }
 
-                    // Reset form, hide attachment preview banner, and refocus input
                     chatForm.reset();
                     hideAttachmentPreview();
                     scrollToBottom();
                     if (chatInput) chatInput.focus();
                 } else {
-                    console.error("Message failed to send:", data.error);
+                    showChatError(data.error);
                 }
             })
-            .catch(error => {
-                console.error("Error:", error);
+            .catch(() => {
+                showChatError("Network error while sending message. Please check your connection and try again.");
             })
             .finally(() => {
                 if (submitBtn) submitBtn.disabled = false;

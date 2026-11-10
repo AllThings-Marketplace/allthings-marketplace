@@ -3,7 +3,7 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/chat.css' %}?v=2.5">
+    <link rel="stylesheet" href="{% static 'css/pages/chat.css' %}?v=2.6">
 {% endblock %}
 
 {% block content %}
@@ -69,6 +69,17 @@
         {% endfor %}
     </div>
 
+    <!-- Anti-Leakage & Validation Alert Banner -->
+    <div id="chatErrorBanner" class="chat-error-banner hidden-initial" role="alert">
+        <div class="chat-error-content">
+            <i class="fa-solid fa-shield-halved chat-error-icon"></i>
+            <span id="chatErrorText"></span>
+        </div>
+        <button type="button" id="closeChatErrorBtn" class="chat-error-close" aria-label="Dismiss warning">
+            &times;
+        </button>
+    </div>
+
     <!-- Attachment Preview Pill -->
     <div id="chatAttachmentPreview" class="chat-attachment-preview hidden-initial">
         <span id="chatAttachmentName" class="text-12-muted font-600-dark"></span>
@@ -85,7 +96,7 @@
             </label>
             <input type="file" name="attachment" id="chat-file" class="hidden-initial" accept="image/*">
             
-            <input type="text" name="body" id="chatInput" class="form-control chat-text-input" placeholder="Write a message..." autocomplete="off">
+            <input type="text" name="body" id="chatInput" class="form-control chat-text-input" placeholder="Write a message (keep contact &amp; payment details in escrow)..." autocomplete="off">
             
             <button type="submit" class="action-btn btn-primary chat-send-btn" title="Send Message">
                 <i class="fa-solid fa-paper-plane"></i>
@@ -96,5 +107,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/chat.js' %}"></script>
+    <script src="{% static 'js/pages/chat.js' %}?v=2.6"></script>
 {% endblock %}

@@ -3,15 +3,20 @@
 {% load humanize %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/support.css' %}?v=2.3">
 {% endblock %}
 
 {% block content %}
 <div class="animate-fade-in ticket-wrapper">
-    <div class="ticket-back-nav">
+    <div class="ticket-back-nav flex-between align-center flex-wrap gap-10">
         <a href="{% url 'orders:support_center' %}" class="text-14-muted ticket-back-link">
             <i class="fa-solid fa-arrow-left"></i> Back to Support Center
         </a>
+        {% if is_staff or request.user.is_staff or request.user.is_superuser %}
+            <a href="{% url 'ops:disputes_list' %}" class="action-btn btn-outline action-sm">
+                <i class="fa-solid fa-scale-balanced"></i> Back to Ops Disputes Queue
+            </a>
+        {% endif %}
     </div>
 
     <!-- Ticket Header Card -->
@@ -27,16 +32,23 @@
         </div>
 
         <div class="ticket-meta-bar">
+            <span><strong>Reporter:</strong> {{ ticket.user.get_full_name|default:ticket.user.username }} ({{ ticket.user.email }})</span>
             <span><strong>Category:</strong> {{ ticket.get_category_display }}</span>
             <span><strong>Priority:</strong> {{ ticket.get_priority_display }}</span>
             {% if ticket.order %}
                 <span><strong>Order:</strong> <a href="{% url 'orders:order_details' ticket.order.id %}">{{ ticket.order.reference }}</a></span>
             {% endif %}
             {% if ticket.order_item %}
-                <span><strong>Disputed Item:</strong> {{ ticket.order_item.product.name }} ({{ ticket.order_item.get_status_display }})</span>
+                <span>
+                    <strong>Disputed Item:</strong> {{ ticket.order_item.product.name }}
+                    (NGN {{ ticket.order_item.price|floatformat:0|intcomma }} &bull; {{ ticket.order_item.get_status_display }})
+                </span>
             {% endif %}
             {% if ticket.service_order %}
-                <span><strong>Service Booking:</strong> {{ ticket.service_order.reference_code }}</span>
+                <span>
+                    <strong>Service Booking:</strong> {{ ticket.service_order.reference_code }}
+                    (NGN {{ ticket.service_order.agreed_price|floatformat:0|intcomma }} &bull; {{ ticket.service_order.get_status_display }})
+                </span>
             {% endif %}
         </div>
 

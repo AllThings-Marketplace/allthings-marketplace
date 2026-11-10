@@ -182,3 +182,57 @@
     padding: 0;
     flex-shrink: 0;
 }
+
+/* ==========================================================================
+   ANTI-LEAKAGE & CHAT VALIDATION BANNER (chat.css v2.6)
+   ========================================================================== */
+.chat-attachment-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background-color: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.chat-attachment-preview.hidden-initial,
+.chat-error-banner.hidden-initial {
+    display: none;
+}
+
+.chat-error-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    background-color: #fef2f2;
+    border-top: 1px solid #fecaca;
+    color: #991b1b;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.chat-error-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-error-icon {
+    color: #dc2626;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.chat-error-close {
+    background: none;
+    border: none;
+    color: #991b1b;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
