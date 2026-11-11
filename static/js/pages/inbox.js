@@ -1,3 +1,4 @@
+// static/js/pages/inbox.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Tab Switching Logic ---
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -31,6 +32,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeInquiryItem = null;
     let activeInquiryId = null;
 
+    if (replyInput && replyFeedback) {
+        replyInput.addEventListener('input', () => {
+            if (!replyFeedback.classList.contains('hidden-initial')) {
+                replyFeedback.classList.add('hidden-initial');
+                replyFeedback.textContent = '';
+            }
+        });
+    }
+
     inquiryItems.forEach(item => {
         item.addEventListener('click', async () => {
             activeInquiryItem = item;
@@ -50,13 +60,17 @@ document.addEventListener('DOMContentLoaded', () => {
             inquiryItems.forEach(el => el.classList.remove('active'));
             item.classList.add('active');
 
+            if (window.innerWidth <= 768 && readerContent) {
+                readerContent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
             if (item.classList.contains('unread')) {
                 item.classList.remove('unread');
                 try {
                     await fetch(`/api/inquiry/${activeInquiryId}/read/`, {
                         method: 'POST',
                         headers: {
-                            'X-CSRFToken': csrfToken,
+                            'X-CSRFToken': csrfToken || '',
                             'Content-Type': 'application/json'
                         }
                     });
@@ -83,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch(`/api/inquiry/${activeInquiryId}/reply/`, {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': csrfToken,
+                        'X-CSRFToken': csrfToken || '',
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ reply: replyText })
@@ -105,11 +119,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else if (replyFeedback) {
                     replyFeedback.className = 'text-12-muted text-danger font-600 mb-10';
-                    replyFeedback.textContent = data.error || 'Could not send reply.';
+                    replyFeedback.textContent = data.error || 'Could not send reply. Off-platform contact details are not permitted.';
                     replyFeedback.classList.remove('hidden-initial');
                 }
             } catch (error) {
-                console.error("Error sending inquiry reply:", error);
+                if (replyFeedback) {
+                    replyFeedback.className = 'text-12-muted text-danger font-600 mb-10';
+                    replyFeedback.textContent = 'Network error while sending reply. Please check your connection and try again.';
+                    replyFeedback.classList.remove('hidden-initial');
+                }
             } finally {
                 sendReplyBtn.disabled = false;
                 sendReplyBtn.innerHTML = '<i class="fa-solid fa-paper-plane icon-spaced"></i> Send Secure In-App Reply';

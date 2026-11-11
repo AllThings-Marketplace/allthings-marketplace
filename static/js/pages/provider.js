@@ -1,3 +1,4 @@
+// static/js/pages/provider.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- 1. Premium Tab Logic ---
     const tabButtons = document.querySelectorAll('.tab-btn');
@@ -54,33 +55,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 3. Copy Profile Link Button ---
+    // --- 3. Copy Profile Link Button (In-Place Feedback, No Browser Alert) ---
     const copyBtn = document.getElementById('copyProfileLinkBtn');
     if (copyBtn) {
-        copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(window.location.href);
-            alert('Store link copied to clipboard!');
+        const originalCopyHtml = copyBtn.innerHTML;
+        copyBtn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(window.location.href);
+                copyBtn.innerHTML = '<i class="fa-solid fa-check icon-spaced"></i> Link Copied!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalCopyHtml;
+                }, 2000);
+            } catch (err) {
+                console.error("Clipboard copy failed:", err);
+            }
         });
     }
 
-    // --- 4. Inquiry Modal Open / Close / Submit ---
+    // --- 4. Inquiry Modal Open / Close / Submit (Zero Inline Styles) ---
     const inquiryModal = document.getElementById('inquiryModal');
     const openModalBtn = document.getElementById('openInquiryModalBtn');
     const closeModalBtn = document.getElementById('closeInquiryModalBtn');
     const inquiryForm = document.getElementById('inquiryForm');
+    const messageInput = document.getElementById('inquiryMessage');
     const errorMsg = document.getElementById('inquiryErrorMsg');
 
     function closeInquiryModal() {
         if (inquiryModal) {
             inquiryModal.classList.remove('active');
-            document.body.style.overflow = '';
+            document.body.classList.remove('lightbox-open');
         }
     }
 
     if (openModalBtn && inquiryModal) {
         openModalBtn.addEventListener('click', () => {
             inquiryModal.classList.add('active');
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('lightbox-open');
+            if (messageInput) messageInput.focus();
         });
     }
 
@@ -94,17 +105,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (messageInput && errorMsg) {
+        messageInput.addEventListener('input', () => {
+            if (!errorMsg.classList.contains('hidden-initial')) {
+                errorMsg.classList.add('hidden-initial');
+                errorMsg.textContent = '';
+            }
+        });
+    }
+
     if (inquiryForm) {
         inquiryForm.addEventListener('submit', async (event) => {
             event.preventDefault();
 
             const providerId = inquiryForm.getAttribute('data-provider-id');
-            const messageInput = document.getElementById('inquiryMessage');
             const btn = document.getElementById('sendInquiryBtn');
             const csrfEl = inquiryForm.querySelector('[name=csrfmiddlewaretoken]');
+            const cleanedMessage = messageInput ? messageInput.value.trim() : '';
+
+            if (!cleanedMessage) {
+                if (errorMsg) {
+                    errorMsg.textContent = 'Please write your question before sending.';
+                    errorMsg.classList.remove('hidden-initial');
+                }
+                return;
+            }
 
             if (errorMsg) errorMsg.classList.add('hidden-initial');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin icon-spaced"></i> Sending...';
             btn.disabled = true;
 
             try {
@@ -114,12 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         'X-CSRFToken': csrfEl ? csrfEl.value : '',
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ message: messageInput.value })
+                    body: JSON.stringify({ message: cleanedMessage })
                 });
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent!';
+                    btn.innerHTML = '<i class="fa-solid fa-check icon-spaced"></i> Sent!';
                     btn.classList.replace('btn-primary', 'btn-success');
 
                     setTimeout(() => {
@@ -127,19 +155,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         btn.innerHTML = '<i class="fa-solid fa-paper-plane icon-spaced"></i> Send Secure Inquiry';
                         btn.classList.replace('btn-success', 'btn-primary');
                         btn.disabled = false;
-                        messageInput.value = '';
+                        if (messageInput) messageInput.value = '';
                     }, 1200);
                 } else {
                     if (errorMsg) {
-                        errorMsg.textContent = data.error || 'Could not send message.';
+                        errorMsg.textContent = data.error || 'Could not send message. Please keep contact details inside AllThings Escrow.';
                         errorMsg.classList.remove('hidden-initial');
                     }
                     btn.innerHTML = '<i class="fa-solid fa-paper-plane icon-spaced"></i> Send Secure Inquiry';
                     btn.disabled = false;
                 }
             } catch (error) {
-                console.error("Error sending inquiry:", error);
-                btn.innerHTML = 'Error. Try Again';
+                if (errorMsg) {
+                    errorMsg.textContent = 'Network error while sending inquiry. Please check your connection and try again.';
+                    errorMsg.classList.remove('hidden-initial');
+                }
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane icon-spaced"></i> Send Secure Inquiry';
                 btn.disabled = false;
             }
         });
