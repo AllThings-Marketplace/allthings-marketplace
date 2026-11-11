@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import json
+import re
 from decimal import Decimal
 from django.conf import settings
 from django.db import transaction
@@ -23,7 +24,6 @@ from .models import (
     SupportTicket, TicketMessage
 )
 from marketplace.models import Product, Service, ProductVariant, ServicePackage, UserInteraction
-from marketplace.validators import inspect_listing_safety
 from .paystack import PaystackAPI
 from .tasks import trigger_escrow_auto_clear_if_due
 from .utils import (
@@ -35,6 +35,58 @@ from .utils import (
     refund_service_escrow,
 )
 from .logistics import LogisticsEngine, normalize_location
+
+
+# --- DEDICATED CHAT & BOOKING NOTES ANTI-LEAKAGE GUARDRAIL ---
+
+_PHONE_PATTERN = re.compile(
+    r'(?:\+?234[\s.\-]?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4})'
+    r'|(?:\b0[789][01]\d[\s.\-]?\d{3}[\s.\-]?\d{4}\b)'
+)
+_EMAIL_PATTERN = re.compile(r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b')
+_NUBAN_PATTERN = re.compile(r'\b\d{10}\b')
+_OFF_PLATFORM_KEYWORDS = re.compile(
+    r'\b(?:whatsapp|wa\.me|t\.me|telegram|opay|palmpay|moniepoint|kuda)\b',
+    re.IGNORECASE
+)
+
+
+def inspect_chat_safety(text):
+    """
+    Scans a chat message or booking note strictly for off-platform contact
+    or direct bank transfer leakage.
+    Returns (is_flagged: bool, error_message: str).
+    """
+    if not text:
+        return False, ""
+
+    cleaned = text.strip()
+
+    if _PHONE_PATTERN.search(cleaned):
+        return (
+            True,
+            "For your escrow protection, sharing phone numbers is not permitted in order chat."
+        )
+
+    if _EMAIL_PATTERN.search(cleaned):
+        return (
+            True,
+            "For your escrow protection, sharing email addresses is not permitted in order chat."
+        )
+
+    if _OFF_PLATFORM_KEYWORDS.search(cleaned):
+        return (
+            True,
+            "Please keep all communication and payments on AllThings. External apps (WhatsApp, Telegram, OPay, etc.) are not covered by Escrow."
+        )
+
+    if _NUBAN_PATTERN.search(cleaned):
+        return (
+            True,
+            "Sharing 10-digit bank account numbers or phone numbers is not permitted. All payments must go through AllThings Escrow."
+        )
+
+    return False, ""
 
 
 # --- UNIVERSAL NOTIFICATION DISPATCHER ---
@@ -363,17 +415,10 @@ def process_service_booking(request, service_id):
         service_location = request.POST.get('service_location', '').strip()
         customer_notes = request.POST.get('customer_notes', '').strip()
 
-        # Anti-leakage guardrail: block phone numbers, emails, WhatsApp links, and bank details in pre-escrow booking notes
         if customer_notes:
-            is_flagged, _ = inspect_listing_safety(
-                title="Service Booking Notes",
-                description=customer_notes,
-            )
+            is_flagged, err_msg = inspect_chat_safety(customer_notes)
             if is_flagged:
-                messages.error(
-                    request,
-                    "For your escrow protection, please do not include phone numbers, WhatsApp links, email addresses, or bank details in your booking notes."
-                )
+                messages.error(request, err_msg)
                 return redirect('marketplace:service_detail', slug=service.slug)
 
         agreed_price = service.base_price or 0.00
@@ -826,7 +871,7 @@ def paystack_webhook(request):
         if order_type == 'service' and order_id:
             _fulfill_paid_service_order(order_id)
         elif order_type == 'product' and order_id:
-            _fulfill_paid_product_order(order_id, reference=reference)
+            _fulfill_paid_product_order(order.id if hasattr(order_id, 'id') else order_id, reference=reference)
         else:
             attempt = PaymentAttempt.objects.filter(reference=reference).first()
             if attempt:
@@ -1067,18 +1112,9 @@ def send_order_message(request, order_id):
         body = request.POST.get('body', '').strip()
         attachment = request.FILES.get('attachment')
 
-        # Anti-leakage guardrail: block phone numbers, WhatsApp links, emails, and bank account details in Order Chat
         if body:
-            is_flagged, _ = inspect_listing_safety(
-                title="Order Chat Message",
-                description=body,
-                provider=order.provider if is_provider else None,
-            )
+            is_flagged, err_msg = inspect_chat_safety(body)
             if is_flagged:
-                err_msg = (
-                    "For your escrow protection, sharing phone numbers, WhatsApp links, email addresses, "
-                    "or personal bank details is not permitted in order chat."
-                )
                 if _is_ajax(request):
                     return JsonResponse({'status': 'error', 'error': err_msg, 'message': err_msg}, status=400)
                 messages.error(request, err_msg)
