@@ -5,7 +5,7 @@
 {% block title %}Operations &amp; Compliance Command Center | AllThings{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.5">
     <link rel="stylesheet" href="{% static 'css/pages/ops.css' %}?v=1.0">
 {% endblock %}
 
@@ -91,6 +91,7 @@
             <div>
                 <p class="kpi-label">Funds Locked in Escrow</p>
                 <h3 class="kpi-value">NGN {{ total_escrow_locked|floatformat:2|intcomma }}</h3>
+                <span class="text-12-muted">Platform Commission: NGN {{ platform_commission_total|floatformat:2|intcomma }}</span>
             </div>
         </div>
 
@@ -99,6 +100,7 @@
             <div>
                 <p class="kpi-label">Cleared Provider Wallets</p>
                 <h3 class="kpi-value">NGN {{ total_available|floatformat:2|intcomma }}</h3>
+                <span class="text-12-muted">Ready for weekly bank withdrawal</span>
             </div>
         </div>
 
@@ -107,6 +109,7 @@
             <div>
                 <p class="kpi-label">Total Disbursed Payouts</p>
                 <h3 class="kpi-value">NGN {{ total_paid_out|floatformat:2|intcomma }}</h3>
+                <span class="text-12-muted">Settled via Paystack Transfers</span>
             </div>
         </div>
     </div>
@@ -169,6 +172,43 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Recent Admin Audit Trail -->
+    <div class="summary-card p-0 mt-25">
+        <div class="flex-between align-center py-15-px-20 border-top-light">
+            <h3 class="m-0 text-16 font-700-block"><i class="fa-solid fa-clipboard-list text-primary mr-5"></i> Recent Operations Audit Trail</h3>
+            <span class="text-12-muted">Logged Staff &amp; Compliance Actions</span>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table m-0">
+                <thead>
+                    <tr>
+                        <th>Staff Member</th>
+                        <th>Target Record</th>
+                        <th>Action Summary</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_audit_logs %}
+                        <tr>
+                            <td><strong>{{ log.user.get_full_name|default:log.user.username }}</strong></td>
+                            <td>
+                                <span class="shipping-tier-pill">{{ log.content_type.name|title }}</span>
+                                <span class="text-12-muted block mt-5">{{ log.object_repr }}</span>
+                            </td>
+                            <td>{{ log.get_change_message }}</td>
+                            <td class="text-12-muted">{{ log.action_time|timesince }} ago</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="table-empty-cell">No administrative actions recorded yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 

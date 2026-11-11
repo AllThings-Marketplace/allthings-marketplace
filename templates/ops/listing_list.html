@@ -5,7 +5,7 @@
 {% block title %}Listing Moderation Queue | AllThings Ops{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.4">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.5">
     <link rel="stylesheet" href="{% static 'css/pages/ops.css' %}?v=1.0">
 {% endblock %}
 
@@ -16,7 +16,7 @@
         <div>
             <span class="ops-eyebrow"><i class="fa-solid fa-boxes-stacked"></i> CATALOG QUALITY CONTROL</span>
             <h1 class="ops-hero-title">Listing Moderation Queue</h1>
-            <p class="ops-hero-subtitle">Review newly submitted products and services before they appear in public marketplace search results.</p>
+            <p class="ops-hero-subtitle">Review newly submitted products and services, inspect safety flags, or moderate live marketplace items.</p>
         </div>
         <a href="{% url 'ops:overview' %}" class="action-btn btn-outline action-sm">
             &larr; Ops Overview
@@ -41,8 +41,23 @@
         </a>
     </nav>
 
-    <!-- 1. Pending Products -->
-    <h3 class="checkout-section-title mt-0">Pending Physical Products ({{ pending_products|length }})</h3>
+    <!-- Status Filter Pills -->
+    <div class="ops-filter-strip">
+        <div class="ops-filter-pills">
+            <a href="{% url 'ops:listing_list' %}?status=PENDING" class="ops-filter-pill {% if status_filter == 'PENDING' %}active{% endif %}">
+                Pending Review ({{ nav_pending_listings }})
+            </a>
+            <a href="{% url 'ops:listing_list' %}?status=APPROVED" class="ops-filter-pill {% if status_filter == 'APPROVED' %}active{% endif %}">
+                Live / Approved
+            </a>
+            <a href="{% url 'ops:listing_list' %}?status=REJECTED" class="ops-filter-pill {% if status_filter == 'REJECTED' %}active{% endif %}">
+                Rejected
+            </a>
+        </div>
+    </div>
+
+    <!-- 1. Physical Products -->
+    <h3 class="checkout-section-title mt-0">{{ status_filter|title }} Physical Products ({{ pending_products|length }})</h3>
     <div class="summary-card p-0 mb-40">
         <div class="table-responsive">
             <table class="data-table m-0">
@@ -73,6 +88,11 @@
                                         <strong class="display-block">{{ item.name }}</strong>
                                         <span class="text-12-muted block">Vendor: <strong>{{ item.provider.business_name }}</strong> ({{ item.provider.region }})</span>
                                         <span class="text-12-muted block mt-5">{{ item.description|truncatechars:90 }}</span>
+                                        {% if item.moderation_note %}
+                                            <span class="status-badge badge-danger badge-xs mt-5">
+                                                <i class="fa-solid fa-triangle-exclamation"></i> {{ item.moderation_note }}
+                                            </span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
@@ -83,6 +103,7 @@
                             </td>
                             <td>
                                 <div class="ops-moderation-actions">
+                                    {% if item.status != 'APPROVED' %}
                                     <form method="POST" action="{% url 'ops:moderate_listing' 'product' item.id %}">
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="approve">
@@ -90,10 +111,11 @@
                                             <i class="fa-solid fa-check"></i> Approve &amp; Publish
                                         </button>
                                     </form>
+                                    {% endif %}
                                     <form method="POST" action="{% url 'ops:moderate_listing' 'product' item.id %}" class="ops-reject-form">
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="reject">
-                                        <input type="text" name="moderation_note" class="form-control ops-reject-input" placeholder="Rejection reason..." required>
+                                        <input type="text" name="moderation_note" class="form-control ops-reject-input" placeholder="Rejection/suspension reason..." required>
                                         <button type="submit" class="action-btn btn-danger action-sm">Reject</button>
                                     </form>
                                 </div>
@@ -101,7 +123,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="3" class="table-empty-cell">No pending products awaiting moderation.</td>
+                            <td colspan="3" class="table-empty-cell">No products match this status filter.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -109,8 +131,8 @@
         </div>
     </div>
 
-    <!-- 2. Pending Services -->
-    <h3 class="checkout-section-title">Pending Professional Services ({{ pending_services|length }})</h3>
+    <!-- 2. Professional Services -->
+    <h3 class="checkout-section-title">{{ status_filter|title }} Professional Services ({{ pending_services|length }})</h3>
     <div class="summary-card p-0">
         <div class="table-responsive">
             <table class="data-table m-0">
@@ -135,6 +157,11 @@
                                         <strong class="display-block">{{ item.name }}</strong>
                                         <span class="text-12-muted block">Provider: <strong>{{ item.provider.business_name }}</strong> ({{ item.provider.region }})</span>
                                         <span class="text-12-muted block mt-5">{{ item.description|truncatechars:90 }}</span>
+                                        {% if item.moderation_note %}
+                                            <span class="status-badge badge-danger badge-xs mt-5">
+                                                <i class="fa-solid fa-triangle-exclamation"></i> {{ item.moderation_note }}
+                                            </span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
@@ -142,11 +169,18 @@
                                 <span class="shipping-tier-pill">{{ item.get_pricing_type_display }}</span>
                                 {% if item.base_price %}
                                     <span class="font-700-block text-blue mt-5">NGN {{ item.base_price|floatformat:0|intcomma }}</span>
+                                {% elif item.pricing_type == 'PACKAGES' %}
+                                    {% with first_pkg=item.packages.first %}
+                                        {% if first_pkg %}
+                                            <span class="font-700-block text-blue mt-5">From NGN {{ first_pkg.price|floatformat:0|intcomma }}</span>
+                                        {% endif %}
+                                    {% endwith %}
                                 {% endif %}
                                 <span class="text-12-muted block mt-5">{{ item.category.name }} &bull; {{ item.get_service_mode_display }}</span>
                             </td>
                             <td>
                                 <div class="ops-moderation-actions">
+                                    {% if item.status != 'APPROVED' %}
                                     <form method="POST" action="{% url 'ops:moderate_listing' 'service' item.id %}">
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="approve">
@@ -154,10 +188,11 @@
                                             <i class="fa-solid fa-check"></i> Approve &amp; Publish
                                         </button>
                                     </form>
+                                    {% endif %}
                                     <form method="POST" action="{% url 'ops:moderate_listing' 'service' item.id %}" class="ops-reject-form">
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="reject">
-                                        <input type="text" name="moderation_note" class="form-control ops-reject-input" placeholder="Rejection reason..." required>
+                                        <input type="text" name="moderation_note" class="form-control ops-reject-input" placeholder="Rejection/suspension reason..." required>
                                         <button type="submit" class="action-btn btn-danger action-sm">Reject</button>
                                     </form>
                                 </div>
@@ -165,7 +200,7 @@
                         </tr>
                     {% empty %}
                         <tr>
-                            <td colspan="3" class="table-empty-cell">No pending services awaiting moderation.</td>
+                            <td colspan="3" class="table-empty-cell">No services match this status filter.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
