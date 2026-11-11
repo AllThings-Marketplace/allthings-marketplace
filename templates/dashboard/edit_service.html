@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.5">
 {% endblock %}
 
 {% block content %}
@@ -228,7 +228,7 @@
                 {% if service.cover_image %}
                     <div class="existing-photo-card mb-15">
                         <div class="photo-thumb-wrapper">
-                            <img src="{{ service.cover_image.url }}" alt="Current Cover">
+                            <img src="{{ service.cover_image.url }}" class="js-previewable" alt="Current Cover: {{ service.name }}">
                             <span class="photo-role-badge">Current Cover</span>
                         </div>
                     </div>
@@ -242,7 +242,7 @@
                 <div id="coverPreviewBox" class="mt-15 hidden-initial">
                     <div class="existing-photo-card">
                         <div class="photo-thumb-wrapper">
-                            <img src="" id="coverPreviewImg" alt="New Cover Preview">
+                            <img src="" id="coverPreviewImg" class="js-previewable" alt="New Cover Preview">
                             <span class="photo-role-badge">New Cover</span>
                         </div>
                         <div class="photo-meta-bar">
@@ -259,7 +259,7 @@
                         {% for p_img in service.portfolio_images.all %}
                             <div class="existing-photo-card">
                                 <div class="photo-thumb-wrapper">
-                                    <img src="{{ p_img.image.url }}" alt="Portfolio Image">
+                                    <img src="{{ p_img.image.url }}" class="js-previewable" alt="Portfolio #{{ forloop.counter }}: {{ service.name }}">
                                     <span class="photo-role-badge">Portfolio #{{ forloop.counter }}</span>
                                 </div>
                             </div>
@@ -284,5 +284,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}?v=3.5"></script>
 {% endblock %}

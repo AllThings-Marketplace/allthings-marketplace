@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.1">
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}?v=3.5">
 {% endblock %}
 
 {% block content %}
@@ -186,12 +186,12 @@
                     <i class="fa-solid fa-panorama dropzone-icon"></i>
                     <strong class="dropzone-title">Select Main Cover Banner</strong>
                     <span class="text-12-muted">Displayed at the top of your service page</span>
-                    <input type="file" name="cover_image" id="serviceCoverInput" class="hidden-initial" accept="image/*" required>
+                    <input type="file" name="cover_image" id="serviceCoverInput" class="hidden-initial" accept="image/*">
                 </label>
                 <div id="coverPreviewBox" class="mt-15 hidden-initial">
                     <div class="existing-photo-card">
                         <div class="photo-thumb-wrapper">
-                            <img src="" id="coverPreviewImg" alt="Cover Preview">
+                            <img src="" id="coverPreviewImg" class="js-previewable" alt="Cover Preview">
                             <span class="photo-role-badge">Cover Banner</span>
                         </div>
                         <div class="photo-meta-bar">
@@ -213,7 +213,7 @@
             </div>
         </div>
 
-        <button type="submit" class="action-btn btn-primary w-100 mt-40 py-15 text-16 font-600-block requires-auth">
+        <button type="submit" class="action-btn btn-primary w-100 mt-40 py-15 text-16 font-600-block" id="addServiceSubmitBtn">
             <i class="fa-solid fa-bolt icon-spaced"></i> Publish Service
         </button>
     </form>
@@ -221,5 +221,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}?v=3.5"></script>
 {% endblock %}
