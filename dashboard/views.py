@@ -1,10 +1,11 @@
+import threading
 import uuid
 import requests
 from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import F, Q, Sum
-from django.db import transaction
+from django.db import transaction, close_old_connections
 from django.core.exceptions import ValidationError
 from django.contrib.contenttypes.models import ContentType
 
@@ -113,6 +114,24 @@ def _parse_non_negative_int(raw_val, default=0):
         return max(0, int(Decimal(cleaned)))
     except (InvalidOperation, ValueError, TypeError):
         return default
+
+
+def _dispatch_task_safely(task_func, obj_id):
+    """
+    Dispatches image processing in a non-blocking daemon thread so HTTP POST
+    requests return immediately and never hang Gunicorn sync workers if Redis
+    or Celery is offline.
+    """
+    def _runner():
+        close_old_connections()
+        try:
+            task_func(obj_id)
+        except Exception:
+            pass
+        finally:
+            close_old_connections()
+
+    threading.Thread(target=_runner, daemon=True).start()
 
 
 # --- 1. MAIN DASHBOARD ---
@@ -338,17 +357,6 @@ def request_payout(request):
     return redirect('dashboard:provider_dashboard')
 
 
-def _dispatch_task_safely(task_func, obj_id):
-    """
-    Queues the Celery task asynchronously via .delay(), or executes it inline
-    if Redis/Celery broker is not running so images never get stuck in UPLOADED.
-    """
-    try:
-        task_func.delay(obj_id)
-    except Exception:
-        task_func(obj_id)
-
-
 # --- 3. LISTING MANAGEMENT (Products & Services) ---
 
 @login_required
@@ -421,7 +429,16 @@ def add_product(request):
                 except (InvalidOperation, TypeError, ValueError):
                     raise ValidationError("Please enter a valid numeric product price.")
 
-                base_stock = _parse_non_negative_int(request.POST.get('stock_count'), default=0)
+                base_stock = _parse_non_negative_int(request.POST.get('stock_count'), default=1)
+                if base_stock <= 0:
+                    base_stock = 1
+
+                # Verified active providers with clean listings go live immediately while photos optimize in background
+                is_fast_tracked = (
+                    not is_flagged
+                    and profile.verification_status == 'ACTIVE'
+                    and getattr(profile, 'trust_score', 100) >= 50
+                )
 
                 product = Product.objects.create(
                     provider=profile,
@@ -433,9 +450,9 @@ def add_product(request):
                     weight_kg=weight_kg,
                     description=description,
                     attributes=dynamic_attributes,
-                    status=Product.ProductStatus.PENDING,
+                    status=Product.ProductStatus.APPROVED if is_fast_tracked else Product.ProductStatus.PENDING,
                     moderation_note=flag_reason if is_flagged else '',
-                    is_active=False
+                    is_active=is_fast_tracked,
                 )
 
                 variant_names = request.POST.getlist('variant_names[]')
@@ -456,7 +473,6 @@ def add_product(request):
                             safe_price = None
 
                         parsed_v_stock = _parse_non_negative_int(stock, default=0)
-                        # Inherit base_stock if the variant's individual stock input was left blank or 0
                         safe_stock = parsed_v_stock if parsed_v_stock > 0 else max(base_stock, 1)
                         total_variant_stock += safe_stock
 
@@ -471,26 +487,27 @@ def add_product(request):
                 if has_variants:
                     product.stock_count = max(base_stock, total_variant_stock)
                     product.save(update_fields=['stock_count'])
-                elif product.stock_count <= 0:
-                    raise ValidationError("Please enter an available stock quantity of at least 1.")
 
                 image_ids = []
                 for index, image_file in enumerate(uploaded_files):
                     new_image = ProductImage.objects.create(
                         product=product,
                         original_image=image_file,
-                        processing_status='UPLOADED',
+                        processing_status='APPROVED' if is_fast_tracked else 'UPLOADED',
                         image_type='MAIN' if index == 0 else 'GALLERY'
                     )
                     image_ids.append(new_image.id)
 
             for img_id in image_ids:
-                _dispatch_task_safely(process_product_image_task, img_id)
+                transaction.on_commit(lambda img_id=img_id: _dispatch_task_safely(process_product_image_task, img_id))
 
             if is_flagged:
                 messages.warning(request, f"Product saved and queued for admin review: {flag_reason}")
             else:
-                messages.success(request, f"Product submitted! {len(uploaded_files)} photo(s) are being optimized and will go live automatically.")
+                messages.success(
+                    request,
+                    f"'{product.name}' is now live with {product.stock_count} unit(s) in stock! Studio photo optimization is running in the background."
+                )
             return redirect('dashboard:provider_dashboard')
 
         except Category.DoesNotExist:
@@ -540,9 +557,9 @@ def upload_product_images(request, product_id):
             new_image = ProductImage.objects.create(
                 product=product,
                 original_image=image_file,
-                processing_status='UPLOADED'
+                processing_status='APPROVED' if product.status == 'APPROVED' else 'UPLOADED'
             )
-            _dispatch_task_safely(process_product_image_task, new_image.id)
+            transaction.on_commit(lambda img_id=new_image.id: _dispatch_task_safely(process_product_image_task, img_id))
 
         messages.success(request, f"Successfully uploaded {len(uploaded_files)} image(s). Our system is optimizing them now.")
         return redirect('dashboard:provider_dashboard')
@@ -761,7 +778,6 @@ def edit_service(request, service_id):
                     service.moderation_note = flag_reason
                     service.is_active = False
                 elif was_rejected:
-                    # Resubmitted after rejection: queue for admin review
                     service.status = Service.ServiceStatus.PENDING
                     service.moderation_note = ''
                     service.is_active = False
@@ -919,7 +935,7 @@ def edit_product(request, product_id):
                     product.is_active = False
                 else:
                     product.moderation_note = ''
-                    has_ready_images = product.images.filter(processing_status='COMPLETED').exists() or product.images.exists()
+                    has_ready_images = product.images.exists()
                     if was_rejected:
                         product.status = Product.ProductStatus.PENDING
                         product.is_active = False
