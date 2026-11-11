@@ -1749,3 +1749,27 @@ select.form-control {
         justify-content: center;
     }
 }
+
+/* ==========================================================================
+   MOBILE VARIANT & SERVICE PACKAGE BUILDER STACKING (dashboard.css v3.5)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .variant-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px;
+    }
+
+    .variant-row .btn-remove-variant {
+        grid-column: 1 / -1;
+        width: 100%;
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 8px;
+        font-weight: 600;
+    }
+}

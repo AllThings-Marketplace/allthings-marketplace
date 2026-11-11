@@ -99,6 +99,22 @@ def _check_active_provider_gate(request):
     return profile, None
 
 
+def _parse_non_negative_int(raw_val, default=0):
+    """
+    Safely parses integer inputs (stripping commas and spaces) without
+    crashing on empty strings or formatted numbers like '1,000'.
+    """
+    if raw_val is None:
+        return default
+    cleaned = str(raw_val).replace(',', '').strip()
+    if not cleaned:
+        return default
+    try:
+        return max(0, int(Decimal(cleaned)))
+    except (InvalidOperation, ValueError, TypeError):
+        return default
+
+
 # --- 1. MAIN DASHBOARD ---
 
 @login_required
@@ -392,18 +408,27 @@ def add_product(request):
                     shipping_class = Product.ShippingClass.SMALL
 
                 try:
-                    weight_kg = Decimal(request.POST.get('weight_kg', '1.00'))
+                    weight_kg = Decimal(str(request.POST.get('weight_kg', '1.00')).replace(',', '').strip())
                     if weight_kg <= 0:
                         weight_kg = Decimal('1.00')
                 except (InvalidOperation, TypeError, ValueError):
                     weight_kg = Decimal('1.00')
 
+                try:
+                    base_price = Decimal(str(request.POST.get('price', '')).replace(',', '').strip())
+                    if base_price <= 0:
+                        raise ValidationError("Please enter a valid product price greater than 0.")
+                except (InvalidOperation, TypeError, ValueError):
+                    raise ValidationError("Please enter a valid numeric product price.")
+
+                base_stock = _parse_non_negative_int(request.POST.get('stock_count'), default=0)
+
                 product = Product.objects.create(
                     provider=profile,
                     category=category,
                     name=name,
-                    price=request.POST.get('price'),
-                    stock_count=request.POST.get('stock_count', 0),
+                    price=base_price,
+                    stock_count=base_stock,
                     shipping_class=shipping_class,
                     weight_kg=weight_kg,
                     description=description,
@@ -424,12 +449,15 @@ def add_product(request):
                 for v_name, value, price, stock in zip(variant_names, variant_values, variant_prices, variant_stocks):
                     if v_name.strip() and value.strip():
                         has_variants = True
+                        price_clean = str(price).replace(',', '').strip()
                         try:
-                            safe_price = Decimal(price.strip()) if price.strip() else None
+                            safe_price = Decimal(price_clean) if price_clean else None
                         except InvalidOperation:
                             safe_price = None
 
-                        safe_stock = int(stock.strip()) if stock.strip().isdigit() else 0
+                        parsed_v_stock = _parse_non_negative_int(stock, default=0)
+                        # Inherit base_stock if the variant's individual stock input was left blank or 0
+                        safe_stock = parsed_v_stock if parsed_v_stock > 0 else max(base_stock, 1)
                         total_variant_stock += safe_stock
 
                         ProductVariant.objects.create(
@@ -441,8 +469,10 @@ def add_product(request):
                         )
 
                 if has_variants:
-                    product.stock_count = total_variant_stock
+                    product.stock_count = max(base_stock, total_variant_stock)
                     product.save(update_fields=['stock_count'])
+                elif product.stock_count <= 0:
+                    raise ValidationError("Please enter an available stock quantity of at least 1.")
 
                 image_ids = []
                 for index, image_file in enumerate(uploaded_files):
@@ -553,11 +583,11 @@ def add_service(request):
                 included_list = [i.strip() for i in included_raw.split(',') if i.strip()]
                 excluded_list = [i.strip() for i in excluded_raw.split(',') if i.strip()]
 
-                base_price_raw = request.POST.get('base_price')
-                base_price = Decimal(base_price_raw.strip()) if base_price_raw and pricing_type not in ['QUOTE', 'PACKAGES'] else None
+                base_price_raw = str(request.POST.get('base_price', '')).replace(',', '').strip()
+                base_price = Decimal(base_price_raw) if base_price_raw and pricing_type not in ['QUOTE', 'PACKAGES'] else None
 
                 radius_raw = request.POST.get('service_radius_km')
-                radius = int(radius_raw.strip()) if radius_raw and radius_raw.strip().isdigit() else None
+                radius = _parse_non_negative_int(radius_raw, default=0) or None
 
                 cover_image = request.FILES.get('cover_image')
                 if not cover_image:
@@ -600,11 +630,12 @@ def add_service(request):
                     pkg_durations = request.POST.getlist('pkg_durations[]')
 
                     for p_name, price, dur, feat in zip(pkg_names, pkg_prices, pkg_durations, pkg_features):
-                        if p_name.strip() and price.strip():
+                        price_clean = str(price).replace(',', '').strip()
+                        if p_name.strip() and price_clean:
                             ServicePackage.objects.create(
                                 service=service,
                                 name=p_name.strip(),
-                                price=Decimal(price.strip()),
+                                price=Decimal(price_clean),
                                 estimated_duration=dur.strip(),
                                 features=[f.strip() for f in feat.split(',') if f.strip()]
                             )
@@ -691,14 +722,14 @@ def edit_service(request, service_id):
                     service.pricing_type = submitted_pricing
 
                 radius_raw = request.POST.get('service_radius_km', '').strip()
-                service.service_radius_km = int(radius_raw) if radius_raw.isdigit() else None
+                service.service_radius_km = _parse_non_negative_int(radius_raw, default=0) or None
 
                 service.whats_included = [i.strip() for i in included_raw.split(',') if i.strip()]
                 service.whats_excluded = [i.strip() for i in excluded_raw.split(',') if i.strip()]
 
-                base_price_raw = request.POST.get('base_price')
+                base_price_raw = str(request.POST.get('base_price', '')).replace(',', '').strip()
                 if base_price_raw and service.pricing_type not in ['QUOTE', 'PACKAGES']:
-                    service.base_price = Decimal(base_price_raw.strip())
+                    service.base_price = Decimal(base_price_raw)
                 elif service.pricing_type in ['QUOTE', 'PACKAGES']:
                     service.base_price = None
 
@@ -710,10 +741,11 @@ def edit_service(request, service_id):
 
                     valid_packages = []
                     for p_name, price, dur, feat in zip(pkg_names, pkg_prices, pkg_durations, pkg_features):
-                        if p_name.strip() and price.strip():
+                        price_clean = str(price).replace(',', '').strip()
+                        if p_name.strip() and price_clean:
                             valid_packages.append({
                                 'name': p_name.strip(),
-                                'price': Decimal(price.strip()),
+                                'price': Decimal(price_clean),
                                 'estimated_duration': dur.strip(),
                                 'features': [f.strip() for f in feat.split(',') if f.strip()],
                             })
@@ -805,18 +837,19 @@ def edit_product(request, product_id):
                 if category_id:
                     product.category = Category.objects.get(id=category_id)
 
-                product.price = Decimal(str(request.POST.get('price', product.price)).strip())
+                raw_price = str(request.POST.get('price', product.price)).replace(',', '').strip()
+                product.price = Decimal(raw_price)
 
-                stock_input = request.POST.get('stock_count', '').strip()
-                if stock_input.isdigit():
-                    product.stock_count = int(stock_input)
+                raw_stock = request.POST.get('stock_count', '').strip()
+                if raw_stock != '':
+                    product.stock_count = _parse_non_negative_int(raw_stock, default=product.stock_count)
 
                 shipping_class = request.POST.get('shipping_class', product.shipping_class)
                 if shipping_class in dict(Product.ShippingClass.choices):
                     product.shipping_class = shipping_class
 
                 try:
-                    weight_val = Decimal(request.POST.get('weight_kg', product.weight_kg))
+                    weight_val = Decimal(str(request.POST.get('weight_kg', product.weight_kg)).replace(',', '').strip())
                     if weight_val > 0:
                         product.weight_kg = weight_val
                 except (InvalidOperation, TypeError, ValueError):
@@ -857,12 +890,14 @@ def edit_product(request, product_id):
                     for v_name, value, price, stock in zip(variant_names, variant_values, variant_prices, variant_stocks):
                         if v_name.strip() and value.strip():
                             has_variants = True
+                            price_clean = str(price).replace(',', '').strip()
                             try:
-                                safe_price = Decimal(price.strip()) if price.strip() else None
+                                safe_price = Decimal(price_clean) if price_clean else None
                             except InvalidOperation:
                                 safe_price = None
 
-                            safe_stock = int(stock.strip()) if stock.strip().isdigit() else 0
+                            parsed_v_stock = _parse_non_negative_int(stock, default=0)
+                            safe_stock = parsed_v_stock if str(stock).strip() != '' else max(product.stock_count, 1)
                             total_variant_stock += safe_stock
 
                             ProductVariant.objects.create(
@@ -873,8 +908,8 @@ def edit_product(request, product_id):
                                 stock=safe_stock
                             )
 
-                    if has_variants:
-                        product.stock_count = total_variant_stock
+                    if has_variants and total_variant_stock > 0:
+                        product.stock_count = max(product.stock_count, total_variant_stock)
 
                 # Moderation Recovery Logic
                 was_rejected = (product.status == Product.ProductStatus.REJECTED)
