@@ -1,14 +1,64 @@
+import re
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from marketplace.models import ProductImage
 from marketplace.validators import validate_product_image
-from marketplace.views import inspect_chat_safety
 from orders.models import OrderItem, ServiceOrder
 from .models import Feedback, FeedbackAttribute, FeedbackPhoto
+
+
+# --- SELF-CONTAINED REVIEW ANTI-LEAKAGE GUARDRAIL ---
+
+_PHONE_PATTERN = re.compile(
+    r'(?:\+?234[\s.\-]?\d{3}[\s.\-]?\d{3}[\s.\-]?\d{4})'
+    r'|(?:\b0[789][01]\d[\s.\-]?\d{3}[\s.\-]?\d{4}\b)'
+)
+_EMAIL_PATTERN = re.compile(r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b')
+_NUBAN_PATTERN = re.compile(r'\b\d{10}\b')
+_OFF_PLATFORM_KEYWORDS = re.compile(
+    r'\b(?:whatsapp|wa\.me|t\.me|telegram|opay|palmpay|moniepoint|kuda)\b',
+    re.IGNORECASE
+)
+
+
+def inspect_chat_safety(text):
+    """
+    Scans review text for phone numbers, email addresses, external chat links,
+    and 10-digit NUBAN bank account numbers.
+    """
+    if not text:
+        return False, ""
+
+    cleaned = text.strip()
+
+    if _PHONE_PATTERN.search(cleaned):
+        return (
+            True,
+            "For your security, please do not include phone numbers in public or private reviews."
+        )
+
+    if _EMAIL_PATTERN.search(cleaned):
+        return (
+            True,
+            "For your security, please do not include email addresses in reviews."
+        )
+
+    if _OFF_PLATFORM_KEYWORDS.search(cleaned):
+        return (
+            True,
+            "Please do not reference external payment or messaging apps (WhatsApp, Telegram, OPay, etc.) in reviews."
+        )
+
+    if _NUBAN_PATTERN.search(cleaned):
+        return (
+            True,
+            "Please do not include 10-digit bank account or phone numbers in reviews."
+        )
+
+    return False, ""
 
 
 def _clamp_rating(raw_val, default=5):
