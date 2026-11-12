@@ -1,83 +1,153 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block title %}Pending &amp; Past Reviews | AllThings Marketplace{% endblock %}
+
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/catalog.css' %}">
     <link rel="stylesheet" href="{% static 'css/pages/saved_items.css' %}">
+    <link rel="stylesheet" href="{% static 'css/pages/feedback.css' %}?v=2.0">
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-header flex-between mb-40">
+<div class="dashboard-header flex-between align-center mb-30 flex-wrap gap-10">
     <div>
-        <h2 class="section-heading checkout-page-title mb-5">Pending Reviews</h2>
-        <p class="section-subtitle text-muted mt-0">Help others by sharing your experience.</p>
+        <h2 class="section-heading checkout-page-title mb-5">Verified Escrow Reviews</h2>
+        <p class="section-subtitle text-muted mt-0">Rate your completed purchases and service bookings to help build community trust.</p>
     </div>
+    <a href="{% url 'orders:order_history' %}" class="action-btn btn-outline action-sm">
+        <i class="fa-solid fa-box"></i> My Orders &amp; Bookings
+    </a>
 </div>
 
 <main class="feed-full-width">
-    
+
     {% if pending_products or pending_services %}
-        <ul class="item-list">
-            
-            <!-- Pending Product Reviews -->
+        <h3 class="checkout-section-title mt-0 mb-15">
+            Awaiting Your Review ({{ pending_products|length|add:pending_services|length }})
+        </h3>
+        <ul class="item-list mb-40">
+
+            <!-- 1. Pending Product Reviews -->
             {% for item in pending_products %}
                 <li class="product-card-wrapper">
                     <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="block-link">
-                        {% if item.product.image %}
-                            <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img">
-                        {% else %}
-                            <div class="card-img flex-center-muted"><i class="fa-solid fa-box icon-32"></i></div>
-                        {% endif %}
+                        {% with main_img=item.product.images.first %}
+                            {% if main_img and main_img.processed_image %}
+                                <img src="{{ main_img.processed_image.url }}" alt="{{ item.product.name }}" class="card-img">
+                            {% elif main_img and main_img.original_image %}
+                                <img src="{{ main_img.original_image.url }}" alt="{{ item.product.name }}" class="card-img">
+                            {% elif item.product.image %}
+                                <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="card-img">
+                            {% else %}
+                                <div class="card-img flex-center-muted"><i class="fa-solid fa-box icon-32"></i></div>
+                            {% endif %}
+                        {% endwith %}
                     </a>
-                    
+
                     <div class="card-info-layout">
                         <div class="card-text-col">
-                            <span class="badge-sm text-primary-blue font-600-dark block-mb-5">Product</span>
+                            <span class="badge-sm text-primary-blue font-600-dark block-mb-5">
+                                <i class="fa-solid fa-shield-halved"></i> Verified Product
+                            </span>
                             <a href="{% url 'marketplace:product_detail' item.product.slug %}" class="item-info block-link">
                                 <strong>{{ item.product.name }}</strong>
                             </a>
-                            <span class="text-12-muted block-mt-10">Purchased on {{ item.order.created_at|date:"M d, Y" }}</span>
+                            <span class="text-12-muted block mt-5">
+                                Vendor: {{ item.product.provider.business_name }}
+                            </span>
+                            <span class="text-12-muted block-mt-10">
+                                Order {{ item.order.reference }} &bull; {{ item.order.created_at|date:"M d, Y" }}
+                            </span>
                         </div>
                     </div>
 
-                    <a href="{% url 'feedback:product_feedback' item.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
-                        <i class="fa-solid fa-pen-to-square"></i> Write a Review
+                    <a href="{% url 'feedback:product_feedback' item.id %}" class="action-btn btn-primary text-center w-100-block mt-10">
+                        <i class="fa-solid fa-star"></i> Rate Product
                     </a>
                 </li>
             {% endfor %}
 
-            <!-- Pending Service Reviews -->
+            <!-- 2. Pending Service Reviews -->
             {% for job in pending_services %}
                 <li class="product-card-wrapper service-card-highlight">
-                    <div class="block-link">
-                        {% if job.service.image %}
-                            <img src="{{ job.service.image.url }}" alt="{{ job.service.name }}" class="card-img">
+                    <a href="{% url 'marketplace:service_detail' job.service.slug %}" class="block-link">
+                        {% if job.service.cover_image %}
+                            <img src="{{ job.service.cover_image.url }}" alt="{{ job.service.name }}" class="card-img">
                         {% else %}
                             <div class="card-img flex-center-muted"><i class="fa-solid fa-screwdriver-wrench icon-32"></i></div>
                         {% endif %}
-                    </div>
-                    
+                    </a>
+
                     <div class="card-info-layout">
                         <div class="card-text-col">
-                            <span class="badge-sm text-yellow font-600-dark block-mb-5">Service</span>
-                            <strong class="item-info block-link">{{ job.service.name }}</strong>
-                            <span class="text-12-muted block-mt-10">Completed on {{ job.order.created_at|date:"M d, Y" }}</span>
+                            <span class="badge-sm text-yellow font-600-dark block-mb-5">
+                                <i class="fa-solid fa-screwdriver-wrench"></i> Verified Service
+                            </span>
+                            <a href="{% url 'marketplace:service_detail' job.service.slug %}" class="item-info block-link">
+                                <strong>{{ job.service.name }}</strong>
+                            </a>
+                            <span class="text-12-muted block mt-5">
+                                Provider: {{ job.provider.business_name }}
+                            </span>
+                            <span class="text-12-muted block-mt-10">
+                                Completed {{ job.completed_at|default:job.created_at|date:"M d, Y" }}
+                            </span>
                         </div>
                     </div>
 
-                    <a href="{% url 'feedback:service_feedback' job.id %}" class="action-btn btn-outline text-center w-100-block mt-10">
-                        <i class="fa-solid fa-pen-to-square"></i> Rate Service
+                    <a href="{% url 'feedback:service_feedback' job.id %}" class="action-btn btn-primary text-center w-100-block mt-10">
+                        <i class="fa-solid fa-star"></i> Rate Service
                     </a>
                 </li>
             {% endfor %}
 
         </ul>
     {% else %}
-        <div class="empty-state-wrapper empty-state-lg">
+        <div class="empty-state-wrapper empty-state-lg mb-40">
             <i class="fa-solid fa-clipboard-check empty-state-icon text-muted"></i>
             <h3 class="empty-state-title">You're all caught up!</h3>
-            <p class="empty-state-text">You have no pending reviews at this time. Check back after your next purchase.</p>
-            <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-20">Continue Shopping</a>
+            <p class="empty-state-text">You have no pending reviews right now. Completed orders and confirmed service bookings will appear here automatically.</p>
+            <a href="{% url 'marketplace:home' %}" class="action-btn btn-primary mt-20">Explore Marketplace</a>
+        </div>
+    {% endif %}
+
+    {% if submitted_reviews %}
+        <h3 class="checkout-section-title mt-30 mb-15">Your Past Submitted Reviews</h3>
+        <div class="submitted-reviews-grid">
+            {% for rev in submitted_reviews %}
+                <div class="summary-card submitted-review-card">
+                    <div class="flex-between align-center flex-wrap gap-10 mb-10">
+                        <div>
+                            <strong class="font-700-block">
+                                {% if rev.product %}
+                                    <a href="{% url 'marketplace:product_detail' rev.product.slug %}" class="no-underline text-dark">{{ rev.product.name }}</a>
+                                {% elif rev.service %}
+                                    <a href="{% url 'marketplace:service_detail' rev.service.slug %}" class="no-underline text-dark">{{ rev.service.name }}</a>
+                                {% else %}
+                                    Verified Purchase
+                                {% endif %}
+                            </strong>
+                            <span class="text-12-muted">{{ rev.created_at|date:"M d, Y" }}</span>
+                        </div>
+                        <span class="review-star-pill">
+                            <i class="fa-solid fa-star"></i> {{ rev.overall_rating }}.0 / 5
+                        </span>
+                    </div>
+
+                    {% if rev.public_review %}
+                        <p class="submitted-review-body">{{ rev.public_review }}</p>
+                    {% endif %}
+
+                    {% if rev.photos.all %}
+                        <div class="submitted-review-photos mt-10">
+                            {% for p in rev.photos.all %}
+                                <img src="{{ p.image.url }}" alt="Review photo" class="review-photo-thumb">
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
         </div>
     {% endif %}
 

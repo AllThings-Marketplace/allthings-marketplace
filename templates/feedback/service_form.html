@@ -1,102 +1,123 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block title %}Rate Service: {{ job.service.name }} | AllThings{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/feedback.css' %}?v=2.0">
+{% endblock %}
+
 {% block content %}
 <div class="main-container feedback-wrapper">
-    <div class="details-header flex-between">
-        <h2 class="section-heading checkout-page-title">Rate Service</h2>
-        <a href="{% url 'orders:order_history' %}" class="action-btn btn-secondary action-sm">Cancel</a>
+    <div class="details-header flex-between align-center flex-wrap gap-10">
+        <div>
+            <span class="verified-escrow-eyebrow"><i class="fa-solid fa-shield-halved"></i> VERIFIED ESCROW BOOKING</span>
+            <h2 class="section-heading checkout-page-title m-0">Rate Your Service Professional</h2>
+        </div>
+        <a href="{% url 'feedback:pending_reviews' %}" class="action-btn btn-secondary action-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Pending Reviews
+        </a>
     </div>
 
-    <div class="summary-card mt-30 feedback-card">
+    <div class="summary-card mt-20 feedback-card">
         <div class="feedback-item-header">
+            {% if job.service.cover_image %}
+                <img src="{{ job.service.cover_image.url }}" alt="{{ job.service.name }}" class="feedback-item-thumb">
+            {% endif %}
             <div>
-                <h3 class="font-600-dark mt-0">{{ job.service.name }}</h3>
-                <p class="text-12-muted mt-5">Performed by {{ job.provider.business_name }}</p>
+                <h3 class="font-600-dark m-0">{{ job.service.name }}</h3>
+                <p class="text-12-muted mt-5 mb-0">
+                    Performed by <strong>{{ job.provider.business_name }}</strong> &bull; Ref: {{ job.reference_code }}
+                </p>
             </div>
         </div>
 
-        <!-- Added enctype for image uploads -->
         <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="form-group">
-                <label>Overall Rating *</label>
+                <label class="form-label-dark">Overall Rating *</label>
                 <select name="overall_rating" class="form-control" required>
-                    <option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
-                    <option value="4">⭐⭐⭐⭐ - Very Good</option>
-                    <option value="3">⭐⭐⭐ - Average</option>
-                    <option value="2">⭐⭐ - Poor</option>
-                    <option value="1">⭐ - Terrible</option>
+                    <option value="5">⭐⭐⭐⭐⭐ (5/5) — Exceptional professionalism &amp; results</option>
+                    <option value="4">⭐⭐⭐⭐ (4/5) — Very Good, satisfied with the work</option>
+                    <option value="3">⭐⭐⭐ (3/5) — Average service</option>
+                    <option value="2">⭐⭐ (2/5) — Below expectations</option>
+                    <option value="1">⭐ (1/5) — Poor experience</option>
                 </select>
             </div>
 
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label>Professionalism</label>
+                    <label class="form-label-dark">Professionalism</label>
                     <select name="attr_professionalism" class="form-control">
-                        <option value="5">5 - Highly Professional</option>
-                        <option value="4">4 - Good</option>
-                        <option value="3">3 - Average</option>
-                        <option value="2">2 - Poor</option>
-                        <option value="1">1 - Unprofessional</option>
+                        <option value="5">5 — Highly Professional</option>
+                        <option value="4">4 — Good</option>
+                        <option value="3">3 — Average</option>
+                        <option value="2">2 — Poor</option>
+                        <option value="1">1 — Unprofessional</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Quality of Work</label>
+                    <label class="form-label-dark">Quality of Work</label>
                     <select name="attr_quality" class="form-control">
-                        <option value="5">5 - Flawless</option>
-                        <option value="4">4 - Good</option>
-                        <option value="3">3 - Average</option>
-                        <option value="2">2 - Poor</option>
-                        <option value="1">1 - Unacceptable</option>
+                        <option value="5">5 — Flawless Workmanship</option>
+                        <option value="4">4 — Good</option>
+                        <option value="3">3 — Average</option>
+                        <option value="2">2 — Poor</option>
+                        <option value="1">1 — Unacceptable</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-grid-2">
                 <div class="form-group">
-                    <label>Punctuality</label>
+                    <label class="form-label-dark">Punctuality &amp; Timeline</label>
                     <select name="attr_punctuality" class="form-control">
-                        <option value="5">5 - On Time</option>
-                        <option value="4">4 - Slightly Late</option>
-                        <option value="3">3 - Noticeably Late</option>
-                        <option value="2">2 - Very Late</option>
-                        <option value="1">1 - Didn't Show Up</option>
+                        <option value="5">5 — Right on Time</option>
+                        <option value="4">4 — Slightly Delayed</option>
+                        <option value="3">3 — Noticeably Late</option>
+                        <option value="2">2 — Very Late</option>
+                        <option value="1">1 — Missed Schedule</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Communication</label>
+                    <label class="form-label-dark">Communication</label>
                     <select name="attr_communication" class="form-control">
-                        <option value="5">5 - Excellent</option>
-                        <option value="4">4 - Good</option>
-                        <option value="3">3 - Average</option>
-                        <option value="2">2 - Poor</option>
-                        <option value="1">1 - Unresponsive</option>
+                        <option value="5">5 — Clear &amp; Responsive</option>
+                        <option value="4">4 — Good</option>
+                        <option value="3">3 — Average</option>
+                        <option value="2">2 — Slow to Respond</option>
+                        <option value="1">1 — Unresponsive</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Public Review *</label>
-                <textarea name="public_review" class="form-control" rows="4" placeholder="Tell others about your experience with this professional..." required></textarea>
+                <label class="form-label-dark">Public Review *</label>
+                <textarea name="public_review"
+                          class="form-control"
+                          rows="4"
+                          placeholder="Describe the quality of work, timeliness, and your experience working with this service professional..."
+                          required></textarea>
             </div>
 
             <div class="form-group">
-                <label>Private Feedback (Optional)</label>
-                <textarea name="private_feedback" class="form-control" rows="2" placeholder="Any private suggestions for the professional?"></textarea>
-                <small class="text-12-muted mt-5">Only the professional will see this.</small>
+                <label class="form-label-dark">Private Feedback (Optional)</label>
+                <textarea name="private_feedback"
+                          class="form-control"
+                          rows="2"
+                          placeholder="Any private suggestions for the service provider?"></textarea>
+                <small class="text-12-muted mt-5 block">Not shown publicly on the service page.</small>
             </div>
 
-            <!-- Added Photo Upload Field -->
             <div class="form-group border-top-light pt-20 mt-20">
-                <label><i class="fa-solid fa-camera icon-spaced"></i> Attach a Photo (Optional)</label>
-                <input type="file" name="feedback_photo" class="form-control" accept="image/*">
-                <small class="text-12-muted mt-5">Show others the completed work!</small>
+                <label class="form-label-dark"><i class="fa-solid fa-camera text-primary icon-spaced"></i> Attach a Photo of Completed Work (Optional)</label>
+                <input type="file" name="feedback_photo" class="form-control" accept="image/jpeg,image/png,image/webp">
+                <small class="text-12-muted mt-5 block">Upload a photo of the finished job to help future clients!</small>
             </div>
 
             <button type="submit" class="action-btn btn-primary w-100 btn-submit-lg mt-20">
-                Submit Feedback
+                <i class="fa-solid fa-check-circle icon-spaced"></i> Publish Verified Service Review
             </button>
         </form>
     </div>

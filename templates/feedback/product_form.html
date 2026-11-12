@@ -1,79 +1,118 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block title %}Rate Product: {{ item.product.name }} | AllThings{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/feedback.css' %}?v=2.0">
+{% endblock %}
+
 {% block content %}
 <div class="main-container feedback-wrapper">
-    <div class="details-header flex-between">
-        <h2 class="section-heading checkout-page-title">Rate Product</h2>
-        <a href="{% url 'orders:order_history' %}" class="action-btn btn-secondary action-sm">Cancel</a>
+    <div class="details-header flex-between align-center flex-wrap gap-10">
+        <div>
+            <span class="verified-escrow-eyebrow"><i class="fa-solid fa-shield-halved"></i> VERIFIED ESCROW PURCHASE</span>
+            <h2 class="section-heading checkout-page-title m-0">Rate Your Product</h2>
+        </div>
+        <a href="{% url 'feedback:pending_reviews' %}" class="action-btn btn-secondary action-sm">
+            <i class="fa-solid fa-arrow-left"></i> Back to Pending Reviews
+        </a>
     </div>
 
-    <div class="summary-card mt-30 feedback-card">
+    <div class="summary-card mt-20 feedback-card">
         <div class="feedback-item-header">
+            {% with main_img=item.product.images.first %}
+                {% if main_img and main_img.processed_image %}
+                    <img src="{{ main_img.processed_image.url }}" alt="{{ item.product.name }}" class="feedback-item-thumb">
+                {% elif main_img and main_img.original_image %}
+                    <img src="{{ main_img.original_image.url }}" alt="{{ item.product.name }}" class="feedback-item-thumb">
+                {% elif item.product.image %}
+                    <img src="{{ item.product.image.url }}" alt="{{ item.product.name }}" class="feedback-item-thumb">
+                {% endif %}
+            {% endwith %}
             <div>
-                <h3 class="font-600-dark mt-0">{{ item.product.name }}</h3>
-                <p class="text-12-muted mt-5">Purchased from {{ item.product.provider.business_name }}</p>
+                <h3 class="font-600-dark m-0">{{ item.product.name }}</h3>
+                <p class="text-12-muted mt-5 mb-0">
+                    Sold by <strong>{{ item.product.provider.business_name }}</strong> &bull; Order {{ item.order.reference }}
+                </p>
             </div>
         </div>
 
-        <!-- Added enctype for image uploads -->
         <form method="POST" enctype="multipart/form-data">
             {% csrf_token %}
 
             <div class="form-group">
-                <label>Overall Rating *</label>
+                <label class="form-label-dark">Overall Rating *</label>
                 <select name="overall_rating" class="form-control" required>
-                    <option value="5">⭐⭐⭐⭐⭐ - Excellent</option>
-                    <option value="4">⭐⭐⭐⭐ - Very Good</option>
-                    <option value="3">⭐⭐⭐ - Average</option>
-                    <option value="2">⭐⭐ - Poor</option>
-                    <option value="1">⭐ - Terrible</option>
+                    <option value="5">⭐⭐⭐⭐⭐ (5/5) — Excellent, exceeded expectations</option>
+                    <option value="4">⭐⭐⭐⭐ (4/5) — Very Good, happy with purchase</option>
+                    <option value="3">⭐⭐⭐ (3/5) — Average, acceptable</option>
+                    <option value="2">⭐⭐ (2/5) — Below expectations</option>
+                    <option value="1">⭐ (1/5) — Poor experience</option>
                 </select>
             </div>
 
-            <div class="form-grid-2">
+            <div class="feedback-attr-grid">
                 <div class="form-group">
-                    <label>Product Quality</label>
+                    <label class="form-label-dark">Product Quality</label>
                     <select name="attr_quality" class="form-control">
-                        <option value="5">5 - Flawless</option>
-                        <option value="4">4 - Good</option>
-                        <option value="3">3 - Average</option>
-                        <option value="2">2 - Poor</option>
-                        <option value="1">1 - Unusable</option>
+                        <option value="5">5 — Flawless</option>
+                        <option value="4">4 — Good</option>
+                        <option value="3">3 — Average</option>
+                        <option value="2">2 — Poor</option>
+                        <option value="1">1 — Unusable</option>
                     </select>
                 </div>
+
                 <div class="form-group">
-                    <label>As Described</label>
+                    <label class="form-label-dark">Match to Description</label>
                     <select name="attr_described" class="form-control">
-                        <option value="5">5 - Perfectly Accurate</option>
-                        <option value="4">4 - Mostly Accurate</option>
-                        <option value="3">3 - Somewhat Accurate</option>
-                        <option value="2">2 - Not Really</option>
-                        <option value="1">1 - Completely Different</option>
+                        <option value="5">5 — Exactly as Described</option>
+                        <option value="4">4 — Mostly Accurate</option>
+                        <option value="3">3 — Somewhat Accurate</option>
+                        <option value="2">2 — Inaccurate</option>
+                        <option value="1">1 — Completely Different</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label-dark">Packaging &amp; Delivery</label>
+                    <select name="attr_delivery" class="form-control">
+                        <option value="5">5 — Fast &amp; Well Packaged</option>
+                        <option value="4">4 — Good Delivery</option>
+                        <option value="3">3 — Average</option>
+                        <option value="2">2 — Delayed</option>
+                        <option value="1">1 — Poor Packaging/Handling</option>
                     </select>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Public Review *</label>
-                <textarea name="public_review" class="form-control" rows="4" placeholder="Tell others about your experience with this product..." required></textarea>
+                <label class="form-label-dark">Public Review *</label>
+                <textarea name="public_review"
+                          class="form-control"
+                          rows="4"
+                          placeholder="Share honest details about the product quality, performance, and packaging to help fellow shoppers..."
+                          required></textarea>
             </div>
 
             <div class="form-group">
-                <label>Private Feedback (Optional)</label>
-                <textarea name="private_feedback" class="form-control" rows="2" placeholder="Any private suggestions for the seller?"></textarea>
-                <small class="text-12-muted mt-5">Only the seller will see this.</small>
+                <label class="form-label-dark">Private Note to Seller &amp; AllThings Support (Optional)</label>
+                <textarea name="private_feedback"
+                          class="form-control"
+                          rows="2"
+                          placeholder="Any constructive suggestions strictly for the vendor and platform team?"></textarea>
+                <small class="text-12-muted mt-5 block">Not shown publicly on the product page.</small>
             </div>
 
-            <!-- Added Photo Upload Field -->
             <div class="form-group border-top-light pt-20 mt-20">
-                <label><i class="fa-solid fa-camera icon-spaced"></i> Attach a Photo (Optional)</label>
-                <input type="file" name="feedback_photo" class="form-control" accept="image/*">
-                <small class="text-12-muted mt-5">Show others what you received!</small>
+                <label class="form-label-dark"><i class="fa-solid fa-camera text-primary icon-spaced"></i> Attach a Product Photo (Optional)</label>
+                <input type="file" name="feedback_photo" class="form-control" accept="image/jpeg,image/png,image/webp">
+                <small class="text-12-muted mt-5 block">Show other buyers what the delivered item looks like in person.</small>
             </div>
 
             <button type="submit" class="action-btn btn-primary w-100 btn-submit-lg mt-20">
-                Submit Feedback
+                <i class="fa-solid fa-check-circle icon-spaced"></i> Publish Verified Review
             </button>
         </form>
     </div>

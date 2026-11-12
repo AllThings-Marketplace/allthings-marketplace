@@ -57,3 +57,103 @@
     border-radius: 8px; 
     margin-top: 20px;
 }
+
+/* ==========================================================================
+   VERIFIED ESCROW REVIEW FORMS & HISTORY (feedback.css v2.0)
+   ========================================================================== */
+.verified-escrow-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #059669;
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+}
+
+.feedback-item-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 18px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.feedback-item-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.feedback-attr-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+
+.submitted-reviews-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.submitted-review-card {
+    padding: 18px 20px;
+}
+
+.review-star-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #b45309;
+    font-size: 12.5px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.review-star-pill i {
+    color: #f59e0b;
+}
+
+.submitted-review-body {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #334155;
+}
+
+.submitted-review-photos {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.review-photo-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #cbd5e1;
+    cursor: zoom-in;
+}
+
+@media (max-width: 768px) {
+    .feedback-attr-grid,
+    .submitted-reviews-grid {
+        grid-template-columns: 1fr;
+    }
+}
